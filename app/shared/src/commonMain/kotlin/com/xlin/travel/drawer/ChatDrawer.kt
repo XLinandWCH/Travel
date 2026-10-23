@@ -46,7 +46,6 @@ import travel.app.shared.generated.resources.search
 import travel.app.shared.generated.resources.setting
 
 /**
- * 侧边抽屉内容，对应 HTML 的 <aside id="sidebar">：
  * 顶部 New chat + 搜索、中部历史记录、底部用户 + 设置。
  */
 @Composable

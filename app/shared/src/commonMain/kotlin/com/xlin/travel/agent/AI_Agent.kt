@@ -13,7 +13,6 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.streaming.StreamFrame
 import com.xlin.travel.agent.tool.CalculatorTool
-import kotlinx.coroutines.runBlocking
 
 val TravelModel = LLModel(
     provider = LLMProvider.OpenAI,
@@ -32,7 +31,17 @@ val TravelModel = LLModel(
 // 1. commonMain 里用 expect 拿 executor
 expect fun createChatExecutor(): PromptExecutor
 
-suspend fun chatStreaming(message: String): String {
+/**
+ * 运行 Agent 并流式输出。
+ *
+ * @param message 用户输入
+ * @param onEvent 流式事件回调（思考 / 正文 / 结束），由界面层渲染
+ * @return 本次对话的最终完整结果
+ */
+suspend fun chatStreaming(
+    message: String,
+    onEvent: (ChatStreamEvent) -> Unit = {},
+): String {
     val myTools = ToolRegistry {
         tool(CalculatorTool)
     }
@@ -45,8 +54,6 @@ suspend fun chatStreaming(message: String): String {
         toolRegistry = myTools
     ) {
         handleEvents {
-            var isReasoningStarted = false
-
             onToolCallStarting { ctx ->
                 println("\n[调用工具: ${ctx.toolName}]:[输入参数 ${ctx.toolArgs}]... ")
             }
@@ -54,25 +61,17 @@ suspend fun chatStreaming(message: String): String {
             onLLMStreamingFrameReceived { ctx ->
                 when (val frame = ctx.streamFrame) {
                     is StreamFrame.ReasoningDelta -> {
-                        if (!isReasoningStarted) {
-                            println("\n[Reasoning]")
-                            isReasoningStarted = true
-                        }
-                        frame.text?.let { print(it) }
+                        frame.text?.let { onEvent(ChatStreamEvent.Reasoning(it)) }
                     }
                     is StreamFrame.TextDelta -> {
-                        if (isReasoningStarted) {
-                            println("\n--------------------")
-                            isReasoningStarted = false
-                        }
-                        print(frame.text)
+                        onEvent(ChatStreamEvent.Content(frame.text))
                     }
                     else -> {}
                 }
             }
 
             onLLMStreamingCompleted {
-                println()
+                onEvent(ChatStreamEvent.Completed)
             }
         }
     }

@@ -43,7 +43,6 @@ import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.search
 
 /**
- * 搜索弹窗，对应 HTML 的 #searchModal：遮罩 + 面板（搜索框 + 结果列表）。
  * 由 [ChatHistoryState.isSearchOpen] 控制显隐。
  */
 @Composable

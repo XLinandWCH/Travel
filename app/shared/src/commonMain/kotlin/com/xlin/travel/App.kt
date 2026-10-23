@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.xlin.travel.chat_screen.ChatScreen
+import com.xlin.travel.chat_screen.ChatState
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.MenuButtonBackground
 import com.xlin.travel.drawer.ChatDrawer
@@ -41,6 +42,7 @@ import travel.app.shared.generated.resources.menu
 fun App() {
     MaterialTheme {
         val inputState = remember { ChatInputState() }
+        val chatState = remember { ChatState() }
         val history = remember { ChatHistoryState() }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
@@ -69,8 +71,9 @@ fun App() {
                     // 顶栏：菜单按钮
                     MainTopBar(onMenuClick = { scope.launch { drawerState.open() } })
 
-                    // 聊天界面（当前为占位）
+                    // 聊天界面：用户消息与 AI 流式回复
                     ChatScreen(
+                        state = chatState,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
@@ -79,7 +82,7 @@ fun App() {
                     // 输入框
                     ChatInputBox(
                         state = inputState,
-                        onSend = { /* TODO 接入发送逻辑 */ },
+                        onSend = { text -> scope.launch { chatState.send(text) } },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 8.dp),
