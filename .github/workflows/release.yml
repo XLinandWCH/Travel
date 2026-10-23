@@ -38,11 +38,29 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      # 从 Secrets 还原签名证书（BASE64 编码的 jks 文件）
+      # 未配置 Secrets 时降级为未签名产物，不影响构建
+      - name: Decode Release Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > ${{ github.workspace }}/travel-release.jks
+            echo "KEYSTORE_FOUND=true" >> "$GITHUB_ENV"
+            echo "✅ 已还原签名证书 travel-release.jks"
+          else
+            echo "⚠️ 未配置 ANDROID_KEYSTORE_BASE64，Release 将保持未签名（无法直接安装）"
+          fi
+
       - name: Build Debug + Release APK
         run: >
           ./gradlew :app:androidApp:assembleDebug :app:androidApp:assembleRelease
           -Prelease.versionName="${{ github.event.inputs.versionName }}"
           -Prelease.versionCode="${{ github.event.inputs.versionCode }}"
+          ${KEYSTORE_FOUND:+-Psign.keyStore=${{ github.workspace }}/travel-release.jks}
+          ${KEYSTORE_FOUND:+-Psign.keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}}
+          ${KEYSTORE_FOUND:+-Psign.keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}}
+          ${KEYSTORE_FOUND:+-Psign.storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}}
           --stacktrace
 
       # 数据库自检：确认 androidx.sqlite 2.7.1 的 BundledSQLiteDriver
@@ -65,11 +83,19 @@ jobs:
           name: Travel-Android-Debug-v${{ github.event.inputs.versionName }}
           path: app/androidApp/build/outputs/apk/debug/androidApp-debug.apk
 
-      - name: Upload Release APK（未签名）
+      # 已签名时产物为 androidApp-release.apk，未签名时为 *-unsigned.apk，用通配匹配两种情况
+      - name: Rename Release APK
+        run: |
+          set -e
+          APK=$(find app/androidApp/build/outputs/apk/release -name '*.apk' | head -n 1)
+          echo "Release 产物：$APK"
+          mv "$APK" "Travel-v${{ github.event.inputs.versionName }}-Android-release.apk"
+
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: Travel-Android-Release-v${{ github.event.inputs.versionName }}
-          path: app/androidApp/build/outputs/apk/release/androidApp-release-unsigned.apk
+          path: Travel-*-Android-release.apk
 
   # ============================================================
   # iOS —— 附带平台：continue-on-error，失败不影响整体工作流状态，

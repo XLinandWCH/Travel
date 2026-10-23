@@ -23,6 +23,15 @@ android {
     namespace = "com.xlin.travel"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
+    signingConfigs {
+        create("travelRelease") {
+            keyAlias = providers.gradleProperty("sign.keyAlias").orNull ?: ""
+            keyPassword = providers.gradleProperty("sign.keyPassword").orNull ?: ""
+            storeFile = providers.gradleProperty("sign.keyStore").orNull?.let { file(it) }
+            storePassword = providers.gradleProperty("sign.storePassword").orNull ?: ""
+        }
+    }
+
     defaultConfig {
         applicationId = "com.xlin.travel"
         minSdk = libs.versions.android.minSdk.get().toInt()
@@ -43,6 +52,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // 签名：CI 通过 -Psign.* 属性注入；本地未配置时保持未签名（assembleRelease 仍可通过 compileSdk 检查）
+            val signingProps = providers.gradleProperty("sign.keyStore")
+            if (signingProps.orNull != null) {
+                signingConfig = signingConfigs.getByName("travelRelease")
+            }
         }
     }
     compileOptions {
