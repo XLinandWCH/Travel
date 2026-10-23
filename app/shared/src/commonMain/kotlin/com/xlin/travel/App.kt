@@ -3,6 +3,7 @@ package com.xlin.travel
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,10 +31,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.xlin.travel.chat_screen.ChatScreen
 import com.xlin.travel.chat_screen.ChatState
+import com.xlin.travel.color.AppTheme
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.MenuButtonBackground
+import com.xlin.travel.color.ThemePreference
 import com.xlin.travel.color.TopBarEdgeFadeBrush
 import com.xlin.travel.db.ChatRepository
+import com.xlin.travel.db.SettingKeys
 import com.xlin.travel.db.rememberChatDatabase
 import com.xlin.travel.drawer.ChatDrawer
 import com.xlin.travel.drawer.ChatHistoryState
@@ -44,7 +48,6 @@ import com.xlin.travel.search.SearchScreen
 import com.xlin.travel.setting.ComingSoonScreen
 import com.xlin.travel.setting.SettingsScreen
 import com.xlin.travel.setting.ThemeColorScreen
-import com.xlin.travel.setting.ThemeColorState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
@@ -75,12 +78,21 @@ fun App() {
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         var screen by remember { mutableStateOf(AppScreen.Chat) }
-        val themeColorState = remember { ThemeColorState() }
         var comingSoonTitle by remember { mutableStateOf("") }
+        val systemIsDark = isSystemInDarkTheme()
 
-        // 启动时从数据库恢复历史会话列表
+        // 启动时从数据库恢复历史会话列表与主题偏好
         LaunchedEffect(repository) {
             history.refresh()
+            repository.getSetting(SettingKeys.ThemePreference)?.let { saved ->
+                AppTheme.preference = ThemePreference.entries.firstOrNull { it.name == saved }
+                    ?: AppTheme.preference
+            }
+        }
+
+        // 跟随系统：把系统深色状态同步给 AppTheme（System 偏好时生效）
+        LaunchedEffect(systemIsDark) {
+            AppTheme.systemIsDark = systemIsDark
         }
 
         // 系统返回键：设置子页面先回设置列表，设置 / 搜索回聊天页，聊天页才交给系统退出应用
@@ -145,11 +157,14 @@ fun App() {
                         comingSoonTitle = title
                         screen = AppScreen.ComingSoon
                     },
-                    themeColor = themeColorState,
                 )
 
                 AppScreen.ThemeColor -> ThemeColorScreen(
-                    state = themeColorState,
+                    onSelect = { option ->
+                        // 立即全局生效，同时写入数据库，下次启动保持
+                        AppTheme.preference = option
+                        scope.launch { repository.setSetting(SettingKeys.ThemePreference, option.name) }
+                    },
                     onBack = { screen = AppScreen.Settings },
                 )
 

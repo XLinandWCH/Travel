@@ -49,5 +49,12 @@ internal object ChatSchema {
         CREATE INDEX IF NOT EXISTS idx_conversation_updated
             ON conversation(updated_at DESC)
         """.trimIndent(),
+
+        """
+        CREATE TABLE IF NOT EXISTS app_setting (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+        """.trimIndent(),
     )
 }

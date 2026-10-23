@@ -82,4 +82,13 @@ class ChatRepository(private val database: ChatDatabase) {
     suspend fun deleteConversation(id: String) {
         database.withConnection { it.deleteConversation(id) }
     }
+
+    /** 读取设置项（如主题偏好），未保存过时返回 null */
+    suspend fun getSetting(key: String): String? =
+        database.withConnection { it.selectSetting(key) }
+
+    /** 写入设置项，存在则覆盖 */
+    suspend fun setSetting(key: String, value: String) {
+        database.withConnection { it.upsertSetting(key, value) }
+    }
 }

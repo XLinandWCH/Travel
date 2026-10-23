@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xlin.travel.color.AccentOrange
+import com.xlin.travel.color.AppTheme
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.SettingItemPressed
 import com.xlin.travel.navigation.PageTopBar
@@ -56,7 +57,6 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenThemeColor: () -> Unit,
     onOpenComingSoon: (String) -> Unit,
-    themeColor: ThemeColorState,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -97,7 +97,7 @@ fun SettingsScreen(
                 SettingRow(
                     icon = Res.drawable.dark,
                     label = "主题颜色",
-                    value = themeColor.current.label,
+                    value = AppTheme.preference.label,
                     showChevron = true,
                     onClick = onOpenThemeColor,
                 )
@@ -127,7 +127,7 @@ fun SettingsScreen(
                     onClick = { onOpenComingSoon("隐私政策") },
                 )
                 SettingRowDivider()
-                SettingRow(Res.drawable.vibe, "Vibe", value = "Bate")
+                SettingRow(Res.drawable.vibe, "当前版本", value = "Bate")
             }
 
             // ---------- 退出登录 ----------

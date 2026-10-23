@@ -25,7 +25,7 @@ val TravelModel = LLModel(
         LLMCapability.Tools,
         LLMCapability.Thinking
     ),
-    contextLength = 2028
+    contextLength = 32_000
 )
 
 // 1. commonMain 里用 expect 拿 executor

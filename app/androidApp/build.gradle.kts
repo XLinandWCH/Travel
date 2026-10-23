@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -23,12 +24,21 @@ android {
     namespace = "com.xlin.travel"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
+    // 签名属性查找顺序：-Psign.* / gradle.properties（CI 注入）优先，再回退到 local.properties（仅本地，不入版本库）
+    // 注意：providers.gradleProperty 读不到 local.properties，所以需手动加载
+    val localProperties = Properties().apply {
+        val f = rootProject.file("local.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    fun signingProp(name: String): String? =
+        providers.gradleProperty("sign.$name").orNull ?: localProperties.getProperty("sign.$name")
+
     signingConfigs {
         create("travelRelease") {
-            keyAlias = providers.gradleProperty("sign.keyAlias").orNull ?: ""
-            keyPassword = providers.gradleProperty("sign.keyPassword").orNull ?: ""
-            storeFile = providers.gradleProperty("sign.keyStore").orNull?.let { file(it) }
-            storePassword = providers.gradleProperty("sign.storePassword").orNull ?: ""
+            keyAlias = signingProp("keyAlias") ?: ""
+            keyPassword = signingProp("keyPassword") ?: ""
+            storeFile = signingProp("keyStore")?.let { rootProject.file(it) }
+            storePassword = signingProp("storePassword") ?: ""
         }
     }
 
@@ -52,9 +62,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // 签名：CI 通过 -Psign.* 属性注入；本地未配置时保持未签名（assembleRelease 仍可通过 compileSdk 检查）
-            val signingProps = providers.gradleProperty("sign.keyStore")
-            if (signingProps.orNull != null) {
+            // 签名：CI 通过 -Psign.* 注入，本地配在 local.properties；两者都没有时保持未签名
+            if (signingProp("keyStore") != null) {
                 signingConfig = signingConfigs.getByName("travelRelease")
             }
         }
