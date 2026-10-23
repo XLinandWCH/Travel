@@ -23,13 +23,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -42,9 +42,11 @@ import com.xlin.travel.color.InputTextColor
 import com.xlin.travel.color.ModeTextColor
 import com.xlin.travel.color.RemoveButtonBackground
 import com.xlin.travel.color.WhiteBtnBackground
+import com.xlin.travel.image_picker.rememberImagePicker
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.add_file
+import travel.app.shared.generated.resources.close_path
 import travel.app.shared.generated.resources.microphone
 import travel.app.shared.generated.resources.send
 
@@ -56,9 +58,11 @@ import travel.app.shared.generated.resources.send
 fun ChatInputBox(
     state: ChatInputState,
     onSend: (String) -> Unit = {},
-    onAddImage: () -> Unit = { state.onImageAdded() },
     modifier: Modifier = Modifier,
 ) {
+    // 系统图片选择器：选中结果写入 state（取消为 null）
+    val pickImage = rememberImagePicker(onResult = { bitmap -> state.onImagePicked(bitmap) })
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -67,9 +71,9 @@ fun ChatInputBox(
             .background(InputCardBackground)
             .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 10.dp),
     ) {
-        // 上：图片预览
-        if (state.hasImage) {
-            ImagePreview(onRemove = { state.onImageRemoved() })
+        // 上：图片预览（真实图片）
+        state.pickedImage?.let { image ->
+            ImagePreview(image = image, onRemove = { state.onImageRemoved() })
             Spacer(Modifier.height(10.dp))
         }
 
@@ -81,8 +85,8 @@ fun ChatInputBox(
         // 下：工具栏
         Toolbar(
             state = state,
-            onAddImage = onAddImage,
-            onSend = { if (state.showSend) onSend(state.text).also { state.onSent() } },
+            onAddImage = pickImage,
+            onSend = { if (state.showSend) { onSend(state.text); state.onSent() } },
         )
     }
 }
@@ -118,19 +122,18 @@ private fun InputRow(state: ChatInputState, onSend: (String) -> Unit) {
     }
 }
 
-/** 上部图片预览（占位图 + 删除按钮） */
+/** 上部图片预览：展示真实图片 + 右上角移除按钮（使用 close_path.xml） */
 @Composable
-private fun ImagePreview(onRemove: () -> Unit) {
+private fun ImagePreview(image: ImageBitmap, onRemove: () -> Unit) {
     Box {
-        Box(
+        Image(
+            bitmap = image,
+            contentDescription = "已选择的图片",
+            contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(64.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF444444)),
-            contentAlignment = Alignment.Center,
-        ) {
-            VectorIcon(path = remember { imagePlaceholderPath() }, tint = ModeTextColor, size = 24.dp)
-        }
+                .clip(RoundedCornerShape(12.dp)),
+        )
         // 右上角删除按钮
         Box(
             modifier = Modifier
@@ -142,7 +145,11 @@ private fun ImagePreview(onRemove: () -> Unit) {
                 .clickable(onClick = onRemove),
             contentAlignment = Alignment.Center,
         ) {
-            VectorIcon(path = remember { closePath(stroke = 2.5f) }, tint = Color.White, size = 11.dp)
+            Image(
+                painter = painterResource(Res.drawable.close_path),
+                contentDescription = "移除图片",
+                modifier = Modifier.size(12.dp),
+            )
         }
     }
 }
@@ -160,7 +167,7 @@ private fun Toolbar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // “+”按钮
+            // “+”按钮 → 拉起系统图片选择器
             Box(
                 modifier = Modifier
                     .size(32.dp)
@@ -180,7 +187,7 @@ private fun Toolbar(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { }) {
                 Text("Fast", color = ModeTextColor, fontSize = 15.sp)
                 Spacer(Modifier.width(4.dp))
-                VectorIcon(path = remember { arrowDownPath() }, tint = ModeTextColor, size = 12.dp)
+                Text("▾", color = ModeTextColor, fontSize = 12.sp)
             }
         }
 
