@@ -41,17 +41,22 @@ import com.xlin.travel.inputbox.ChatInputBox
 import com.xlin.travel.inputbox.ChatInputState
 import com.xlin.travel.navigation.AppBackHandler
 import com.xlin.travel.search.SearchScreen
+import com.xlin.travel.setting.ComingSoonScreen
 import com.xlin.travel.setting.SettingsScreen
+import com.xlin.travel.setting.ThemeColorScreen
+import com.xlin.travel.setting.ThemeColorState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.menu
 
-/** 顶层页面 */
+/** 顶层页面；ThemeColor / ComingSoon 是设置的子页面，返回时先回到设置列表 */
 private enum class AppScreen {
     Chat,
     Settings,
     Search,
+    ThemeColor,
+    ComingSoon,
 }
 
 @Composable
@@ -70,15 +75,20 @@ fun App() {
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         var screen by remember { mutableStateOf(AppScreen.Chat) }
+        val themeColorState = remember { ThemeColorState() }
+        var comingSoonTitle by remember { mutableStateOf("") }
 
         // 启动时从数据库恢复历史会话列表
         LaunchedEffect(repository) {
             history.refresh()
         }
 
-        // 系统返回键：子页面先回到聊天页，聊天页才交给系统退出应用
+        // 系统返回键：设置子页面先回设置列表，设置 / 搜索回聊天页，聊天页才交给系统退出应用
         AppBackHandler(enabled = screen != AppScreen.Chat) {
-            screen = AppScreen.Chat
+            screen = when (screen) {
+                AppScreen.ThemeColor, AppScreen.ComingSoon -> AppScreen.Settings
+                else -> AppScreen.Chat
+            }
         }
 
         // 背景铺满整屏（绘制到系统栏之下），内容再各自避开系统栏，符合原生 edge-to-edge 观感
@@ -130,6 +140,22 @@ fun App() {
 
                 AppScreen.Settings -> SettingsScreen(
                     onBack = { screen = AppScreen.Chat },
+                    onOpenThemeColor = { screen = AppScreen.ThemeColor },
+                    onOpenComingSoon = { title ->
+                        comingSoonTitle = title
+                        screen = AppScreen.ComingSoon
+                    },
+                    themeColor = themeColorState,
+                )
+
+                AppScreen.ThemeColor -> ThemeColorScreen(
+                    state = themeColorState,
+                    onBack = { screen = AppScreen.Settings },
+                )
+
+                AppScreen.ComingSoon -> ComingSoonScreen(
+                    title = comingSoonTitle,
+                    onBack = { screen = AppScreen.Settings },
                 )
 
                 AppScreen.Search -> SearchScreen(
