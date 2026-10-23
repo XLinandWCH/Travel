@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>设置</title>
+<style>
+    :root {
+        --bg: #121212;
+        --card: #1e1e1e;
+        --text: #ffffff;
+        --sub: #9e9e9e;
+        --accent: #ff5722;
+        --divider: rgba(255, 255, 255, 0.05);
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     Roboto, Helvetica, Arial, sans-serif;
+        font-size: 16px;
+        padding-bottom: 32px;
+    }
+
+    /* 顶部导航：左对齐 */
+    .header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--bg);
+        height: 56px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--divider);
+    }
+
+    .header .back {
+        color: var(--text);
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+        margin-right: 8px;
+        user-select: none;
+    }
+
+    .header .title {
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    .container {
+        padding: 16px;
+    }
+
+    .section-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--text);
+        margin: 16px 0 8px 4px;
+    }
+
+    .card {
+        background: var(--card);
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .item {
+        display: flex;
+        align-items: center;
+        min-height: 56px;
+        padding: 0 16px;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .item:active {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .item + .item::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 16px;
+        right: 16px;
+        height: 1px;
+        background: var(--divider);
+    }
+
+    .icon-box {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        margin-right: 16px;
+        flex-shrink: 0;
+    }
+
+    .icon-box svg {
+        width: 100%;
+        height: 100%;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .label {
+        flex: 1;
+        font-size: 16px;
+    }
+
+    .value {
+        font-size: 15px;
+        color: var(--sub);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .arrow {
+        font-size: 20px;
+        color: var(--sub);
+        opacity: 0.7;
+        line-height: 1;
+    }
+
+    .logout {
+        justify-content: center;
+    }
+
+    .logout .label {
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+    <!-- 顶部：‹ 设置（左对齐） -->
+    <div class="header">
+        <div class="back">‹</div>
+        <div class="title">设置</div>
+    </div>
+
+    <div class="container">
+        <!-- 账号 -->
+        <div class="section-title">账号</div>
+        <div class="card">
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/>
+                    </svg>
+                </div>
+                <div class="label">用户名</div>
+            </div>
+
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="5" y="2" width="14" height="20" rx="2"/>
+                        <path d="M12 18h.01"/>
+                    </svg>
+                </div>
+                <div class="label">手机号</div>
+            </div>
+
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <path d="M22 6l-10 7L2 6"/>
+                    </svg>
+                </div>
+                <div class="label">邮箱</div>
+            </div>
+
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                </div>
+                <div class="label">账号控制</div>
+                <div class="value"><span class="arrow">›</span></div>
+            </div>
+        </div>
+
+        <!-- 应用 -->
+        <div class="section-title">应用</div>
+        <div class="card">
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>
+                    </svg>
+                </div>
+                <div class="label">主题颜色</div>
+                <div class="value">深色 <span class="arrow">›</span></div>
+            </div>
+        </div>
+
+        <!-- 关于 -->
+        <div class="section-title">关于</div>
+        <div class="card">
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>
+                    </svg>
+                </div>
+                <div class="label">帮助中心</div>
+                <div class="value"><span class="arrow">›</span></div>
+            </div>
+
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <path d="M14 2v6h6"/>
+                    </svg>
+                </div>
+                <div class="label">服务条款</div>
+                <div class="value"><span class="arrow">›</span></div>
+            </div>
+
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="5" y="11" width="14" height="10" rx="2"/>
+                        <path d="M12 11V7a4 4 0 0 0-4-4 4 4 0 0 0-4 4v4"/>
+                    </svg>
+                </div>
+                <div class="label">隐私政策</div>
+                <div class="value"><span class="arrow">›</span></div>
+            </div>
+
+            <div class="item">
+                <div class="icon-box">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                </div>
+                <div class="label">Vibe</div>
+                <div class="value">v2.12.0</div>
+            </div>
+        </div>
+
+        <!-- 退出登录 -->
+        <div class="card">
+            <div class="item logout">
+                <div class="icon-box" style="color: var(--accent);">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <path d="M16 17l5-5-5-5M21 12H9"/>
+                    </svg>
+                </div>
+                <div class="label" style="color: var(--accent);">退出登录</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
