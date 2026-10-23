@@ -17,3 +17,8 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# 签名证书与密钥相关文件绝对不能提交到仓库（只把 Base64 配到 GitHub Secrets）
+*.jks
+*.keystore
+*.p12
