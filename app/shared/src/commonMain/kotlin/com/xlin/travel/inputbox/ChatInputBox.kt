@@ -187,7 +187,7 @@ private fun Toolbar(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { }) {
                 Text("Fast", color = ModeTextColor, fontSize = 15.sp)
                 Spacer(Modifier.width(4.dp))
-                Text("▾", color = ModeTextColor, fontSize = 12.sp)
+//                Text("▾", color = ModeTextColor, fontSize = 12.sp)
             }
         }
 

@@ -1,5 +1,6 @@
 package com.xlin.travel.color
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 // 对应 UI设计/带导航抽屉的主聊天界面.html 的配色，统一维护方便复用
@@ -32,4 +33,17 @@ val SearchModalBorder = Color(0xFF333333)     // 弹窗边框
 val SearchScrim = Color(0x99000000)           // 遮罩 black/60
 
 // 移动端菜单按钮
-val MenuButtonBackground = Color(0xFF252525)  // 菜单按钮底
+val MenuButtonBackground = Color.Transparent  // 菜单按钮底
+
+val TopBarEdgeFadeBrush: Brush
+    get() = Brush.horizontalGradient(
+        colorStops = arrayOf(
+            0.0f   to Color(0xFF1A1A1A).copy(alpha = 0.65f),
+            0.25f  to Color(0xFF1A1A1A).copy(alpha = 0.65f),
+            0.35f  to Color(0xFF1A1A1A).copy(alpha = 0.3f),
+            0.5f   to Color.Transparent,
+            0.65f  to Color(0xFF1A1A1A).copy(alpha = 0.3f),
+            0.75f  to Color(0xFF1A1A1A).copy(alpha = 0.65f),
+            1.0f   to Color(0xFF1A1A1A).copy(alpha = 0.65f),
+        )
+    )

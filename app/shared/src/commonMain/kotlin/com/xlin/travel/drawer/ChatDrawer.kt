@@ -52,6 +52,8 @@ import travel.app.shared.generated.resources.setting
 fun ChatDrawer(
     history: ChatHistoryState,
     onCloseDrawer: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -84,7 +86,7 @@ fun ChatDrawer(
                     painter = painterResource(Res.drawable.search),
                     contentDescription = "搜索",
                     background = IconButtonBackground,
-                    onClick = { history.openSearch() },
+                    onClick = onOpenSearch,
                 )
             }
 
@@ -116,9 +118,9 @@ fun ChatDrawer(
                 }
             }
 
-            // 底部：用户 + 设置
+            // 底部：用户 + 设置（整行即一个按钮）
             HorizontalDivider(color = SidebarDivider)
-            UserFooter()
+            UserSettingsButton(onClick = onOpenSettings)
         }
     }
 }
@@ -180,12 +182,13 @@ private fun HistoryRow(item: ChatHistoryItem, selected: Boolean, onClick: () -> 
     )
 }
 
-/** 底部用户信息与设置按钮 */
+/** 底部用户信息与设置按钮：整行作为一个按钮，点击进入设置页 */
 @Composable
-private fun UserFooter() {
+private fun UserSettingsButton(onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -211,8 +214,7 @@ private fun UserFooter() {
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(MenuButtonBackground)
-                .clickable { },
+                .background(MenuButtonBackground),
             contentAlignment = Alignment.Center,
         ) {
             Image(painter = painterResource(Res.drawable.setting), contentDescription = "设置", modifier = Modifier.size(18.dp))

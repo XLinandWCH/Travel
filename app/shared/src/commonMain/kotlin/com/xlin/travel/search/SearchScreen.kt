@@ -1,8 +1,7 @@
-package com.xlin.travel.drawer
+package com.xlin.travel.search
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,83 +10,82 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.InputTextColor
 import com.xlin.travel.color.SearchModalBackground
-import com.xlin.travel.color.SearchModalBorder
-import com.xlin.travel.color.SearchScrim
+import com.xlin.travel.color.TextGray300
 import com.xlin.travel.color.TextGray400
 import com.xlin.travel.color.TextGray500
-import com.xlin.travel.color.TextGray300
 import com.xlin.travel.color.TextWhite
+import com.xlin.travel.drawer.ChatHistoryItem
+import com.xlin.travel.drawer.ChatHistoryState
+import com.xlin.travel.navigation.PageTopBar
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.search
 
 /**
- * 由 [ChatHistoryState.isSearchOpen] 控制显隐。
+ * 搜索历史页面：独立页面提供搜索输入与历史记录结果。
  */
 @Composable
-fun SearchDialog(history: ChatHistoryState) {
-    if (!history.isSearchOpen) return
-
-    Box(
-        modifier = Modifier
+fun SearchScreen(
+    history: ChatHistoryState,
+    onBack: () -> Unit,
+    onSelectItem: (ChatHistoryItem) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
             .fillMaxSize()
-            .background(SearchScrim)
-            .clickable(onClick = { history.closeSearch() }),
-        contentAlignment = Alignment.TopCenter,
+            .background(ChatBackground)
+            .safeContentPadding()
+            .imePadding(),
     ) {
-        Column(
-            modifier = Modifier
-                .padding(start = 16.dp, top = 80.dp, end = 16.dp)
-                .widthIn(max = 480.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(SearchModalBackground)
-                .border(1.dp, SearchModalBorder, RoundedCornerShape(12.dp))
-                // 拦截面板内部点击，避免误触遮罩关闭
-                .clickable(enabled = false) { },
-        ) {
-            SearchInputRow(history)
-            SearchResults(history)
-        }
+        PageTopBar(title = "搜索历史", onBack = onBack)
+        SearchInputRow(history)
+        SearchResults(history, onSelectItem = onSelectItem)
     }
 }
 
-/** 搜索输入行：图标 + 输入框 + 取消 */
+/** 搜索输入行：图标 + 输入框 + 清除 */
 @Composable
 private fun SearchInputRow(history: ChatHistoryState) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(SearchModalBackground)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
             painter = painterResource(Res.drawable.search),
             contentDescription = null,
-            modifier = Modifier.size(20.dp),
+            colorFilter = ColorFilter.tint(TextGray400),
+            modifier = Modifier.size(18.dp),
         )
-        Spacer(Modifier.size(12.dp))
+        Spacer(Modifier.width(10.dp))
         BasicTextField(
             value = history.searchQuery,
             onValueChange = { history.searchQuery = it },
@@ -104,20 +102,23 @@ private fun SearchInputRow(history: ChatHistoryState) {
                 }
             },
         )
-        Spacer(Modifier.size(12.dp))
-        Text(
-            text = "取消",
-            color = TextGray400,
-            fontSize = 13.sp,
-            modifier = Modifier.clickable(onClick = { history.closeSearch() }),
-        )
+        if (history.searchQuery.isNotEmpty()) {
+            Text(
+                text = "清除",
+                color = TextGray400,
+                fontSize = 13.sp,
+                modifier = Modifier.clickable { history.clearSearch() },
+            )
+        }
     }
-    HorizontalDivider(color = SearchModalBorder)
 }
 
 /** 搜索结果区 */
 @Composable
-private fun SearchResults(history: ChatHistoryState) {
+private fun SearchResults(
+    history: ChatHistoryState,
+    onSelectItem: (ChatHistoryItem) -> Unit,
+) {
     val keyword = history.searchQuery.trim()
     val results = history.searchResults
 
@@ -133,16 +134,15 @@ private fun SearchResults(history: ChatHistoryState) {
             fontSize = 13.sp,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 24.dp),
+                .padding(horizontal = 16.dp, vertical = 24.dp),
         )
         return
     }
 
     LazyColumn(
         modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 300.dp)
-            .padding(8.dp),
+            .fillMaxSize()
+            .padding(horizontal = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         items(results, key = { it.id }) { item ->
@@ -155,7 +155,7 @@ private fun SearchResults(history: ChatHistoryState) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(6.dp))
-                    .clickable { history.closeSearch() }
+                    .clickable { onSelectItem(item) }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             )
         }
