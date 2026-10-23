@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Chat Sidebar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #1a1a1a;
+    color: #fff;
+  }
+  .sidebar-scroll::-webkit-scrollbar { width: 6px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background-color: #333; border-radius: 3px; }
+  .sidebar-scroll::-webkit-scrollbar-track { background-color: transparent; }
+  .history-item:hover { background-color: #2a2a2a; }
+  .history-item.active { background-color: #2a2a2a; }
+
+  /* 搜索弹窗动画 */
+  .search-modal {
+    transform: scale(0.95);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.15s ease;
+  }
+  .search-modal.open {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: all;
+  }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<div id="overlay" class="fixed inset-0 bg-black/50 z-20 hidden lg:hidden"></div>
+
+<!-- 侧边栏 -->
+<aside id="sidebar" class="w-[280px] h-full bg-[#111111] flex flex-col fixed lg:relative z-30 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out shrink-0">
+
+  <!-- 顶部：左右结构 -->
+  <div class="flex items-center gap-2 p-3 shrink-0">
+    <!-- 左：New chat -->
+    <button class="flex-1 bg-[#FF4500] hover:bg-[#E03E00] text-white rounded-full py-2.5 flex items-center justify-center gap-2 font-medium text-[14px] transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+      <span>New chat</span>
+    </button>
+    <!-- 右：搜索图标 -->
+    <button id="searchBtn" class="w-10 h-10 rounded-full bg-[#1e1e1e] hover:bg-[#2a2a2a] flex items-center justify-center transition-colors shrink-0">
+      <svg class="w-4.5 h-4.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    </button>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="flex-1 overflow-y-auto sidebar-scroll px-2 pb-2">
+    <div class="mt-2 mb-1 px-2 text-[12px] text-gray-500 font-medium uppercase tracking-wider">Older</div>
+    <div class="space-y-0.5">
+      <div class="history-item active px-2 py-2 rounded-md text-[14px] cursor-pointer truncate text-white">New chat</div>
+      <div class="history-item px-2 py-2 rounded-md text-[14px] cursor-pointer truncate text-gray-300">矩阵计算的起源与应用</div>
+      <div class="history-item px-2 py-2 rounded-md text-[14px] cursor-pointer truncate text-gray-300">心理支持对话</div>
+      <div class="history-item px-2 py-2 rounded-md text-[14px] cursor-pointer truncate text-gray-300">AI虚假信息治理</div>
+      <div class="history-item px-2 py-2 rounded-md text-[14px] cursor-pointer truncate text-gray-300">打破无聊时的选择</div>
+      <div class="history-item px-2 py-2 rounded-md text-[14px] cursor-pointer truncate text-gray-300">VPN 分片功能特性</div>
+      <div class="history-item px-2 py-2 rounded-md text-[14px] cursor-pointer truncate text-gray-300">Kotlin Multiplatform 架构设计</div>
+      <div class="history-item px-2 py-2 rounded-md text-[14px] cursor-pointer truncate text-gray-300">Jetpack Compose 动画实践</div>
+    </div>
+  </div>
+
+  <!-- 底部：用户信息 + 设置 -->
+  <div class="p-3 border-t border-[#252525] shrink-0">
+    <div class="flex items-center gap-2">
+      <!-- 用户头像和名称 -->
+      <button class="flex items-center gap-3 hover:bg-[#1e1e1e] p-2 rounded-md transition-colors flex-1 min-w-0">
+        <div class="w-8 h-8 rounded-full bg-[#333] flex items-center justify-center text-xs font-bold text-gray-300 shrink-0">用</div>
+        <div class="flex-1 text-left overflow-hidden">
+          <div class="text-[14px] font-medium text-white truncate">用户</div>
+        </div>
+      </button>
+      <!-- 设置按钮（常驻） -->
+      <button class="w-9 h-9 rounded-md hover:bg-[#1e1e1e] flex items-center justify-center transition-colors shrink-0" title="设置">
+        <svg class="w-4.5 h-4.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- 搜索弹窗（遮罩 + 弹窗） -->
+<div id="searchModal" class="search-modal fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
+  <div id="searchBackdrop" class="absolute inset-0 bg-black/60"></div>
+  <div class="relative bg-[#1e1e1e] rounded-xl w-full max-w-[480px] mx-4 shadow-2xl border border-[#333]">
+    <!-- 搜索输入框 -->
+    <div class="flex items-center gap-3 p-4 border-b border-[#333]">
+      <svg class="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <input id="searchInput" type="text" placeholder="搜索聊天记录..." class="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder-gray-500" autofocus>
+      <button id="closeSearchBtn" class="text-[13px] text-gray-400 hover:text-white transition-colors shrink-0">取消</button>
+    </div>
+    <!-- 搜索结果区 -->
+    <div id="searchResults" class="max-h-[300px] overflow-y-auto p-2">
+      <div class="px-3 py-6 text-center text-[13px] text-gray-500">输入关键词搜索历史对话</div>
+    </div>
+  </div>
+</div>
+
+<!-- 主内容区 -->
+<main class="flex-1 bg-[#1a1a1a] relative flex flex-col items-center justify-center">
+  <button id="menuBtn" class="lg:hidden absolute top-4 left-4 p-2 bg-[#252525] rounded-md text-white z-10">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <div class="text-gray-600 text-lg">主聊天区域</div>
+</main>
+
+<script>
+  // 移动端侧边栏
+  const sidebar = document.getElementById('sidebar');
+  const menuBtn = document.getElementById('menuBtn');
+  const overlay = document.getElementById('overlay');
+
+  function toggleSidebar() {
+    sidebar.classList.toggle('-translate-x-full');
+    overlay.classList.toggle('hidden');
+  }
+  menuBtn.addEventListener('click', toggleSidebar);
+  overlay.addEventListener('click', toggleSidebar);
+
+  // 历史记录点击
+  const items = document.querySelectorAll('.history-item');
+  items.forEach(item => {
+    item.addEventListener('click', () => {
+      items.forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  // 搜索弹窗逻辑
+  const searchBtn = document.getElementById('searchBtn');
+  const searchModal = document.getElementById('searchModal');
+  const searchBackdrop = document.getElementById('searchBackdrop');
+  const closeSearchBtn = document.getElementById('closeSearchBtn');
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+
+  const chatHistory = [
+    'New chat',
+    '矩阵计算的起源与应用',
+    '心理支持对话',
+    'AI虚假信息治理',
+    '打破无聊时的选择',
+    'VPN 分片功能特性',
+    'Kotlin Multiplatform 架构设计',
+    'Jetpack Compose 动画实践'
+  ];
+
+  function openSearch() {
+    searchModal.classList.add('open');
+    setTimeout(() => searchInput.focus(), 100);
+  }
+
+  function closeSearch() {
+    searchModal.classList.remove('open');
+    searchInput.value = '';
+    searchResults.innerHTML = '<div class="px-3 py-6 text-center text-[13px] text-gray-500">输入关键词搜索历史对话</div>';
+  }
+
+  searchBtn.addEventListener('click', openSearch);
+  closeSearchBtn.addEventListener('click', closeSearch);
+  searchBackdrop.addEventListener('click', closeSearch);
+
+  // 搜索输入
+  searchInput.addEventListener('input', (e) => {
+    const keyword = e.target.value.trim().toLowerCase();
+    if (!keyword) {
+      searchResults.innerHTML = '<div class="px-3 py-6 text-center text-[13px] text-gray-500">输入关键词搜索历史对话</div>';
+      return;
+    }
+    const filtered = chatHistory.filter(item => item.toLowerCase().includes(keyword));
+    if (filtered.length === 0) {
+      searchResults.innerHTML = '<div class="px-3 py-6 text-center text-[13px] text-gray-500">没有找到匹配的对话</div>';
+      return;
+    }
+    searchResults.innerHTML = filtered.map(item => `
+      <div class="px-3 py-2.5 hover:bg-[#2a2a2a] rounded-md cursor-pointer text-[14px] text-gray-200 truncate">
+        ${item.replace(new RegExp(keyword, 'gi'), match => `<span class="text-white font-medium">${match}</span>`)}
+      </div>
+    `).join('');
+  });
+
+  // ESC 关闭搜索
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && searchModal.classList.contains('open')) {
+      closeSearch();
+    }
+  });
+</script>
+</body>
+</html>

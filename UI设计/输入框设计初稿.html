@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Input UI</title>
+<style>
+  body {
+    background: #1a1a1a;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .chat-container {
+    width: 100%;
+    max-width: 600px;
+  }
+
+  /* 卡片主体 */
+  .chat-input {
+    background: #2d2d2d;
+    border-radius: 20px;
+    padding: 12px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+  }
+
+  /* 上：图片预览 */
+  .preview-area {
+    display: none;
+    position: relative;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+  .chat-input.has-image .preview-area {
+    display: block;
+  }
+  .preview-img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+  .remove-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: rgba(30,30,30,0.8);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    border: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 中：输入行 */
+  .input-row {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+  }
+  .cursor-bar {
+    color: #ff5722;
+    font-weight: bold;
+    margin-right: 4px;
+    animation: blink 1s step-start infinite;
+    display: none;
+  }
+  .chat-input:not(.has-image):not(.has-text) .cursor-bar {
+    display: block;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e0e0e0;
+    font-size: 16px;
+    resize: none;
+    line-height: 24px;
+    padding: 0;
+    min-height: 24px;
+    max-height: 120px;
+    overflow-y: auto;
+    font-family: inherit;
+  }
+  textarea::placeholder {
+    color: #888;
+  }
+
+  /* 下：工具栏 */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .tool-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-add {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid #555;
+    color: #ccc;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .mode-select {
+    color: #bbb;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .arrow-down {
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #bbb;
+  }
+
+  /* 右侧白按钮 */
+  .btn-white {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+  }
+  .icon-mic,
+  .icon-send {
+    position: absolute;
+    transition: opacity 0.2s;
+    fill: #1a1a1a;
+  }
+
+  /* 默认：麦克风 */
+  .icon-send {
+    opacity: 0;
+  }
+
+  /* 有文字 / 有图片 → 发送按钮 */
+  .chat-input.has-text .icon-mic,
+  .chat-input.has-image .icon-mic {
+    opacity: 0;
+  }
+  .chat-input.has-text .icon-send,
+  .chat-input.has-image .icon-send {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-input" id="chatInput">
+    <!-- 上：图片 -->
+    <div class="preview-area" id="previewArea">
+      <img src="" class="preview-img" id="previewImg" alt="">
+      <button class="remove-btn" id="removeBtn">✕</button>
+    </div>
+
+    <!-- 中：输入 -->
+    <div class="input-row">
+      <span class="cursor-bar">|</span>
+      <textarea id="inputField" placeholder="Ask anything" rows="1"></textarea>
+    </div>
+
+    <!-- 下：工具栏 -->
+    <div class="toolbar">
+      <div class="tool-left">
+        <button class="btn-add" id="addBtn">+</button>
+        <div class="mode-select">
+          Fast <span class="arrow-down"></span>
+        </div>
+      </div>
+
+      <button class="btn-white" id="actionBtn">
+        <!-- 麦克风 -->
+        <svg class="icon-mic" viewBox="0 0 24 24" width="20" height="20">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+        <!-- 发送 -->
+        <svg class="icon-send" viewBox="0 0 24 24" width="20" height="20">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*" style="display:none;">
+</div>
+
+<script>
+  const chatInput = document.getElementById('chatInput');
+  const inputField = document.getElementById('inputField');
+  const addBtn = document.getElementById('addBtn');
+  const fileInput = document.getElementById('fileInput');
+  const previewImg = document.getElementById('previewImg');
+  const removeBtn = document.getElementById('removeBtn');
+
+  function updateState() {
+    const hasText = inputField.value.trim().length > 0;
+    chatInput.classList.toggle('has-text', hasText);
+  }
+
+  addBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      previewImg.src = reader.result;
+      chatInput.classList.add('has-image');
+      updateState();
+      inputField.focus();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  removeBtn.addEventListener('click', () => {
+    chatInput.classList.remove('has-image');
+    previewImg.src = '';
+    fileInput.value = '';
+    updateState();
+    inputField.focus();
+  });
+
+  inputField.addEventListener('input', function () {
+    updateState();
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  inputField.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      console.log('发送:', this.value);
+      this.value = '';
+      this.style.height = 'auto';
+      updateState();
+    }
+  });
+</script>
+</body>
+</html>
