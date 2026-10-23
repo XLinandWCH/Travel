@@ -1,5 +1,6 @@
 package com.xlin.travel.agent
 
+import ai.koog.agents.core.agent.context.AIAgentContext
 import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
@@ -7,11 +8,15 @@ import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.prompt.streaming.toMessageResponse
 import kotlinx.coroutines.flow.toList
 
-fun strategy(name: String, toolRegistry: ToolRegistry): AIAgentGraphStrategy<String, String> {
+private suspend fun AIAgentContext.historyIsTooLong(threshold: Int = 50): Boolean =
+    llm.readSession { prompt.messages.size > threshold }
+fun strategy(name: String,
+             toolRegistry: ToolRegistry,
+             compressionThreshold: Int = 50,
+): AIAgentGraphStrategy<String, String> {
 
     return strategy(name) {
-// 定义节点，
-// 1. 定义节点
+        // 1. 节点
         val nodeCallLLM by nodeLLMRequestStreaming().transform { flow ->
             flow.toList().toMessageResponse()
         }
@@ -22,19 +27,29 @@ fun strategy(name: String, toolRegistry: ToolRegistry): AIAgentGraphStrategy<Str
             flow.toList().toMessageResponse()
         }
 
-// 2. 边流转定义
+        val compressHistory by nodeLLMCompressHistory<ReceivedToolResults>()
+
+        // 2. 边
         edge(nodeStart forwardTo nodeCallLLM)
 
-        // 💡 关键修改：必须优先评估 onToolCalls！
-// 如果大模型输出了工具调用指令，走向工具执行节点
-        edge(nodeCallLLM forwardTo executeToolCall onToolCalls { true })
-        // 只有当没有工具调用时，才作为普通文本输出走向 nodeFinish
+        // LLM → 结束（纯文本）
         edge(nodeCallLLM forwardTo nodeFinish onTextMessage { true })
 
-        // 工具执行完后把结果喂给 sendToolResult 节点
-        edge(executeToolCall forwardTo sendToolResult)
+        // LLM → 工具调用
+        edge(nodeCallLLM forwardTo executeToolCall onToolCalls { true })
 
-        // 3. sendToolResult 后续的回路同理：优先判断是否还需要继续调工具，其次才是结束
+        // 工具执行完 → 分流
+        edge(executeToolCall forwardTo compressHistory onCondition {
+            historyIsTooLong(compressionThreshold)
+        })
+        edge(executeToolCall forwardTo sendToolResult onCondition {
+            !historyIsTooLong(compressionThreshold)
+        })
+
+        // 压缩完 → 继续
+        edge(compressHistory forwardTo sendToolResult)
+
+        // sendToolResult → 回路 or 结束
         edge(sendToolResult forwardTo executeToolCall onToolCalls { true })
         edge(sendToolResult forwardTo nodeFinish onTextMessage { true })
     }

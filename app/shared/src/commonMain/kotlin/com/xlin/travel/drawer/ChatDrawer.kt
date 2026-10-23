@@ -51,6 +51,8 @@ import travel.app.shared.generated.resources.setting
 @Composable
 fun ChatDrawer(
     history: ChatHistoryState,
+    onNewChat: () -> Unit,
+    onSelectConversation: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -77,7 +79,7 @@ fun ChatDrawer(
                 NewChatButtonRow(
                     modifier = Modifier.weight(1f),
                     onClick = {
-                        history.newChat()
+                        onNewChat()
                         onCloseDrawer()
                     },
                 )
@@ -111,10 +113,20 @@ fun ChatDrawer(
                         item = item,
                         selected = item.id == history.activeId,
                         onClick = {
-                            history.select(item.id)
+                            onSelectConversation(item.id)
                             onCloseDrawer()
                         },
                     )
+                }
+                if (history.items.isEmpty()) {
+                    item {
+                        Text(
+                            text = "暂无历史对话",
+                            color = TextGray500,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 8.dp, top = 8.dp),
+                        )
+                    }
                 }
             }
 

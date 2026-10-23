@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +41,7 @@ import com.xlin.travel.color.TextWhite
 import com.xlin.travel.drawer.ChatHistoryItem
 import com.xlin.travel.drawer.ChatHistoryState
 import com.xlin.travel.navigation.PageTopBar
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.search
@@ -64,6 +66,12 @@ fun SearchScreen(
         PageTopBar(title = "搜索历史", onBack = onBack)
         SearchInputRow(history)
         SearchResults(history, onSelectItem = onSelectItem)
+    }
+
+    // 输入停顿后再查数据库，避免每敲一个字都查一次
+    LaunchedEffect(history.searchQuery) {
+        delay(250)
+        history.search()
     }
 }
 

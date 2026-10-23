@@ -17,11 +17,13 @@ kotlin = "2.4.20"
 ktor = "3.6.0"
 logback = "1.6.5"
 material3 = "1.12.0-alpha03"
+sqlite = "2.7.1"
 
 [libraries]
 koog-agents-additions = { module = "ai.koog:koog-agents-additions", version.ref = "koogAgentsAdditions" }
 koog-agents = { module = "ai.koog:koog-agents", version.ref = "koogAgents" }
 koog-http-client-ktor = { module = "ai.koog:http-client-ktor", version.ref = "koogAgents" }
+koog-agents-features-memory = { module = "ai.koog:agents-features-memory", version.ref = "koogAgents" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -43,6 +45,8 @@ logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-serverCore = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktor-serverNetty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }
 ktor-serverTestHost = { module = "io.ktor:ktor-server-test-host-jvm", version.ref = "ktor" }
+androidx-sqlite = { module = "androidx.sqlite:sqlite", version.ref = "sqlite" }
+androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

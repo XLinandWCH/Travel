@@ -5,49 +5,69 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.xlin.travel.db.ChatRepository
+import com.xlin.travel.db.ConversationRecord
 
 /** 一条历史对话 */
-data class ChatHistoryItem(val id: Long, val title: String)
+data class ChatHistoryItem(val id: String, val title: String)
 
 /**
  * 抽屉导航的状态：历史列表、当前选中项与搜索关键词。
+ * 历史数据来自 SQLite，[refresh] / [search] 都是挂起函数，由界面层在协程中调用。
  */
 @Stable
-class ChatHistoryState {
+class ChatHistoryState(private val repository: ChatRepository) {
 
     private val _items = mutableStateListOf<ChatHistoryItem>()
 
     /** 历史列表（只读视图） */
     val items: List<ChatHistoryItem> get() = _items
 
-    /** 当前选中的历史项 */
-    var activeId: Long by mutableStateOf(-1L)
+    /** 当前选中的会话 ID；新建对话时为 null */
+    var activeId: String? by mutableStateOf(null)
         private set
 
     /** 搜索关键词 */
     var searchQuery: String by mutableStateOf("")
 
-    fun select(id: Long) {
+    /** 搜索结果（标题或消息内容匹配） */
+    var searchResults: List<ChatHistoryItem> by mutableStateOf(emptyList())
+        private set
+
+    /** 从数据库重新加载历史列表 */
+    suspend fun refresh() {
+        val records = runCatching { repository.conversations() }.getOrDefault(emptyList())
+        _items.clear()
+        _items.addAll(records.map { it.toHistoryItem() })
+    }
+
+    fun select(id: String) {
         activeId = id
     }
 
-    /** 新建一个会话并置顶选中 */
+    /** 新建对话：只清空选中项，数据库记录会在首次发送消息时创建 */
     fun newChat() {
-        val id = (_items.maxOfOrNull { it.id } ?: 0L) + 1L
-        _items.add(0, ChatHistoryItem(id, "New chat"))
-        activeId = id
+        activeId = null
+        searchResults = emptyList()
+    }
+
+    /** 在当前历史中按关键词搜索 */
+    suspend fun search() {
+        val keyword = searchQuery.trim()
+        if (keyword.isEmpty()) {
+            searchResults = emptyList()
+            return
+        }
+        searchResults = runCatching { repository.searchConversations(keyword) }
+            .getOrDefault(emptyList())
+            .map { it.toHistoryItem() }
     }
 
     /** 清空搜索关键词（离开搜索页时调用） */
     fun clearSearch() {
         searchQuery = ""
+        searchResults = emptyList()
     }
 
-    /** 根据关键词过滤后的搜索结果；关键词为空时返回空列表 */
-    val searchResults: List<ChatHistoryItem>
-        get() {
-            val keyword = searchQuery.trim().lowercase()
-            if (keyword.isEmpty()) return emptyList()
-            return _items.filter { it.title.lowercase().contains(keyword) }
-        }
+    private fun ConversationRecord.toHistoryItem() = ChatHistoryItem(id = id, title = title)
 }

@@ -66,6 +66,9 @@ kotlin {
             implementation(libs.koog.agents)
             implementation(libs.koog.agents.additions)
             implementation(libs.koog.http.client.ktor)
+            implementation(libs.androidx.sqlite)
+            implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.koog.agents.features.memory)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

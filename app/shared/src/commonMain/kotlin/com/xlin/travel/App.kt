@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +33,8 @@ import com.xlin.travel.chat_screen.ChatState
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.MenuButtonBackground
 import com.xlin.travel.color.TopBarEdgeFadeBrush
+import com.xlin.travel.db.ChatRepository
+import com.xlin.travel.db.rememberChatDatabase
 import com.xlin.travel.drawer.ChatDrawer
 import com.xlin.travel.drawer.ChatHistoryState
 import com.xlin.travel.inputbox.ChatInputBox
@@ -54,12 +57,24 @@ private enum class AppScreen {
 @Composable
 fun App() {
     MaterialTheme {
+        val database = rememberChatDatabase()
+        val repository = remember(database) { ChatRepository(database) }
         val inputState = remember { ChatInputState() }
-        val chatState = remember { ChatState() }
-        val history = remember { ChatHistoryState() }
+        val history = remember(repository) { ChatHistoryState(repository) }
+        val chatState = remember(repository) {
+            ChatState(repository) { id ->
+                history.select(id)
+                history.refresh()
+            }
+        }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         var screen by remember { mutableStateOf(AppScreen.Chat) }
+
+        // 启动时从数据库恢复历史会话列表
+        LaunchedEffect(repository) {
+            history.refresh()
+        }
 
         // 系统返回键：子页面先回到聊天页，聊天页才交给系统退出应用
         AppBackHandler(enabled = screen != AppScreen.Chat) {
@@ -78,6 +93,16 @@ fun App() {
                     drawerContent = {
                         ChatDrawer(
                             history = history,
+                            onNewChat = {
+                                chatState.startNewChat()
+                                history.newChat()
+                            },
+                            onSelectConversation = { id ->
+                                scope.launch {
+                                    chatState.openConversation(id)
+                                    history.select(id)
+                                }
+                            },
                             onCloseDrawer = { scope.launch { drawerState.close() } },
                             onOpenSearch = {
                                 scope.launch { drawerState.close() }
@@ -93,7 +118,12 @@ fun App() {
                     ChatContent(
                         inputState = inputState,
                         chatState = chatState,
-                        onMenuClick = { scope.launch { drawerState.open() } },
+                        onMenuClick = {
+                            scope.launch {
+                                history.refresh()
+                                drawerState.open()
+                            }
+                        },
                         onSend = { text -> scope.launch { chatState.send(text) } },
                     )
                 }
@@ -109,7 +139,10 @@ fun App() {
                         screen = AppScreen.Chat
                     },
                     onSelectItem = { item ->
-                        history.select(item.id)
+                        scope.launch {
+                            chatState.openConversation(item.id)
+                            history.select(item.id)
+                        }
                         history.clearSearch()
                         screen = AppScreen.Chat
                     },

@@ -24,6 +24,7 @@ fun ChatScreen(
 
     // 新消息或流式增量到达时滚动到底部
     LaunchedEffect(
+        state.conversationId,
         state.messages.size,
         lastMessage?.content?.length,
         lastMessage?.reasoning?.length,
