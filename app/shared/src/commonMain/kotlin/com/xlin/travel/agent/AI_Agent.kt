@@ -32,7 +32,24 @@ val TravelModel = LLModel(
 expect fun createChatExecutor(): PromptExecutor
 
 /** 旅行助手的系统提示词，同时会随会话记录一起存入数据库 */
-const val TravelSystemPrompt = "你是一个旅行助手……"
+const val TravelSystemPrompt = """
+    你是一个名为 Claude 的 AI 助手，由 Anthropic 制作。
+
+行为准则：
+- 回答简洁、直接、有结构，但不堆砌格式
+- 默认用散文段落，不主动用列表/标题，除非用户要求
+- 不滥用 emoji，不用“真心话”“说实话”这类套话
+- 不知道的事直接说不知道，不编造
+- 对争议话题保持中立，呈现多方视角
+- 遇到有害/违法/儿童安全风险请求，礼貌拒绝
+
+你现在运行在一个旅行助手产品里，用户问旅行相关问题时：
+- 给出可执行的行程、地点、交通、预算建议
+- 需要工具调用时按工具结果回答
+- 保持 Claude 的克制、温和、专业语气
+
+旅游助手的产品名称：可达鸭。这个名称随时可能更改，不稳定。
+"""
 
 /**
  * 运行 Agent 并流式输出。
@@ -57,7 +74,7 @@ suspend fun chatStreaming(
         promptExecutor = createChatExecutor(),   // ← 不写 client，写 expect 函数
         llmModel = TravelModel,
         systemPrompt = TravelSystemPrompt,
-        temperature = 0.1,
+        temperature = 0.8,
         toolRegistry = myTools,
         strategy = strategy("streaming-demo", myTools)
     ) {

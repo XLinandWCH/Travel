@@ -1,0 +1,134 @@
+name: Release Build
+
+# 手动触发：在 Actions 页面点击 "Run workflow"，填写版本号后运行
+on:
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: '应用版本号（如 1.2.0）'
+        required: true
+        default: '1.0'
+      versionCode:
+        description: 'Android versionCode（纯整数，每次发版需递增）'
+        required: true
+        default: '1'
+
+jobs:
+  # ============================================================
+  # Android —— 主推平台：独立 job，与 iOS 互不影响
+  # ============================================================
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle（依赖与 Kotlin 编译缓存）
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build Debug + Release APK
+        run: >
+          ./gradlew :app:androidApp:assembleDebug :app:androidApp:assembleRelease
+          -Prelease.versionName="${{ github.event.inputs.versionName }}"
+          -Prelease.versionCode="${{ github.event.inputs.versionCode }}"
+          --stacktrace
+
+      # 数据库自检：确认 androidx.sqlite 2.7.1 的 BundledSQLiteDriver
+      # 原生库（libsqliteJni.so）已打进 APK，各 ABI 缺一不可
+      - name: Verify bundled SQLite native libs
+        run: |
+          set -e
+          APK=$(find app/androidApp/build/outputs/apk -name '*.apk' | head -n 1)
+          echo "检查 $APK 中的 SQLite 原生库："
+          unzip -l "$APK" | grep 'libsqliteJni.so'
+          for ABI in arm64-v8a armeabi-v7a x86_64; do
+            unzip -l "$APK" | grep -q "lib/$ABI/libsqliteJni.so" \
+              || { echo "❌ 缺少 lib/$ABI/libsqliteJni.so"; exit 1; }
+            echo "✅ lib/$ABI/libsqliteJni.so"
+          done
+
+      - name: Upload Debug APK（可直接安装）
+        uses: actions/upload-artifact@v4
+        with:
+          name: Travel-Android-Debug-v${{ github.event.inputs.versionName }}
+          path: app/androidApp/build/outputs/apk/debug/androidApp-debug.apk
+
+      - name: Upload Release APK（未签名）
+        uses: actions/upload-artifact@v4
+        with:
+          name: Travel-Android-Release-v${{ github.event.inputs.versionName }}
+          path: app/androidApp/build/outputs/apk/release/androidApp-release-unsigned.apk
+
+  # ============================================================
+  # iOS —— 附带平台：continue-on-error，失败不影响整体工作流状态，
+  #        且与 Android job 完全独立，不会阻塞 / 拖垮 Android
+  # ============================================================
+  ios:
+    name: iOS App (unsigned)
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle（缓存 Kotlin/Native 与 Konan）
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # Xcode 的 "Compile Kotlin Framework" 构建阶段会自动调用
+      # ./gradlew :app:shared:embedAndSignAppleFrameworkForXcode，
+      # sqlite-bundled 的 iOS 原生库会静态链接进 Shared.framework
+      - name: Build iOS App (Release, 无签名)
+        run: >
+          xcodebuild
+          -project app/iosApp/iosApp.xcodeproj
+          -scheme iosApp
+          -configuration Release
+          -destination 'generic/platform=iOS'
+          -derivedDataPath build_ios/DerivedData
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=
+          MARKETING_VERSION=${{ github.event.inputs.versionName }}
+          CURRENT_PROJECT_VERSION=${{ github.event.inputs.versionCode }}
+          build
+
+      - name: Package unsigned .ipa
+        run: |
+          set -e
+          APP=$(find build_ios/DerivedData/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -n 1)
+          echo "打包 $APP"
+          mkdir -p Payload
+          cp -r "$APP" Payload/
+          zip -qry "Travel-iOS-v${{ github.event.inputs.versionName }}-unsigned.ipa" Payload
+
+      - name: Upload iOS artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Travel-iOS-unsigned-v${{ github.event.inputs.versionName }}
+          path: Travel-iOS-v${{ github.event.inputs.versionName }}-unsigned.ipa
+
+      - name: iOS 构建失败提示
+        if: failure()
+        run: echo "::warning::iOS 打包失败，但不影响 Android 产物。iOS 为附带平台，请查看上方 xcodebuild 日志排查。"
