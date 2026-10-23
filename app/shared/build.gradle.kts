@@ -8,6 +8,12 @@ plugins {
 }
 
 kotlin {
+    jvm {
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_17
+        }
+    }
+
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -24,7 +30,7 @@ kotlin {
        minSdk = libs.versions.android.minSdk.get().toInt()
     
        compilerOptions {
-           jvmTarget = JvmTarget.JVM_11
+           jvmTarget = JvmTarget.JVM_17
        }
        androidResources {
            enable = true
@@ -38,12 +44,14 @@ kotlin {
            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
        }
     }
-    
+
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.koog.http.client.ktor)
+
         }
         commonMain.dependencies {
             api(project(":core"))
@@ -57,9 +65,27 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.koog.agents)
             implementation(libs.koog.agents.additions)
+            implementation(libs.koog.http.client.ktor)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+        }
+
+        val iosMain by creating {
+            dependencies {
+                implementation(libs.koog.agents)
+                implementation(libs.koog.agents.additions)
+                implementation(libs.koog.http.client.ktor)
+            }
+        }
+        val iosArm64Main by getting { dependsOn(iosMain) }
+        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
+
+        jvmMain.dependencies {
+            // JVM
+        }
+        jvmTest.dependencies {
+            // JVM 测试
         }
     }
 }

@@ -21,6 +21,7 @@ material3 = "1.12.0-alpha03"
 [libraries]
 koog-agents-additions = { module = "ai.koog:koog-agents-additions", version.ref = "koogAgentsAdditions" }
 koog-agents = { module = "ai.koog:koog-agents", version.ref = "koogAgents" }
+koog-http-client-ktor = { module = "ai.koog:http-client-ktor", version.ref = "koogAgents" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }

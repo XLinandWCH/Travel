@@ -27,5 +27,5 @@ val BtnAddIcon = Color(0xFFCCCCCC)            // “+”按钮图标
 val ModeTextColor = Color(0xFFBBBBBB)         // 模式选择文字 / 下三角
 
 // 右侧动作按钮（白底深图标）
-val WhiteBtnBackground = Color(0xFFFFFFFF)    // 白色按钮背景
+val WhiteBtnBackground = Color(0xFFF5F5F5)    // 白色按钮背景
 val WhiteBtnIcon = Color(0xFF1A1A1A)          // 按钮内图标颜色

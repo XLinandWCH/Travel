@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 
-/** 输入模式（对应 HTML 中的 Fast 下拉选择） */
+/** 输入模式 */
 enum class InputMode(val label: String) {
     Fast("Fast")
 }
