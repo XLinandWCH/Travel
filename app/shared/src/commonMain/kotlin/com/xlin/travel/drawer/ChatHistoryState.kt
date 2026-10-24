@@ -45,6 +45,24 @@ class ChatHistoryState(private val repository: ChatRepository) {
         activeId = id
     }
 
+    /** 删除一条会话：写库 + 从当前列表与搜索结果中移除；若删的是当前选中项则取消选中 */
+    suspend fun delete(id: String) {
+        runCatching { repository.deleteConversation(id) }
+        if (activeId == id) activeId = null
+        _items.removeAll { it.id == id }
+        searchResults = searchResults.filterNot { it.id == id }
+    }
+
+    /** 重命名一条会话：写库 + 就地更新列表与搜索结果里的标题，避免整表刷新闪烁 */
+    suspend fun rename(id: String, newTitle: String) {
+        val title = newTitle.trim()
+        if (title.isEmpty()) return
+        runCatching { repository.renameConversation(id, title) }
+        val index = _items.indexOfFirst { it.id == id }
+        if (index >= 0) _items[index] = _items[index].copy(title = title)
+        searchResults = searchResults.map { if (it.id == id) it.copy(title = title) else it }
+    }
+
     /** 新建对话：只清空选中项，数据库记录会在首次发送消息时创建 */
     fun newChat() {
         activeId = null

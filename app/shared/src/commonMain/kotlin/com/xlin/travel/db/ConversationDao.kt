@@ -60,6 +60,15 @@ internal fun SQLiteConnection.updateConversationTimestamp(id: String, updatedAt:
     }
 }
 
+/** 更新会话标题（重命名），不改动最后活跃时间以免重排历史 */
+internal fun SQLiteConnection.updateConversationTitle(id: String, title: String) {
+    withStatement("UPDATE conversation SET title = ? WHERE id = ?") { statement ->
+        statement.bindText(1, title)
+        statement.bindText(2, id)
+        statement.step()
+    }
+}
+
 /** 删除会话；message 表通过外键级联删除 */
 internal fun SQLiteConnection.deleteConversation(id: String) {
     withStatement("DELETE FROM conversation WHERE id = ?") { statement ->
