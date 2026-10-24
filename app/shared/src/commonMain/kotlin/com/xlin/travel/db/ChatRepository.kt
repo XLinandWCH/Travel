@@ -1,5 +1,7 @@
 package com.xlin.travel.db
 
+import androidx.sqlite.execSQL
+
 /**
  * 会话历史仓库：界面层只依赖这个类，不直接接触 SQL。
  */
@@ -88,6 +90,11 @@ class ChatRepository(private val database: ChatDatabase) {
         database.withConnection { it.deleteConversation(id) }
     }
 
+    /** 重命名会话标题 */
+    suspend fun renameConversation(id: String, title: String) {
+        database.withConnection { it.updateConversationTitle(id, title) }
+    }
+
     /** 读取设置项（如主题偏好），未保存过时返回 null */
     suspend fun getSetting(key: String): String? =
         database.withConnection { it.selectSetting(key) }
@@ -95,5 +102,17 @@ class ChatRepository(private val database: ChatDatabase) {
     /** 写入设置项，存在则覆盖 */
     suspend fun setSetting(key: String, value: String) {
         database.withConnection { it.upsertSetting(key, value) }
+    }
+
+    /**
+     * 清空本地全部数据：会话、消息与所有设置（含主题 / 登录缓存）。
+     * 用于“注销账号”——先删本地，再请求服务端注销，回到最初的未登入界面。
+     */
+    suspend fun clearAllLocalData() {
+        database.withTransaction { connection ->
+            connection.execSQL("DELETE FROM message")
+            connection.execSQL("DELETE FROM conversation")
+            connection.execSQL("DELETE FROM app_setting")
+        }
     }
 }

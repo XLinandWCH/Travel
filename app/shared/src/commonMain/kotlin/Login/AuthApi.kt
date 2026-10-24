@@ -28,6 +28,23 @@ private data class RegisterRequest(
 )
 
 @Serializable
+private data class UpdateUsernameRequest(val token: String, val username: String)
+
+@Serializable
+private data class UpdatePasswordRequest(
+    val token: String,
+    val oldPassword: String,
+    val newPassword: String,
+)
+
+@Serializable
+private data class DeleteAccountRequest(val token: String)
+
+/** 与服务端 OkResponse 对应：message 为提示，user 仅在改用户名时回传最新资料 */
+@Serializable
+private data class OkResponse(val message: String, val user: UserDto? = null)
+
+@Serializable
 data class UserDto(
     val id: Long,
     val username: String,
@@ -47,6 +64,12 @@ data class ApiError(val message: String)
 sealed interface AuthApiResult {
     data class Success(val user: UserDto, val token: String) : AuthApiResult
     data class Failed(val message: String) : AuthApiResult
+}
+
+/** 资料变更（改用户名 / 改密码 / 注销）结果：成功可带回最新 user，失败带回提示 */
+sealed interface MutationApiResult {
+    data class Success(val message: String, val user: UserDto?) : MutationApiResult
+    data class Failed(val message: String) : MutationApiResult
 }
 
 object AuthApi {
@@ -85,6 +108,40 @@ object AuthApi {
             }
         } catch (e: Exception) {
             AuthApiResult.Failed("网络连接失败，请检查服务器是否可用")
+        }
+    }
+
+    /** 修改用户名：携带 token，成功后带回最新 UserDto */
+    suspend fun changeUsername(token: String, username: String): MutationApiResult =
+        mutate("$AUTH_BASE_URL/api/auth/update-username", UpdateUsernameRequest(token, username.trim()))
+
+    /** 修改密码：携带 token + 原密码 + 新密码，服务端强制 14 天冷却 */
+    suspend fun changePassword(token: String, oldPassword: String, newPassword: String): MutationApiResult =
+        mutate(
+            "$AUTH_BASE_URL/api/auth/update-password",
+            UpdatePasswordRequest(token, oldPassword, newPassword),
+        )
+
+    /** 注销账号：携带 token，服务端删除该用户全部信息 */
+    suspend fun deleteAccount(token: String): MutationApiResult =
+        mutate("$AUTH_BASE_URL/api/auth/delete-account", DeleteAccountRequest(token))
+
+    private suspend inline fun <reified B : Any> mutate(url: String, body: B): MutationApiResult {
+        return try {
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+            if (response.status == HttpStatusCode.OK) {
+                val ok = response.body<OkResponse>()
+                MutationApiResult.Success(ok.message, ok.user)
+            } else {
+                val message = runCatching { response.body<ApiError>().message }
+                    .getOrElse { "服务异常（${response.status.value}）" }
+                MutationApiResult.Failed(message)
+            }
+        } catch (e: Exception) {
+            MutationApiResult.Failed("网络连接失败，请检查服务器是否可用")
         }
     }
 }

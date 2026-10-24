@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     onSkip: () -> Unit,
-    onLoggedIn: () -> Unit,
+    onLoggedIn: (user: UserDto, token: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // 必须 remember：否则每次重组都会新建实例，表单内容与模式全部被重置
@@ -125,11 +125,11 @@ fun LoginScreen(
     }
 }
 
-/** 提交：本地校验通过后调用后端 /api/auth 注册 / 登录接口，成功直接进入应用 */
+/** 提交：本地校验通过后调用后端 /api/auth 注册 / 登录接口，成功直接把用户与 token 交给上层持久化 */
 private fun submit(
     state: LoginState,
     scope: kotlinx.coroutines.CoroutineScope,
-    onLoggedIn: () -> Unit,
+    onLoggedIn: (user: UserDto, token: String) -> Unit,
 ) {
     state.notice = null
     if (!state.validate()) return
@@ -146,7 +146,7 @@ private fun submit(
         }
         state.submitting = false
         when (result) {
-            is AuthApiResult.Success -> onLoggedIn()
+            is AuthApiResult.Success -> onLoggedIn(result.user, result.token)
             is AuthApiResult.Failed -> state.notice = result.message
         }
     }

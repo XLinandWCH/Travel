@@ -5,11 +5,16 @@ import com.xlin.travel.models.LoginRequest
 import com.xlin.travel.models.RegisterRequest
 import com.xlin.travel.models.UserDto
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.mindrot.jbcrypt.BCrypt
+import java.time.Duration
+import java.time.LocalDateTime
 import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -94,6 +99,93 @@ object UserService {
             }
         } catch (e: Exception) {
             AuthResult.Failed(500, "登录失败：${e.message}")
+        }
+    }
+
+    // ==================== 账号控制：改用户名 / 改密码 / 注销 ====================
+
+    /** 资料变更结果：成功可带回最新 UserDto（注销为 null），失败带回状态码与提示 */
+    sealed interface MutationResult {
+        data class Success(val user: UserDto?) : MutationResult
+        data class Failed(val status: Int, val message: String) : MutationResult
+    }
+
+    /** 两次改密码的最小间隔（天），避免用户无节制地反复更换 */
+    private const val PASSWORD_CHANGE_INTERVAL_DAYS = 14L
+
+    /** 修改用户名：token 鉴权 + 长度校验 + 唯一性校验，成功后回传最新资料 */
+    fun updateUsername(token: String, rawUsername: String): MutationResult {
+        val userId = verifyToken(token) ?: return MutationResult.Failed(401, "登录已失效，请重新登录")
+        val username = rawUsername.trim()
+        if (username.length !in 2..32) return MutationResult.Failed(400, "用户名长度需为 2~32 位")
+        return try {
+            transaction {
+                if (Users.selectAll().where { Users.id eq userId }.firstOrNull() == null) {
+                    return@transaction MutationResult.Failed(404, "用户不存在")
+                }
+                // 唯一性：用户名已存在且属于他人则拒绝（避开 and / neq 算子，在 Kotlin 侧比较 id）
+                val clash = Users.selectAll().where { Users.username eq username }.firstOrNull()
+                if (clash != null && clash[Users.id] != userId) {
+                    return@transaction MutationResult.Failed(409, "该用户名已被占用")
+                }
+                Users.update({ Users.id eq userId }) { it[Users.username] = username }
+                val row = Users.selectAll().where { Users.id eq userId }.single()
+                MutationResult.Success(row.toUserDto())
+            }
+        } catch (e: Exception) {
+            MutationResult.Failed(500, "修改失败：${e.message}")
+        }
+    }
+
+    /** 修改密码：校验原密码 + 14 天冷却；成功后写入新哈希并刷新 password_changed_at */
+    fun updatePassword(token: String, oldPassword: String, newPassword: String): MutationResult {
+        val userId = verifyToken(token) ?: return MutationResult.Failed(401, "登录已失效，请重新登录")
+        if (!isPasswordValid(newPassword)) {
+            return MutationResult.Failed(400, "新密码需为 6~32 位且包含字母和数字")
+        }
+        return try {
+            transaction {
+                val row = Users.selectAll().where { Users.id eq userId }.firstOrNull()
+                    ?: return@transaction MutationResult.Failed(404, "用户不存在")
+                if (!BCrypt.checkpw(oldPassword, row[Users.passwordHash])) {
+                    return@transaction MutationResult.Failed(401, "原密码不正确")
+                }
+                // 距上次改密不足两周则拒绝（password_changed_at 为 NULL 视为从未修改，允许首次修改）
+                row[Users.passwordChangedAt]?.let { last ->
+                    val elapsedDays = Duration.between(last, LocalDateTime.now()).toDays()
+                    if (elapsedDays < PASSWORD_CHANGE_INTERVAL_DAYS) {
+                        val remaining = PASSWORD_CHANGE_INTERVAL_DAYS - elapsedDays
+                        return@transaction MutationResult.Failed(
+                            429, "两次修改密码需间隔 14 天，还需等待 $remaining 天",
+                        )
+                    }
+                }
+                Users.update({ Users.id eq userId }) {
+                    it[passwordHash] = BCrypt.hashpw(newPassword, BCrypt.gensalt(10))
+                    it[passwordChangedAt] = LocalDateTime.now()
+                }
+                MutationResult.Success(row.toUserDto())
+            }
+        } catch (e: Exception) {
+            MutationResult.Failed(500, "修改失败：${e.message}")
+        }
+    }
+
+    /** 注销账号：删除服务端该用户全部信息 */
+    fun deleteAccount(token: String): MutationResult {
+        val userId = verifyToken(token) ?: return MutationResult.Failed(401, "登录已失效，请重新登录")
+        return try {
+            transaction {
+                // deleteWhere 的 op 在此版本不解析 eq，预先用 SqlExpressionBuilder 构造条件再传入
+                val byId = SqlExpressionBuilder.run { Users.id eq userId }
+                if (Users.selectAll().where { byId }.firstOrNull() == null) {
+                    return@transaction MutationResult.Failed(404, "用户不存在")
+                }
+                Users.deleteWhere { byId }
+                MutationResult.Success(null)
+            }
+        } catch (e: Exception) {
+            MutationResult.Failed(500, "注销失败：${e.message}")
         }
     }
 

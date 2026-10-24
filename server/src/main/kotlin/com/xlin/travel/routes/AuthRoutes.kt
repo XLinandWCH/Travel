@@ -3,8 +3,12 @@ package com.xlin.travel.routes
 import com.xlin.travel.db.DatabaseFactory
 import com.xlin.travel.models.ApiError
 import com.xlin.travel.models.AuthResponse
+import com.xlin.travel.models.DeleteAccountRequest
 import com.xlin.travel.models.LoginRequest
+import com.xlin.travel.models.OkResponse
 import com.xlin.travel.models.RegisterRequest
+import com.xlin.travel.models.UpdatePasswordRequest
+import com.xlin.travel.models.UpdateUsernameRequest
 import com.xlin.travel.services.UserService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -41,6 +45,43 @@ fun Route.authRoutes() {
                     AuthResponse(token = UserService.issueToken(result.user.id), user = result.user),
                 )
                 is UserService.AuthResult.Failed ->
+                    call.respond(HttpStatusCode.fromValue(result.status), ApiError(result.message))
+            }
+        }
+
+        // 修改用户名：需登录 token，成功回传最新资料
+        post("/update-username") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<UpdateUsernameRequest>() ?: return@post badRequest(call)
+            when (val result = UserService.updateUsername(request.token, request.username)) {
+                is UserService.MutationResult.Success -> call.respond(
+                    OkResponse(message = "用户名已更新", user = result.user),
+                )
+                is UserService.MutationResult.Failed ->
+                    call.respond(HttpStatusCode.fromValue(result.status), ApiError(result.message))
+            }
+        }
+
+        // 修改密码：需登录 token + 原密码，服务端强制 14 天冷却
+        post("/update-password") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<UpdatePasswordRequest>() ?: return@post badRequest(call)
+            when (val result = UserService.updatePassword(request.token, request.oldPassword, request.newPassword)) {
+                is UserService.MutationResult.Success ->
+                    call.respond(OkResponse(message = "密码已修改"))
+                is UserService.MutationResult.Failed ->
+                    call.respond(HttpStatusCode.fromValue(result.status), ApiError(result.message))
+            }
+        }
+
+        // 注销账号：需登录 token，删除服务端该用户全部信息
+        post("/delete-account") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<DeleteAccountRequest>() ?: return@post badRequest(call)
+            when (val result = UserService.deleteAccount(request.token)) {
+                is UserService.MutationResult.Success ->
+                    call.respond(OkResponse(message = "账号已注销"))
+                is UserService.MutationResult.Failed ->
                     call.respond(HttpStatusCode.fromValue(result.status), ApiError(result.message))
             }
         }

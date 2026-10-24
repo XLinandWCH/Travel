@@ -53,12 +53,15 @@ import travel.app.shared.generated.resources.vibe
  */
 @Composable
 fun SettingsScreen(
+    username: String,
+    maskedPhone: String,
+    email: String,
     onBack: () -> Unit,
     onLogout: () -> Unit,
     onOpenThemeColor: () -> Unit,
     onOpenHelpCenter: () -> Unit,
     onOpenDoc: (LegalDoc) -> Unit,
-    onOpenComingSoon: (String) -> Unit,
+    onOpenAccountControl: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // 背景铺满整屏（画到系统栏之下），列表内容自己避开系统栏
@@ -80,17 +83,17 @@ fun SettingsScreen(
             // ---------- 账号 ----------
             SectionTitle("账号")
             SettingsCard {
-                SettingRow(Res.drawable.user, "用户名")
+                SettingRow(Res.drawable.user, "用户名", value = username)
                 SettingRowDivider()
-                SettingRow(Res.drawable.phone_number, "手机号")
+                SettingRow(Res.drawable.phone_number, "手机号", value = maskedPhone)
                 SettingRowDivider()
-                SettingRow(Res.drawable.email, "邮箱")
+                SettingRow(Res.drawable.email, "邮箱", value = email)
                 SettingRowDivider()
                 SettingRow(
                     icon = Res.drawable.safe,
                     label = "账号控制",
                     showChevron = true,
-                    onClick = { onOpenComingSoon("账号控制") },
+                    onClick = onOpenAccountControl,
                 )
             }
 

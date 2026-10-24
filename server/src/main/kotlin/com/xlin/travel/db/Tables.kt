@@ -18,6 +18,7 @@ object Users : Table("users") {
     val phone = varchar("phone", 20).uniqueIndex()
     val email = varchar("email", 128).uniqueIndex()
     val passwordHash = varchar("password_hash", 100)          // BCrypt 哈希，固定 60 位，留余量
+    val passwordChangedAt = datetime("password_changed_at").nullable()  // 上次改密时间，NULL 表示从未改过（注册不算改密）
     val usageDays = integer("usage_days").default(0)          // 累计使用天数
     val registeredAt = datetime("registered_at").clientDefault { LocalDateTime.now() }
 

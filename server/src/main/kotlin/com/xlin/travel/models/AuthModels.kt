@@ -41,6 +41,34 @@ data class AuthResponse(
     val user: UserDto,
 )
 
+/** 修改用户名请求：携带登录 token 与新用户名 */
+@Serializable
+data class UpdateUsernameRequest(
+    val token: String,
+    val username: String,
+)
+
+/** 修改密码请求：携带登录 token、旧密码与新密码（服务端校验 14 天冷却） */
+@Serializable
+data class UpdatePasswordRequest(
+    val token: String,
+    val oldPassword: String,
+    val newPassword: String,
+)
+
+/** 注销账号请求：携带登录 token，服务端删除该用户全部信息 */
+@Serializable
+data class DeleteAccountRequest(
+    val token: String,
+)
+
+/** 操作成功响应：message 为提示，user 仅在需要回传最新资料时携带 */
+@Serializable
+data class OkResponse(
+    val message: String,
+    val user: UserDto? = null,
+)
+
 /** 失败时统一返回的错误体 */
 @Serializable
 data class ApiError(

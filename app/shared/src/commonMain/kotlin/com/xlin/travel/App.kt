@@ -26,10 +26,13 @@ import com.xlin.travel.db.SettingKeys
 import com.xlin.travel.db.rememberChatDatabase
 import com.xlin.travel.drawer.ChatDrawer
 import com.xlin.travel.drawer.ChatHistoryState
+import com.xlin.travel.guest.GuestScreen
 import com.xlin.travel.inputbox.ChatInputState
 import com.xlin.travel.login.LoginScreen
+import com.xlin.travel.login.UserSession
 import com.xlin.travel.navigation.AppBackHandler
 import com.xlin.travel.search.SearchScreen
+import com.xlin.travel.setting.AccountControlScreen
 import com.xlin.travel.setting.ComingSoonScreen
 import com.xlin.travel.setting.DocumentScreen
 import com.xlin.travel.setting.HelpCenterScreen
@@ -38,9 +41,11 @@ import com.xlin.travel.setting.SettingsScreen
 import com.xlin.travel.setting.ThemeColorScreen
 import kotlinx.coroutines.launch
 
-/** 顶层页面；ThemeColor / ComingSoon / HelpCenter / Document 是设置的子页面，返回时先回到设置列表；Login 由设置页“退出登录”进入 */
+/** 顶层页面；ThemeColor / ComingSoon / HelpCenter / Document 是设置的子页面，返回时先回到设置列表；
+ * AccountControl 亦从设置进入；Guest 为未登入界面，Login 由未登入界面「登入」或退出登录进入。 */
 private enum class AppScreen {
     Chat,
+    Guest,
     Login,
     Settings,
     Search,
@@ -48,6 +53,7 @@ private enum class AppScreen {
     ComingSoon,
     HelpCenter,
     Document,
+    AccountControl,
 }
 
 @Composable
@@ -65,18 +71,22 @@ fun App() {
         }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
-        var screen by remember { mutableStateOf(AppScreen.Chat) }
+        val session = remember { UserSession() }
+        var screen by remember { mutableStateOf(AppScreen.Guest) }
         var comingSoonTitle by remember { mutableStateOf("") }
         var legalDoc by remember { mutableStateOf(LegalDoc.Terms) }
         val systemIsDark = isSystemInDarkTheme()
 
-        // 启动时从数据库恢复历史会话列表与主题偏好
+        // 启动时从数据库恢复历史会话列表、主题偏好与登录态
         LaunchedEffect(repository) {
             history.refresh()
             repository.getSetting(SettingKeys.ThemePreference)?.let { saved ->
                 AppTheme.preference = ThemePreference.entries.firstOrNull { it.name == saved }
                     ?: AppTheme.preference
             }
+            // 恢复登录态：已登录进主聊天，否则停在未登入界面
+            session.load(repository)
+            screen = if (session.loggedIn) AppScreen.Chat else AppScreen.Guest
         }
 
         // 跟随系统：把系统深色状态同步给 AppTheme（System 偏好时生效）
@@ -89,12 +99,14 @@ fun App() {
             scope.launch { drawerState.close() }
         }
 
-        // 系统返回键：子页面先回设置列表，搜索回聊天页，聊天页才交给系统退出应用；
-        // 帮助中心页里的意见反馈面板是独立窗口，返回键由它自己消费
-        AppBackHandler(enabled = screen != AppScreen.Chat) {
+        // 系统返回键：子页面先回设置列表，搜索回聊天页，登录回未登入界面；
+        // 聊天页与未登入界面为根页，交给系统退出应用；帮助中心面板为独立窗口，返回键由它自己消费
+        AppBackHandler(enabled = screen != AppScreen.Chat && screen != AppScreen.Guest) {
             screen = when (screen) {
                 AppScreen.ThemeColor, AppScreen.ComingSoon,
-                AppScreen.HelpCenter, AppScreen.Document -> AppScreen.Settings
+                AppScreen.HelpCenter, AppScreen.Document,
+                AppScreen.AccountControl -> AppScreen.Settings
+                AppScreen.Login -> AppScreen.Guest
                 else -> AppScreen.Chat
             }
         }
@@ -110,6 +122,7 @@ fun App() {
                     drawerState = drawerState,
                     drawerContent = {
                         ChatDrawer(
+                            session = session,
                             history = history,
                             onNewChat = {
                                 chatState.startNewChat()
@@ -130,6 +143,16 @@ fun App() {
                                 scope.launch { drawerState.close() }
                                 screen = AppScreen.Settings
                             },
+                            onDeleteConversation = { id ->
+                                scope.launch {
+                                    history.delete(id)
+                                    // 删的是当前打开的会话时，重置为全新对话
+                                    if (chatState.conversationId == id) chatState.startNewChat()
+                                }
+                            },
+                            onRenameConversation = { id, newTitle ->
+                                scope.launch { history.rename(id, newTitle) }
+                            },
                         )
                     },
                 ) {
@@ -147,17 +170,34 @@ fun App() {
                 }
 
                 AppScreen.Settings -> SettingsScreen(
+                    username = session.username,
+                    maskedPhone = session.maskedPhone,
+                    email = session.email,
                     onBack = { screen = AppScreen.Chat },
-                    onLogout = { screen = AppScreen.Login },
+                    onLogout = {
+                        scope.launch {
+                            session.signOut(repository)
+                            screen = AppScreen.Guest
+                        }
+                    },
                     onOpenThemeColor = { screen = AppScreen.ThemeColor },
                     onOpenHelpCenter = { screen = AppScreen.HelpCenter },
                     onOpenDoc = { doc ->
                         legalDoc = doc
                         screen = AppScreen.Document
                     },
-                    onOpenComingSoon = { title ->
-                        comingSoonTitle = title
-                        screen = AppScreen.ComingSoon
+                    onOpenAccountControl = { screen = AppScreen.AccountControl },
+                )
+
+                AppScreen.AccountControl -> AccountControlScreen(
+                    session = session,
+                    repository = repository,
+                    onBack = { screen = AppScreen.Settings },
+                    onAccountDeleted = {
+                        // 会话与本地数据已在弹窗内清空：重置当前聊天并刷新历史，回到最初的未登入界面
+                        chatState.startNewChat()
+                        scope.launch { history.refresh() }
+                        screen = AppScreen.Guest
                     },
                 )
 
@@ -184,9 +224,19 @@ fun App() {
                     onBack = { screen = AppScreen.Settings },
                 )
 
+                AppScreen.Guest -> GuestScreen(
+                    inputState = inputState,
+                    onLogin = { screen = AppScreen.Login },
+                )
+
                 AppScreen.Login -> LoginScreen(
-                    onSkip = { screen = AppScreen.Chat },
-                    onLoggedIn = { screen = AppScreen.Chat },
+                    onSkip = { screen = AppScreen.Guest },
+                    onLoggedIn = { user, token ->
+                        scope.launch {
+                            session.signIn(user, token, repository)
+                            screen = AppScreen.Chat
+                        }
+                    },
                 )
 
                 AppScreen.Search -> SearchScreen(
