@@ -9,6 +9,7 @@ import com.xlin.travel.models.OkResponse
 import com.xlin.travel.models.RegisterRequest
 import com.xlin.travel.models.UpdatePasswordRequest
 import com.xlin.travel.models.UpdateUsernameRequest
+import com.xlin.travel.models.UploadAvatarRequest
 import com.xlin.travel.services.UserService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -81,6 +82,18 @@ fun Route.authRoutes() {
             when (val result = UserService.deleteAccount(request.token)) {
                 is UserService.MutationResult.Success ->
                     call.respond(OkResponse(message = "账号已注销"))
+                is UserService.MutationResult.Failed ->
+                    call.respond(HttpStatusCode.fromValue(result.status), ApiError(result.message))
+            }
+        }
+
+        // 上传头像：需登录 token + base64，服务端保存一份用于跨设备同步
+        post("/upload-avatar") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<UploadAvatarRequest>() ?: return@post badRequest(call)
+            when (val result = UserService.updateAvatar(request.token, request.avatar)) {
+                is UserService.MutationResult.Success ->
+                    call.respond(OkResponse(message = "头像已保存", user = result.user))
                 is UserService.MutationResult.Failed ->
                     call.respond(HttpStatusCode.fromValue(result.status), ApiError(result.message))
             }

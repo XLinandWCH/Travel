@@ -32,6 +32,7 @@ data class UserDto(
     val email: String,
     val usageDays: Int,
     val registeredAt: String,
+    val avatar: String? = null,
 )
 
 /** 登录 / 注册成功：返回会话 token 与用户信息 */
@@ -60,6 +61,13 @@ data class UpdatePasswordRequest(
 @Serializable
 data class DeleteAccountRequest(
     val token: String,
+)
+
+/** 上传头像请求：携带登录 token 与头像 base64（PNG） */
+@Serializable
+data class UploadAvatarRequest(
+    val token: String,
+    val avatar: String,
 )
 
 /** 操作成功响应：message 为提示，user 仅在需要回传最新资料时携带 */

@@ -113,6 +113,9 @@ object UserService {
     /** 两次改密码的最小间隔（天），避免用户无节制地反复更换 */
     private const val PASSWORD_CHANGE_INTERVAL_DAYS = 14L
 
+    /** 头像 base64 允许的最大字符数（约 1MB），超出拒绝 */
+    private const val MAX_AVATAR_BASE64_LENGTH = 1_400_000
+
     /** 修改用户名：token 鉴权 + 长度校验 + 唯一性校验，成功后回传最新资料 */
     fun updateUsername(token: String, rawUsername: String): MutationResult {
         val userId = verifyToken(token) ?: return MutationResult.Failed(401, "登录已失效，请重新登录")
@@ -189,6 +192,29 @@ object UserService {
         }
     }
 
+    /** 上传头像：token 鉴权 + 体积兜底保护，服务端保存 base64 用于跨设备同步 */
+    fun updateAvatar(token: String, avatarBase64: String): MutationResult {
+        val userId = verifyToken(token) ?: return MutationResult.Failed(401, "登录已失效，请重新登录")
+        val avatar = avatarBase64.trim()
+        if (avatar.isEmpty()) return MutationResult.Failed(400, "头像内容为空")
+        // 客户端已缩放到 ≤512px，正常几十 KB；超过约 1MB 的 base64 一律拒绝，避免数据库膨胀
+        if (avatar.length > MAX_AVATAR_BASE64_LENGTH) {
+            return MutationResult.Failed(413, "头像过大，请重新选择")
+        }
+        return try {
+            transaction {
+                if (Users.selectAll().where { Users.id eq userId }.firstOrNull() == null) {
+                    return@transaction MutationResult.Failed(404, "用户不存在")
+                }
+                Users.update({ Users.id eq userId }) { it[Users.avatar] = avatar }
+                val row = Users.selectAll().where { Users.id eq userId }.single()
+                MutationResult.Success(row.toUserDto())
+            }
+        } catch (e: Exception) {
+            MutationResult.Failed(500, "上传失败：${e.message}")
+        }
+    }
+
     // ==================== token（HMAC 签名，暂不含会话存储） ====================
 
     private val tokenSecret: ByteArray =
@@ -241,5 +267,6 @@ object UserService {
         email = this[Users.email],
         usageDays = this[Users.usageDays],
         registeredAt = this[Users.registeredAt].toString(),
+        avatar = this[Users.avatar],
     )
 }

@@ -47,7 +47,7 @@ import com.xlin.travel.color.SettingItemPressed
 import com.xlin.travel.color.TextGray300
 import com.xlin.travel.color.TextWhite
 import com.xlin.travel.db.ChatRepository
-import com.xlin.travel.image_picker.rememberImagePicker
+import com.xlin.travel.image_picker.rememberAvatarPicker
 import com.xlin.travel.login.AuthApi
 import com.xlin.travel.login.UserSession
 import com.xlin.travel.navigation.PageTopBar
@@ -77,8 +77,16 @@ fun AccountControlScreen(
     var showPasswordDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // 头像：选中即写入本次会话（无跨平台 PNG 编解码，重启回退首字母）
-    val pickAvatar = rememberImagePicker(onResult = { bitmap -> if (bitmap != null) session.avatar = bitmap })
+    // 头像：选中后本地立即生效并持久化到 app_setting，同时尽力上传服务端一份用于跨设备同步
+    val pickAvatar = rememberAvatarPicker(onResult = { data ->
+        if (data != null) {
+            scope.launch {
+                session.setAvatar(data.base64, repository)
+                // 上传失败不影响本地（离线 / 服务端异常时仅本地保存），静默兜底
+                runCatching { AuthApi.uploadAvatar(session.token, data.base64) }
+            }
+        }
+    })
 
     Column(
         modifier = modifier

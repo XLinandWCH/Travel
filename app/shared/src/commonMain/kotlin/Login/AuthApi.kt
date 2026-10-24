@@ -40,6 +40,9 @@ private data class UpdatePasswordRequest(
 @Serializable
 private data class DeleteAccountRequest(val token: String)
 
+@Serializable
+private data class UploadAvatarRequest(val token: String, val avatar: String)
+
 /** 与服务端 OkResponse 对应：message 为提示，user 仅在改用户名时回传最新资料 */
 @Serializable
 private data class OkResponse(val message: String, val user: UserDto? = null)
@@ -52,6 +55,7 @@ data class UserDto(
     val email: String,
     val usageDays: Int,
     val registeredAt: String,
+    val avatar: String? = null,
 )
 
 @Serializable
@@ -125,6 +129,10 @@ object AuthApi {
     /** 注销账号：携带 token，服务端删除该用户全部信息 */
     suspend fun deleteAccount(token: String): MutationApiResult =
         mutate("$AUTH_BASE_URL/api/auth/delete-account", DeleteAccountRequest(token))
+
+    /** 上传头像：携带 token 与 base64，服务端保存一份用于跨设备同步 */
+    suspend fun uploadAvatar(token: String, avatarBase64: String): MutationApiResult =
+        mutate("$AUTH_BASE_URL/api/auth/upload-avatar", UploadAvatarRequest(token, avatarBase64))
 
     private suspend inline fun <reified B : Any> mutate(url: String, body: B): MutationApiResult {
         return try {

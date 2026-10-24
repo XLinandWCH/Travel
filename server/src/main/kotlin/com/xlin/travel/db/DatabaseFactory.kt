@@ -65,12 +65,15 @@ object DatabaseFactory {
             SchemaUtils.create(Users, ModelApiKeys, FeedbackTickets)
         }
 
-        // 4. 增量迁移：为已存在的旧 users 表补上 password_changed_at 列
+        // 4. 增量迁移：为已存在的旧 users 表补上 password_changed_at / avatar 列
         //    （MySQL 无 ADD COLUMN IF NOT EXISTS，列已存在时报错即忽略）
-        runCatching {
-            dataSource.connection.use { conn ->
-                conn.createStatement().use { stmt ->
-                    stmt.execute("ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL")
+        listOf(
+            "ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL",
+            "ALTER TABLE users ADD COLUMN avatar TEXT NULL",
+        ).forEach { ddl ->
+            runCatching {
+                dataSource.connection.use { conn ->
+                    conn.createStatement().use { stmt -> stmt.execute(ddl) }
                 }
             }
         }
