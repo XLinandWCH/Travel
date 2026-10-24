@@ -6,5 +6,11 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于在对话中选择并发送图片</string>
+	<!-- 开发阶段后端为公网 IP + http 明文，放开 ATS；上 https 后可移除 -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

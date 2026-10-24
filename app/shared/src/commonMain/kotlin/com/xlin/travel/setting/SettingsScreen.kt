@@ -54,6 +54,7 @@ import travel.app.shared.generated.resources.vibe
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onLogout: () -> Unit,
     onOpenThemeColor: () -> Unit,
     onOpenHelpCenter: () -> Unit,
     onOpenDoc: (LegalDoc) -> Unit,
@@ -135,7 +136,7 @@ fun SettingsScreen(
             // ---------- 退出登录 ----------
             Spacer(Modifier.height(8.dp))
             SettingsCard {
-                LogoutRow()
+                LogoutRow(onLogout = onLogout)
             }
 
             // 对应 HTML body padding-bottom: 32px
@@ -144,9 +145,9 @@ fun SettingsScreen(
     }
 }
 
-/** 退出登录（.logout）：图标与文字整体居中，统一强调橙；账号系统未接入前仅保留按下反馈 */
+/** 退出登录（.logout）：图标与文字整体居中，统一强调橙；点击进入登录页 */
 @Composable
-private fun LogoutRow() {
+private fun LogoutRow(onLogout: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     Row(
@@ -154,7 +155,7 @@ private fun LogoutRow() {
             .fillMaxWidth()
             .heightIn(min = 56.dp)
             .background(if (pressed) SettingItemPressed else Color.Transparent)
-            .clickable(interactionSource = interactionSource, indication = null) { /* 暂未接入账号系统 */ }
+            .clickable(interactionSource = interactionSource, indication = null) { onLogout() }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,

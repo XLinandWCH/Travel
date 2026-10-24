@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -51,6 +52,7 @@ kotlin {
             implementation(libs.compose.uiTooling)
             implementation(libs.androidx.activity.compose)
             implementation(libs.koog.http.client.ktor)
+            implementation(libs.ktor.clientCio)
 
         }
         commonMain.dependencies {
@@ -69,6 +71,10 @@ kotlin {
             implementation(libs.androidx.sqlite)
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.koog.agents.features.memory)
+            // 登录 / 注册接口客户端（引擎由各平台 actual 提供）
+            implementation(libs.ktor.clientCore)
+            implementation(libs.ktor.clientContentNegotiation)
+            implementation(libs.ktor.serializationKotlinxJsonMp)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -79,6 +85,7 @@ kotlin {
                 implementation(libs.koog.agents)
                 implementation(libs.koog.agents.additions)
                 implementation(libs.koog.http.client.ktor)
+                implementation(libs.ktor.clientDarwin)
             }
         }
         val iosArm64Main by getting { dependsOn(iosMain) }
@@ -86,6 +93,7 @@ kotlin {
 
         jvmMain.dependencies {
             // JVM
+            implementation(libs.ktor.clientCio)
         }
         jvmTest.dependencies {
             // JVM 测试

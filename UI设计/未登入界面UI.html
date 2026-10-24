@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Welcome</title>
+<style>
+  :root {
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --accent: #ff5722;
+    --text-main: #ffffff;
+    --text-sub: #888888;
+    --input-bg: #2a2a2e;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* 顶部导航 */
+  .header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+  }
+
+  .signin-btn {
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(255, 87, 34, 0.3);
+  }
+
+  /* 中间内容 */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 60px; /* 让 Welcome 视觉上略微偏上 */
+  }
+
+  .welcome-text {
+    font-size: 36px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+  }
+
+  /* 底部输入栏 */
+  .footer {
+    padding: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .input-bar {
+    background-color: var(--input-bg);
+    border-radius: 28px;
+    display: flex;
+    align-items: center;
+    padding: 6px 6px 6px 12px;
+    height: 56px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  .add-btn {
+    color: var(--text-sub);
+    font-size: 28px;
+    margin-right: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+  }
+
+  .input-field {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 17px;
+    outline: none;
+    padding: 0 8px;
+  }
+
+  .input-field::placeholder {
+    color: var(--text-sub);
+  }
+
+  .mic-btn {
+    background-color: #ffffff;
+    color: #000000;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+  }
+
+  /* 麦克风 SVG 样式 */
+  .mic-icon {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 顶部右上角：登入 -->
+  <div class="header">
+    <button class="signin-btn">登入</button>
+  </div>
+
+  <!-- 中间：仅保留 Welcome -->
+  <div class="content">
+    <div class="welcome-text">Welcome</div>
+  </div>
+
+  <!-- 底部：输入框 -->
+  <div class="footer">
+    <div class="input-bar">
+      <div class="add-btn">+</div>
+      <input type="text" class="input-field" placeholder="Ask anything">
+      <button class="mic-btn" aria-label="语音输入">
+        <svg class="mic-icon" viewBox="0 0 24 24">
+          <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // 简单的交互反馈
+    document.querySelector('.signin-btn').addEventListener('click', () => {
+      alert('触发登入逻辑');
+    });
+    
+    document.querySelector('.add-btn').addEventListener('click', () => {
+      alert('触发添加/更多选项');
+    });
+
+    document.querySelector('.mic-btn').addEventListener('click', () => {
+      alert('触发语音输入');
+    });
+  </script>
+</body>
+</html>

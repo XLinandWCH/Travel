@@ -7,7 +7,7 @@ on:
       versionName:
         description: '应用版本号（如 1.2.0）'
         required: true
-        default: '1.0'
+        default: '1.0'Get-Content "$env:TEMP\travel_keystore_base64.txt" | Set-Clipboard
       versionCode:
         description: 'Android versionCode（纯整数，每次发版需递增）'
         required: true

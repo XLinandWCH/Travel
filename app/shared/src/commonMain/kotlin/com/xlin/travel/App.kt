@@ -27,6 +27,7 @@ import com.xlin.travel.db.rememberChatDatabase
 import com.xlin.travel.drawer.ChatDrawer
 import com.xlin.travel.drawer.ChatHistoryState
 import com.xlin.travel.inputbox.ChatInputState
+import com.xlin.travel.login.LoginScreen
 import com.xlin.travel.navigation.AppBackHandler
 import com.xlin.travel.search.SearchScreen
 import com.xlin.travel.setting.ComingSoonScreen
@@ -37,9 +38,10 @@ import com.xlin.travel.setting.SettingsScreen
 import com.xlin.travel.setting.ThemeColorScreen
 import kotlinx.coroutines.launch
 
-/** 顶层页面；ThemeColor / ComingSoon / HelpCenter / Document 是设置的子页面，返回时先回到设置列表 */
+/** 顶层页面；ThemeColor / ComingSoon / HelpCenter / Document 是设置的子页面，返回时先回到设置列表；Login 由设置页“退出登录”进入 */
 private enum class AppScreen {
     Chat,
+    Login,
     Settings,
     Search,
     ThemeColor,
@@ -146,6 +148,7 @@ fun App() {
 
                 AppScreen.Settings -> SettingsScreen(
                     onBack = { screen = AppScreen.Chat },
+                    onLogout = { screen = AppScreen.Login },
                     onOpenThemeColor = { screen = AppScreen.ThemeColor },
                     onOpenHelpCenter = { screen = AppScreen.HelpCenter },
                     onOpenDoc = { doc ->
@@ -179,6 +182,11 @@ fun App() {
                 AppScreen.Document -> DocumentScreen(
                     doc = legalDoc,
                     onBack = { screen = AppScreen.Settings },
+                )
+
+                AppScreen.Login -> LoginScreen(
+                    onSkip = { screen = AppScreen.Chat },
+                    onLoggedIn = { screen = AppScreen.Chat },
                 )
 
                 AppScreen.Search -> SearchScreen(

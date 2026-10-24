@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.Color
 
 // ==================== 背景与容器 ====================
 val ChatBackground: Color
-    get() = themeColor(Color(0xFF1A1A1A), Color(0xFFF5F5F5))    // 全局页面背景（聊天 / 设置 / 搜索等子页面共用）
+    get() = themeColor(Color(0xFF1A1A1A), Color(0xD7F5F5F5))    // 全局页面背景（聊天 / 设置 / 搜索等子页面共用）
 val SidebarBackground: Color
     get() = themeColor(Color(0xFF111111), Color(0xFFEAEAEA))    // 抽屉侧边栏背景 [抽屉]
 val InputCardBackground: Color
@@ -121,6 +121,10 @@ val SubmitReadyBackground: Color
     get() = themeColor(Color(0xFFECECF0), Color(0xFF1A1A1A))    // 提交按钮可用底：与主题反转 [反馈]
 val SubmitReadyText: Color
     get() = themeColor(Color(0xFF141418), Color(0xFFF5F5F5))    // 提交按钮可用文字 [反馈]
+
+// ==================== 登录 / 注册表单 ====================
+val FormErrorText: Color
+    get() = themeColor(Color(0xFFFF6B6B), Color(0xFFD93025))    // 字段校验错误红字（深主题浅红 / 浅主题标准红）[登录]
 
 // ==================== Markdown 渲染 ====================
 val CodeBlockBackground: Color
