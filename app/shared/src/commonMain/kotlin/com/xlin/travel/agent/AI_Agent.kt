@@ -65,7 +65,7 @@ suspend fun chatStreaming(
         systemPrompt = TravelSystemPrompt,
         temperature = 0.8,
         toolRegistry = myTools,
-        strategy = strategy("streaming-demo", myTools),
+        strategy = strategy("streaming-demo", toolRegistry = myTools),
 
     ) {
         handleEvents {
@@ -76,7 +76,19 @@ suspend fun chatStreaming(
             }
 
             onToolCallStarting { ctx ->
-                println("\n[调用工具: ${ctx.toolName}]:[输入参数 ${ctx.toolArgs}]... ")
+                onEvent(ChatStreamEvent.ToolCallStarted(ctx.toolName, ctx.toolArgs.toString()))
+            }
+
+            onToolCallCompleted { ctx ->
+                onEvent(ChatStreamEvent.ToolCallFinished(ctx.toolName, ctx.toolResult.toString()))
+            }
+
+            onToolValidationFailed { ctx ->
+                onEvent(ChatStreamEvent.ToolValidationFailed(ctx.toolName, ctx.message))
+            }
+
+            onToolCallFailed { ctx ->
+                onEvent(ChatStreamEvent.ToolCallFailed(ctx.toolName, ctx.message))
             }
 
             onLLMStreamingFrameReceived { ctx ->

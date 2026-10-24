@@ -32,11 +32,12 @@ fun strategy(name: String,
         // 2. 边
         edge(nodeStart forwardTo nodeCallLLM)
 
-        // LLM → 结束（纯文本）
-        edge(nodeCallLLM forwardTo nodeFinish onTextMessage { true })
-
-        // LLM → 工具调用
+        // 必须先评估 onToolCalls：模型可能在一条 Assistant 消息里同时给出文本和工具调用，
+        // koog 取第一条命中的边，若 onTextMessage 在前会直接走向 nodeFinish 导致工具不执行被截断
         edge(nodeCallLLM forwardTo executeToolCall onToolCalls { true })
+
+        // 只有当没有工具调用时，才作为纯文本走向 nodeFinish
+        edge(nodeCallLLM forwardTo nodeFinish onTextMessage { true })
 
         // 工具执行完 → 分流
         edge(executeToolCall forwardTo compressHistory onCondition {

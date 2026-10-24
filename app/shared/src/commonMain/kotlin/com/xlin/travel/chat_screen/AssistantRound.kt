@@ -46,6 +46,14 @@ internal class AssistantRound(
                 when (event) {
                     is ChatStreamEvent.Reasoning -> reply.reasoning += event.text
                     is ChatStreamEvent.Content -> reply.content += event.text
+                    is ChatStreamEvent.ToolCallStarted ->
+                        reply.reasoning += "\n🔧 正在调用工具 ${event.toolName}，参数：${event.args}\n"
+                    is ChatStreamEvent.ToolCallFinished ->
+                        reply.reasoning += "✅ 工具 ${event.toolName} 返回：${event.result}\n"
+                    is ChatStreamEvent.ToolValidationFailed ->
+                        reply.reasoning += "⚠️ 工具 ${event.toolName} 参数校验失败：${event.message}\n"
+                    is ChatStreamEvent.ToolCallFailed ->
+                        reply.reasoning += "❌ 工具 ${event.toolName} 执行失败：${event.message}\n"
                     ChatStreamEvent.Completed -> Unit
                 }
             }
