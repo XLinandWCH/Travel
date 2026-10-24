@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xlin.travel.color.AccentOrange
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -27,7 +28,8 @@ import kotlinx.coroutines.launch
  * 全新对话（消息为空）时，居中随机显示一条欢迎语。
  *
  * 最后一条 AI 回答输出结束后，正文下方会出现赞同 / 不赞同 / 重新生成 / 复制四个按钮，
- * 顶部提示（[TopToast]）与底部反馈面板（[FeedbackSheetOverlay]）都悬浮在聊天区之上。
+ * 顶部提示（[TopToast]）与点踩后的反馈面板（[FeedbackBottomSheet]）：面板是真正的底部面板
+ * （ModalBottomSheet，独立窗口层），提示仍画在聊天区之上。
  */
 @Composable
 fun ChatScreen(
@@ -109,14 +111,19 @@ fun ChatScreen(
             }
         }
 
-        // 反馈面板在提示之下，保证提交后的提示不被遮住
-        FeedbackSheetOverlay(
+        // 反馈面板是独立窗口，会遮住顶部提示，因此等它收起后再弹提示
+        FeedbackBottomSheet(
             state = sheet,
             onSubmit = {
-                sheet.submit()
-                toast.show("已提交，感谢反馈")
+                scope.launch {
+                    delay(SheetDismissMillis)
+                    toast.show("已提交，感谢反馈")
+                }
             },
         )
         TopToast(toast)
     }
 }
+
+/** 反馈面板的收起动画时长 */
+private const val SheetDismissMillis = 300L

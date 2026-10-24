@@ -10,34 +10,22 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.xlin.travel.color.AccentOrange
 import com.xlin.travel.color.ChipBorder
 import com.xlin.travel.color.ChipSelectedBackground
 import com.xlin.travel.color.ChipSelectedText
 import com.xlin.travel.color.FeedbackAccent
-import com.xlin.travel.color.InputCardBackground
-import com.xlin.travel.color.InputPlaceholderColor
-import com.xlin.travel.color.InputTextColor
-import com.xlin.travel.color.SubmitDisabledBackground
-import com.xlin.travel.color.SubmitDisabledText
-import com.xlin.travel.color.SubmitReadyBackground
-import com.xlin.travel.color.SubmitReadyText
 import com.xlin.travel.color.TextWhite
+import com.xlin.travel.sheet.MultilineInputField
 
 /** 分组标题 + 一组可多选的标签 */
 @OptIn(ExperimentalLayoutApi::class)
@@ -93,53 +81,13 @@ fun SectionTitle(text: String) {
     )
 }
 
-/** 多行补充输入框，占位文字在内容为空时显示 */
+/** 多行补充输入框（复用底部面板的通用输入件），占位文字在内容为空时显示 */
 @Composable
 internal fun NoteField(state: FeedbackSheetState) {
-    val shape = RoundedCornerShape(15.dp)
-    BasicTextField(
+    MultilineInputField(
         value = state.note,
         onValueChange = { state.onNoteChange(it) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 150.dp, max = 190.dp)
-            .clip(shape)
-            .background(InputCardBackground)
-            .border(1.dp, ChipBorder, shape)
-            .padding(14.dp),
-        textStyle = TextStyle(color = InputTextColor, fontSize = 15.sp, lineHeight = 25.sp),
-        cursorBrush = SolidColor(AccentOrange),
-        decorationBox = { inner ->
-            Box(contentAlignment = Alignment.TopStart) {
-                if (state.note.isEmpty()) {
-                    Text(FeedbackOptions.NotePlaceholder, color = InputPlaceholderColor, fontSize = 15.sp)
-                }
-                inner()
-            }
-        },
+        placeholder = FeedbackOptions.NotePlaceholder,
     )
     Box(modifier = Modifier.height(6.dp))
-}
-
-/** 提交按钮：可提交时高亮，否则保持禁用灰 */
-@Composable
-internal fun SubmitButton(enabled: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(15.dp)
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp)
-            .clip(shape)
-            .background(if (enabled) SubmitReadyBackground else SubmitDisabledBackground)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "提交",
-            color = if (enabled) SubmitReadyText else SubmitDisabledText,
-            fontSize = 16.5.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(vertical = 15.dp),
-        )
-    }
 }

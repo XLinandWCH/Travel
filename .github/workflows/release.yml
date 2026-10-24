@@ -12,6 +12,10 @@ on:
         description: 'Android versionCode（纯整数，每次发版需递增）'
         required: true
         default: '1'
+      allowUnsigned:
+        description: '允许未签名产物（仅调试用；正式分发必须留空，否则缺 Secrets 会直接失败）'
+        required: false
+        default: 'false'
 
 jobs:
   # ============================================================
@@ -38,29 +42,54 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      # 从 Secrets 还原签名证书（BASE64 编码的 jks 文件）
-      # 未配置 Secrets 时降级为未签名产物，不影响构建
-      - name: Decode Release Keystore
+      # 从 Secrets 还原签名证书（BASE64 编码的 jks / pkcs12 文件），并写入 signing.properties
+      # 供 app/androidApp/build.gradle.kts 读取。
+      # 这里不再“静默降级为未签名”：缺哪个 Secret 就明确报错，避免打出装不上的包。
+      - name: Decode & Verify Release Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ALLOW_UNSIGNED: ${{ github.event.inputs.allowUnsigned }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > ${{ github.workspace }}/travel-release.jks
-            echo "KEYSTORE_FOUND=true" >> "$GITHUB_ENV"
-            echo "✅ 已还原签名证书 travel-release.jks"
-          else
-            echo "⚠️ 未配置 ANDROID_KEYSTORE_BASE64，Release 将保持未签名（无法直接安装）"
+          set -e
+          missing=""
+          [ -z "$KEYSTORE_BASE64" ] && missing="$missing ANDROID_KEYSTORE_BASE64"
+          [ -z "$KEY_ALIAS" ] && missing="$missing ANDROID_KEY_ALIAS"
+          [ -z "$KEY_PASSWORD" ] && missing="$missing ANDROID_KEY_PASSWORD"
+          [ -z "$STORE_PASSWORD" ] && missing="$missing ANDROID_STORE_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::❌ 缺少 GitHub Secrets：$missing"
+            echo "   请到仓库 Settings → Secrets and variables → Actions → New repository secret 里添加；"
+            echo "   注意必须是 Secrets（放在 Environments / Variables 里的同名条目在这里读不到）。"
+            if [ "$ALLOW_UNSIGNED" != "true" ]; then exit 1; fi
+            echo "⚠️ allowUnsigned=true，继续产出未签名包（仅调试）"
+            rm -f "$GITHUB_WORKSPACE/signing.properties"
+            exit 0
           fi
+          KS="$GITHUB_WORKSPACE/travel-release.jks"
+          # 去掉 Windows 换行与折行空格再解码，避免 base64 -d 因非法字符截断
+          printf '%s' "$KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > "$KS"
+          echo "密钥库大小：$(wc -c < "$KS") bytes"
+          # 自检：能不能用该口令列出这个别名（JKS / PKCS12 都适用），失败说明口令或文件有问题
+          if ! keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null; then
+            echo "::error::❌ 密钥库校验失败：storePassword / keyAlias 不对，或 jks 在 Base64 传输中被截断损坏"
+            exit 1
+          fi
+          echo "✅ 密钥库校验通过（别名 $KEY_ALIAS）"
+          {
+            echo "sign.keyStore=$KS"
+            echo "sign.keyAlias=$KEY_ALIAS"
+            echo "sign.keyPassword=$KEY_PASSWORD"
+            echo "sign.storePassword=$STORE_PASSWORD"
+          } > "$GITHUB_WORKSPACE/signing.properties"
 
       - name: Build Debug + Release APK
         run: >
           ./gradlew :app:androidApp:assembleDebug :app:androidApp:assembleRelease
           -Prelease.versionName="${{ github.event.inputs.versionName }}"
           -Prelease.versionCode="${{ github.event.inputs.versionCode }}"
-          ${KEYSTORE_FOUND:+-Psign.keyStore=${{ github.workspace }}/travel-release.jks}
-          ${KEYSTORE_FOUND:+-Psign.keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}}
-          ${KEYSTORE_FOUND:+-Psign.keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}}
-          ${KEYSTORE_FOUND:+-Psign.storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}}
           --stacktrace
 
       # 数据库自检：确认 androidx.sqlite 2.7.1 的 BundledSQLiteDriver
@@ -83,12 +112,28 @@ jobs:
           name: Travel-Android-Debug-v${{ github.event.inputs.versionName }}
           path: app/androidApp/build/outputs/apk/debug/androidApp-debug.apk
 
-      # 已签名时产物为 androidApp-release.apk，未签名时为 *-unsigned.apk，用通配匹配两种情况
-      - name: Rename Release APK
+      # 已签名时产物为 androidApp-release.apk，未签名时为 *-unsigned.apk
+      # 这里用 apksigner 实测验签：没签上就立刻失败，不再把装不上的包推给你下载
+      - name: Verify Signature + Rename Release APK
+        env:
+          ALLOW_UNSIGNED: ${{ github.event.inputs.allowUnsigned }}
         run: |
           set -e
           APK=$(find app/androidApp/build/outputs/apk/release -name '*.apk' | head -n 1)
           echo "Release 产物：$APK"
+          if echo "$APK" | grep -q 'unsigned'; then
+            if [ "$ALLOW_UNSIGNED" = "true" ]; then
+              echo "::warning::按 allowUnsigned=true 放行：这是未签名包，装不上，只能用于看体积 / 调试"
+            else
+              echo "::error::❌ 这是未签名包（文件名含 unsigned），说明签名配置没有注入成功"
+              exit 1
+            fi
+          else
+            APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner 2>/dev/null | sort | tail -n 1)
+            echo "使用验签工具：$APKSIGNER"
+            "$APKSIGNER" verify --print-certs "$APK"
+            echo "✅ 验签通过（v1 / v2 / v3 至少一种生效）"
+          fi
           mv "$APK" "Travel-v${{ github.event.inputs.versionName }}-Android-release.apk"
 
       - name: Upload Release APK

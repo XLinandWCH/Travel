@@ -148,11 +148,11 @@ val TopBarEdgeFadeBrush: Brush
         return Brush.horizontalGradient(
             colorStops = arrayOf(
                 0.0f  to base.copy(alpha = 0.65f),
-                0.25f to base.copy(alpha = 0.65f),
-                0.35f to base.copy(alpha = 0.3f),
+                0.25f to base.copy(alpha = 0.6f),
+                0.35f to base.copy(alpha = 0.2f),
                 0.5f  to Color.Transparent,
-                0.65f to base.copy(alpha = 0.3f),
-                0.75f to base.copy(alpha = 0.65f),
+                0.65f to base.copy(alpha = 0.2f),
+                0.75f to base.copy(alpha = 0.6f),
                 1.0f  to base.copy(alpha = 0.65f),
             )
         )

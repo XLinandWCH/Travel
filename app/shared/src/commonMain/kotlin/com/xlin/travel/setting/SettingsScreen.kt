@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -48,97 +49,106 @@ import travel.app.shared.generated.resources.user
 import travel.app.shared.generated.resources.vibe
 
 /**
- * 设置界面：1:1 还原 UI设计/设置界面UI初稿.html。
  * 账号 / 应用 / 关于 三个分组卡片 + 退出登录；
- * 带 Chevron Right 的条目进入子界面，未开发的子界面显示“XXX即将上线”。
+ * 帮助中心 / 服务条款 / 隐私政策 从屏幕底部滑出面板（ModalBottomSheet，见 [SettingsSheetHost]），
+ * 尚未开发的条目（账号控制）仍进入“XXX即将上线”子页面。
  */
 @Composable
 fun SettingsScreen(
+    sheets: SettingsSheetState,
     onBack: () -> Unit,
     onOpenThemeColor: () -> Unit,
     onOpenComingSoon: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    // 背景与遮罩都铺满整屏（画到系统栏之下），列表内容自己避开系统栏
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ChatBackground)
-            .safeContentPadding(),
+            .background(ChatBackground),
     ) {
-        PageTopBar(title = "设置", onBack = onBack)
-
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .fillMaxSize()
+                .safeContentPadding(),
         ) {
-            // ---------- 账号 ----------
-            SectionTitle("账号")
-            SettingsCard {
-                SettingRow(Res.drawable.user, "用户名")
-                SettingRowDivider()
-                SettingRow(Res.drawable.phone_number, "手机号")
-                SettingRowDivider()
-                SettingRow(Res.drawable.email, "邮箱")
-                SettingRowDivider()
-                SettingRow(
-                    icon = Res.drawable.safe,
-                    label = "账号控制",
-                    showChevron = true,
-                    onClick = { onOpenComingSoon("账号控制") },
-                )
-            }
+            PageTopBar(title = "设置", onBack = onBack)
 
-            // ---------- 应用 ----------
-            SectionTitle("应用")
-            SettingsCard {
-                SettingRow(
-                    icon = Res.drawable.dark,
-                    label = "主题颜色",
-                    value = AppTheme.preference.label,
-                    showChevron = true,
-                    onClick = onOpenThemeColor,
-                )
-            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+            ) {
+                // ---------- 账号 ----------
+                SectionTitle("账号")
+                SettingsCard {
+                    SettingRow(Res.drawable.user, "用户名")
+                    SettingRowDivider()
+                    SettingRow(Res.drawable.phone_number, "手机号")
+                    SettingRowDivider()
+                    SettingRow(Res.drawable.email, "邮箱")
+                    SettingRowDivider()
+                    SettingRow(
+                        icon = Res.drawable.safe,
+                        label = "账号控制",
+                        showChevron = true,
+                        onClick = { onOpenComingSoon("账号控制") },
+                    )
+                }
 
-            // ---------- 关于 ----------
-            SectionTitle("关于")
-            SettingsCard {
-                SettingRow(
-                    icon = Res.drawable.help,
-                    label = "帮助中心",
-                    showChevron = true,
-                    onClick = { onOpenComingSoon("帮助中心") },
-                )
-                SettingRowDivider()
-                SettingRow(
-                    icon = Res.drawable.terms,
-                    label = "服务条款",
-                    showChevron = true,
-                    onClick = { onOpenComingSoon("服务条款") },
-                )
-                SettingRowDivider()
-                SettingRow(
-                    icon = Res.drawable.privacy,
-                    label = "隐私政策",
-                    showChevron = true,
-                    onClick = { onOpenComingSoon("隐私政策") },
-                )
-                SettingRowDivider()
-                SettingRow(Res.drawable.vibe, "当前版本", value = "Bate")
-            }
+                // ---------- 应用 ----------
+                SectionTitle("应用")
+                SettingsCard {
+                    SettingRow(
+                        icon = Res.drawable.dark,
+                        label = "主题颜色",
+                        value = AppTheme.preference.label,
+                        showChevron = true,
+                        onClick = onOpenThemeColor,
+                    )
+                }
 
-            // ---------- 退出登录 ----------
-            Spacer(Modifier.height(8.dp))
-            SettingsCard {
-                LogoutRow()
-            }
+                // ---------- 关于 ----------
+                SectionTitle("关于")
+                SettingsCard {
+                    SettingRow(
+                        icon = Res.drawable.help,
+                        label = "帮助中心",
+                        showChevron = true,
+                        onClick = { sheets.show(SettingsSheet.Help) },
+                    )
+                    SettingRowDivider()
+                    SettingRow(
+                        icon = Res.drawable.terms,
+                        label = "服务条款",
+                        showChevron = true,
+                        onClick = { sheets.show(SettingsSheet.Terms) },
+                    )
+                    SettingRowDivider()
+                    SettingRow(
+                        icon = Res.drawable.privacy,
+                        label = "隐私政策",
+                        showChevron = true,
+                        onClick = { sheets.show(SettingsSheet.Privacy) },
+                    )
+                    SettingRowDivider()
+                    SettingRow(Res.drawable.vibe, "当前版本", value = "Bate")
+                }
 
-            // 对应 HTML body padding-bottom: 32px
-            Spacer(Modifier.height(16.dp))
+                // ---------- 退出登录 ----------
+                Spacer(Modifier.height(8.dp))
+                SettingsCard {
+                    LogoutRow()
+                }
+
+                // 对应 HTML body padding-bottom: 32px
+                Spacer(Modifier.height(16.dp))
+            }
         }
+
+        SettingsSheetHost(sheets)
     }
 }
 

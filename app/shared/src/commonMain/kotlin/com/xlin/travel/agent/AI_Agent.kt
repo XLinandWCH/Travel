@@ -3,10 +3,8 @@ package com.xlin.travel.agent
 import ai.koog.agents.chatMemory.feature.ChatHistoryProvider
 import ai.koog.agents.chatMemory.feature.ChatMemory
 import ai.koog.agents.core.agent.AIAgent
-import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.features.eventHandler.feature.handleEvents
-import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
@@ -14,7 +12,6 @@ import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
 import com.xlin.travel.agent.tool.CalculatorTool
-import kotlinx.io.files.Path
 
 val TravelModel = LLModel(
     provider = LLMProvider.OpenAI,

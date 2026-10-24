@@ -17,6 +17,13 @@ sealed class MarkdownBlock {
     data class ListBlock(val ordered: Boolean, val items: List<AnnotatedString>) : MarkdownBlock()
     data class Quote(val text: AnnotatedString) : MarkdownBlock()
     data class Code(val language: String, val code: String) : MarkdownBlock()
+
+    /** 表格：首行为表头，[rows] 为数据行（列数统一按表头补齐 / 截断） */
+    data class Table(
+        val header: List<AnnotatedString>,
+        val rows: List<List<AnnotatedString>>,
+    ) : MarkdownBlock()
+
     data object Divider : MarkdownBlock()
 }
 
@@ -25,9 +32,13 @@ private val BulletRegex = Regex("^\\s*[-*+]\\s+(.*)$")
 private val OrderedRegex = Regex("^\\s*\\d+[.)]\\s+(.*)$")
 private val QuoteRegex = Regex("^\\s*>\\s?(.*)$")
 private val DividerRegex = Regex("^\\s*([-*_])(\\s*\\1){2,}\\s*$")
+private val TableDividerCellRegex = Regex("^:?-{2,}:?$")
+
+/** 需要用反斜杠转义的标点 */
+private val Escapeable = "`*_~[]()<>#|!-+:".toSet()
 
 /**
- * 块级解析：代码围栏 → 分隔线 → 标题 → 引用 → 列表 → 段落。
+ * 块级解析：代码围栏 → 分隔线 → 标题 → 引用 → 列表 → 表格 → 段落。
  * 流式输出时最后一块可能不完整（例如 ``` 未闭合），这里按“已有内容”宽容处理，不报错。
  */
 internal fun parseMarkdown(source: String): List<MarkdownBlock> {
@@ -52,6 +63,7 @@ internal fun parseMarkdown(source: String): List<MarkdownBlock> {
         val quoted = QuoteRegex.matches(line)
         val bulleted = BulletRegex.matches(line)
         val numbered = OrderedRegex.matches(line)
+        val tableRow = trimmed.startsWith("|")
 
         when {
             line.isBlank() -> flushParagraph()
@@ -111,6 +123,22 @@ internal fun parseMarkdown(source: String): List<MarkdownBlock> {
                 index = next - 1
             }
 
+            tableRow -> {
+                flushParagraph()
+                val rows = mutableListOf<List<String>>()
+                var next = index
+                while (next < lines.size && lines[next].trimStart().startsWith("|")) {
+                    val cells = splitTableRow(lines[next])
+                    // | --- | --- | 这种分隔行只用来标记表格，本身不渲染
+                    if (cells.none { it.isNotEmpty() } || !cells.all { TableDividerCellRegex.matches(it) }) {
+                        rows.add(cells)
+                    }
+                    next++
+                }
+                if (rows.isNotEmpty()) blocks.add(buildTable(rows))
+                index = next - 1
+            }
+
             else -> paragraph.append(line).append('\n')
         }
         index++
@@ -119,7 +147,20 @@ internal fun parseMarkdown(source: String): List<MarkdownBlock> {
     return blocks
 }
 
-/** 行内语法：`代码`、**粗体**、*斜体*、~~删除线~~、[文字](链接)，可嵌套 */
+/** 拆一行表格：去掉首尾竖线后按竖线切格，格内文字两端留白 */
+private fun splitTableRow(line: String): List<String> =
+    line.trim().removeSurrounding("|").split("|").map { it.trim() }
+
+/** 首行当表头，其余为数据行，列数按表头补齐或截断 */
+private fun buildTable(rows: List<List<String>>): MarkdownBlock.Table {
+    val columnCount = rows.maxOf { it.size }
+    val normalized = rows.map { row -> List(columnCount) { column -> row.getOrElse(column) { "" } } }
+    val header = normalized.first().map { inlineSpan(it) }
+    val body = if (normalized.size > 1) normalized.drop(1).map { row -> row.map { inlineSpan(it) } } else emptyList()
+    return MarkdownBlock.Table(header, body)
+}
+
+/** 行内语法：`代码`、**粗体**、*斜体*、~~删除线~~、[文字](链接)、\\@ 转义，可嵌套 */
 internal fun inlineSpan(raw: String): AnnotatedString = buildAnnotatedString {
     appendInline(raw)
 }
@@ -128,6 +169,13 @@ private fun AnnotatedString.Builder.appendInline(source: String) {
     var i = 0
     while (i < source.length) {
         val char = source[i]
+
+        // 反斜杠转义：\@ \| 等处直接输出下一个字符（法律文档里邮箱常写成 \@）
+        if (char == '\\' && i + 1 < source.length && source[i + 1] in Escapeable) {
+            append(source[i + 1])
+            i += 2
+            continue
+        }
 
         // 行内代码
         if (char == '`') {

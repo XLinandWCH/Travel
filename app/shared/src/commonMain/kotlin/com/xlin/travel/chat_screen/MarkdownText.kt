@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +60,7 @@ fun MarkdownText(
                 is MarkdownBlock.ListBlock -> ListText(block)
                 is MarkdownBlock.Quote -> QuoteText(block.text)
                 is MarkdownBlock.Code -> CodeBlock(block.code)
+                is MarkdownBlock.Table -> TableText(block)
                 MarkdownBlock.Divider -> Divider()
             }
         }
@@ -173,6 +175,43 @@ private fun Divider() {
             .height(1.dp)
             .background(SettingDivider),
     )
+}
+
+/**
+ * 表格：等宽分列（列多时每列宽度有限，长文本自动换行），
+ * 表头加粗 + 浅色衬底，数据行之间用细分隔线区分。
+ */
+@Composable
+private fun TableText(block: MarkdownBlock.Table) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TableRow(block.header, header = true)
+        block.rows.forEach { row ->
+            Divider()
+            TableRow(row, header = false)
+        }
+    }
+}
+
+@Composable
+private fun TableRow(cells: List<AnnotatedString>, header: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (header) CodeBlockBackground else Color.Transparent),
+    ) {
+        cells.forEach { cell ->
+            Text(
+                text = cell,
+                color = if (header) TextWhite else AssistantTextColor,
+                fontSize = 13.5.sp,
+                lineHeight = 19.sp,
+                fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp, vertical = 7.dp),
+            )
+        }
+    }
 }
 
 private val BlockGap = 6.dp
