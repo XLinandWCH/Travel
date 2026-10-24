@@ -67,16 +67,17 @@ fun MultilineInputField(
     )
 }
 
-/** 面板底部通栏提交按钮：内容可用时高亮，否则保持禁用灰 */
+/** 面板 / 页面底部通栏提交按钮：内容可用时高亮，否则保持禁用灰 */
 @Composable
 fun SheetSubmitButton(
     enabled: Boolean,
     text: String = "提交",
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(15.dp)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp)
             .clip(shape)

@@ -30,18 +30,22 @@ import com.xlin.travel.inputbox.ChatInputState
 import com.xlin.travel.navigation.AppBackHandler
 import com.xlin.travel.search.SearchScreen
 import com.xlin.travel.setting.ComingSoonScreen
+import com.xlin.travel.setting.DocumentScreen
+import com.xlin.travel.setting.HelpCenterScreen
+import com.xlin.travel.setting.LegalDoc
 import com.xlin.travel.setting.SettingsScreen
-import com.xlin.travel.setting.SettingsSheetState
 import com.xlin.travel.setting.ThemeColorScreen
 import kotlinx.coroutines.launch
 
-/** 顶层页面；ThemeColor / ComingSoon 是设置的子页面，返回时先回到设置列表 */
+/** 顶层页面；ThemeColor / ComingSoon / HelpCenter / Document 是设置的子页面，返回时先回到设置列表 */
 private enum class AppScreen {
     Chat,
     Settings,
     Search,
     ThemeColor,
     ComingSoon,
+    HelpCenter,
+    Document,
 }
 
 @Composable
@@ -59,9 +63,9 @@ fun App() {
         }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
-        val settingsSheets = remember { SettingsSheetState() }
         var screen by remember { mutableStateOf(AppScreen.Chat) }
         var comingSoonTitle by remember { mutableStateOf("") }
+        var legalDoc by remember { mutableStateOf(LegalDoc.Terms) }
         val systemIsDark = isSystemInDarkTheme()
 
         // 启动时从数据库恢复历史会话列表与主题偏好
@@ -78,21 +82,13 @@ fun App() {
             AppTheme.systemIsDark = systemIsDark
         }
 
-        // 离开设置页时收起可能残留的底部面板
-        LaunchedEffect(screen) {
-            if (screen != AppScreen.Settings) settingsSheets.dismiss()
-        }
-
-        // 系统返回键：设置页的底部面板由 ModalBottomSheet 自己的窗口消费，这里只负责
-        // 子页面回设置列表、搜索回聊天页，聊天页才交给系统退出应用
+        // 系统返回键：子页面先回设置列表，搜索回聊天页，聊天页才交给系统退出应用；
+        // 帮助中心页里的意见反馈面板是独立窗口，返回键由它自己消费
         AppBackHandler(enabled = screen != AppScreen.Chat) {
-            if (screen == AppScreen.Settings && settingsSheets.visible) {
-                settingsSheets.dismiss()
-            } else {
-                screen = when (screen) {
-                    AppScreen.ThemeColor, AppScreen.ComingSoon -> AppScreen.Settings
-                    else -> AppScreen.Chat
-                }
+            screen = when (screen) {
+                AppScreen.ThemeColor, AppScreen.ComingSoon,
+                AppScreen.HelpCenter, AppScreen.Document -> AppScreen.Settings
+                else -> AppScreen.Chat
             }
         }
 
@@ -144,9 +140,13 @@ fun App() {
                 }
 
                 AppScreen.Settings -> SettingsScreen(
-                    sheets = settingsSheets,
                     onBack = { screen = AppScreen.Chat },
                     onOpenThemeColor = { screen = AppScreen.ThemeColor },
+                    onOpenHelpCenter = { screen = AppScreen.HelpCenter },
+                    onOpenDoc = { doc ->
+                        legalDoc = doc
+                        screen = AppScreen.Document
+                    },
                     onOpenComingSoon = { title ->
                         comingSoonTitle = title
                         screen = AppScreen.ComingSoon
@@ -164,6 +164,15 @@ fun App() {
 
                 AppScreen.ComingSoon -> ComingSoonScreen(
                     title = comingSoonTitle,
+                    onBack = { screen = AppScreen.Settings },
+                )
+
+                AppScreen.HelpCenter -> HelpCenterScreen(
+                    onBack = { screen = AppScreen.Settings },
+                )
+
+                AppScreen.Document -> DocumentScreen(
+                    doc = legalDoc,
                     onBack = { screen = AppScreen.Settings },
                 )
 

@@ -6,7 +6,7 @@ import travel.app.shared.generated.resources.email
 import travel.app.shared.generated.resources.safe
 import travel.app.shared.generated.resources.user
 
-/** 帮助中心面板里的一条常见问题 */
+/** 帮助中心页面的常见问题条目 */
 internal data class FaqItem(
     val icon: DrawableResource,
     val question: String,
@@ -17,7 +17,7 @@ internal data class FaqItem(
 
 /**
  * 基础 FAQ 文案：内容口径与 composeResources/files 下的《服务条款》《隐私政策》保持一致，
- * 详细条款以文档面板里的原文为准。
+ * 详细条款以对应的文档子页面原文为准。
  */
 internal object HelpFaqs {
 

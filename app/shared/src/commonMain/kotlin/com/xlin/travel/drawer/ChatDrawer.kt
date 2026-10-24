@@ -4,6 +4,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,9 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,6 +43,7 @@ import com.xlin.travel.color.NewChatButton
 import com.xlin.travel.color.SidebarBackground
 import com.xlin.travel.color.SidebarDivider
 import com.xlin.travel.color.SidebarItemActive
+import com.xlin.travel.color.SettingItemPressed
 import com.xlin.travel.color.TextGray300
 import com.xlin.travel.color.TextGray500
 import com.xlin.travel.color.TextWhite
@@ -147,7 +154,7 @@ private fun NewChatButtonRow(modifier: Modifier = Modifier, onClick: () -> Unit)
             .background(NewChatButton)
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        horizontalArrangement = Arrangement.Center,
     ) {
         Text("+", color = TextWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.width(6.dp))
@@ -160,7 +167,7 @@ private fun NewChatButtonRow(modifier: Modifier = Modifier, onClick: () -> Unit)
 private fun CircleIconButton(
     painter: androidx.compose.ui.graphics.painter.Painter,
     contentDescription: String,
-    background: androidx.compose.ui.graphics.Color,
+    background: Color,
     onClick: () -> Unit,
 ) {
     Box(
@@ -178,7 +185,7 @@ private fun CircleIconButton(
 /** 单条历史记录 */
 @Composable
 private fun HistoryRow(item: ChatHistoryItem, selected: Boolean, onClick: () -> Unit) {
-    val background = if (selected) SidebarItemActive else androidx.compose.ui.graphics.Color.Transparent
+    val background = if (selected) SidebarItemActive else Color.Transparent
     Text(
         text = item.title,
         color = if (selected) TextWhite else TextGray300,
@@ -194,13 +201,19 @@ private fun HistoryRow(item: ChatHistoryItem, selected: Boolean, onClick: () -> 
     )
 }
 
-/** 底部用户信息与设置按钮：整行作为一个按钮，点击进入设置页 */
+/**
+ * 底部用户信息与设置按钮：整行作为一个按钮，点击进入设置页。
+ * 与设置列表条目一致：按下时叠一层半透明白色反馈（侧边栏底色上默认水波纹几乎看不出来）。
+ */
 @Composable
 private fun UserSettingsButton(onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .background(if (pressed) SettingItemPressed else Color.Transparent)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

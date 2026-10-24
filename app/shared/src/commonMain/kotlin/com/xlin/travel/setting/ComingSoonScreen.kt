@@ -18,7 +18,7 @@ import com.xlin.travel.navigation.PageTopBar
 /**
  * 通用“XXX即将上线”占位子界面：
  * 带 Chevron Right 但尚未开发的条目（目前只剩账号控制）统一进入此页；
- * 帮助中心 / 服务条款 / 隐私政策 已改为设置页的底部面板（见 SettingsSheetHost）。
+ * 帮助中心 / 服务条款 / 隐私政策 已有自己的子页面（HelpCenterScreen 与 DocumentScreen），不再走这里。
  */
 @Composable
 fun ComingSoonScreen(
