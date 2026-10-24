@@ -14,7 +14,6 @@ import com.xlin.travel.sheet.TravelBottomSheet
 
 /**
  * 点踩后的反馈面板：真正的底部面板（Material3 ModalBottomSheet，自带遮罩、可下滑拖拽关闭）。
- * 1:1 还原 UI设计/底部动作面板.html：分组多选标签 + 我要补充输入框 + 提交按钮。
  * 标签与补充内容都为空时提交按钮不可用。
  */
 @Composable

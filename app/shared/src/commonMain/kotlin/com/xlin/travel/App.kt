@@ -82,6 +82,11 @@ fun App() {
             AppTheme.systemIsDark = systemIsDark
         }
 
+        // 抽屉（历史记录区域）打开时：系统返回键先关闭抽屉，而不是把事件交给系统直接退出应用
+        AppBackHandler(enabled = drawerState.currentValue == DrawerValue.Open) {
+            scope.launch { drawerState.close() }
+        }
+
         // 系统返回键：子页面先回设置列表，搜索回聊天页，聊天页才交给系统退出应用；
         // 帮助中心页里的意见反馈面板是独立窗口，返回键由它自己消费
         AppBackHandler(enabled = screen != AppScreen.Chat) {

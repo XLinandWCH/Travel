@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
-/** 反馈面板的可选标签，分组与 UI设计/底部动作面板.html 保持一致 */
+/** 反馈面板的可选标签，分组与 UI设计 */
 internal object FeedbackOptions {
     const val Title = "谢谢你的反馈，我们会继续优化进步"
     const val NoteTitle = "我要补充"
