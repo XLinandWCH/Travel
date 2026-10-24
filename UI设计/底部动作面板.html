@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>反馈</title>
+<style>
+  :root{
+    --bg:#121214;
+    --sheet:#141418;
+    --header:#17171b;
+    --border:#2c2d34;
+    --border-strong:#3a3b43;
+    --text:#ececf0;
+    --muted:#8d8e96;
+    --input:#17171b;
+    --accent:#2f6bff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:#000;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans","Microsoft YaHei",sans-serif;
+    color:var(--text);
+    min-height:100vh;
+    display:flex;
+    align-items:flex-end;
+    justify:center;
+  }
+
+  /* 手机外壳，桌面预览用；移动端自动撑满 */
+  .phone{width:100%;max-width:480px;background:var(--bg);
+         min-height:100vh;position:relative;overflow:hidden;}
+
+  .sheet{
+    background:var(--sheet);
+    border-radius:28px 28px 0 0;
+    padding:0 0 calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -10px 60px rgba(0,0,0,.55);
+  }
+
+  /* 顶部拖拽条 */
+  .drag{height:22px;display:flex;justify-content:center;align-items:center;}
+  .drag::before{content:"";width:36px;height:4px;border-radius:2px;background:#3a3a42;}
+
+  /* 标题栏 */
+  .header{
+    display:flex;align-items:center;gap:14px;
+    padding:6px 20px 16px;
+    border-bottom:1px solid #202025;
+  }
+  .header .title{
+    flex:1;font-size:16.5px;font-weight:600;letter-spacing:.2px;line-height:1.4;
+  }
+  .x{
+    width:30px;height:30px;flex:none;border:0;background:transparent;cursor:pointer;
+    color:var(--text);padding:0;display:grid;place-items:center;border-radius:50%;
+  }
+  .x:hover{background:#222329;}
+  .x svg{width:20px;height:20px;}
+
+  .body{padding:22px 20px 0;}
+
+  .group{margin-bottom:26px;}
+  .group:last-child{margin-bottom:6px;}
+  .group > h3{
+    margin:0 0 14px;font-size:16.5px;font-weight:650;letter-spacing:.3px;
+  }
+
+  .chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font:inherit;font-size:14.5px;color:var(--text);
+    padding:11px 18px;
+    background:transparent;
+    border:1px solid var(--border);
+    border-radius:13px;
+    cursor:pointer;
+    transition:transform .12s ease,border-color .15s,background .15s,color .15s;
+    user-select:none;
+  }
+  .chip:active{transform:scale(.96);}
+  .chip.on{
+    border-color:var(--accent);
+    background:rgba(47,107,255,.12);
+    color:#c9dbff;
+  }
+
+  textarea{
+    width:100%;min-height:170px;resize:vertical;
+    font:inherit;font-size:15px;color:var(--text);
+    background:var(--input);
+    border:1px solid var(--border);
+    border-radius:15px;
+    padding:14px 15px;
+    line-height:1.65;
+    transition:border-color .15s;
+  }
+  textarea::placeholder{color:var(--muted);}
+  textarea:focus{outline:none;border-color:var(--border-strong);}
+
+  .submit{
+    display:block;width:calc(100% - 40px);margin:22px auto 0;
+    font:inherit;font-size:16.5px;font-weight:600;color:#9a9aa0;
+    background:#25262c;border:0;border-radius:15px;
+    padding:15px 0;cursor:not-allowed;transition:background .2s,color .2s;
+  }
+  .submit.ready{background:#ececf0;color:#141418;cursor:pointer;}
+  .submit.ready:active{transform:scale(.98);}
+
+  .toast{
+    position:fixed;left:50%;bottom:64px;transform:translate(-50%) translateY(12px);
+    background:#2a2b32;color:#fff;font-size:13.5px;padding:9px 18px;border-radius:20px;
+    opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:9;
+  }
+  .toast.show{opacity:1;transform:translate(-50%) translateY(0);}
+
+  @media(min-width:481px){
+    body{background:#050505;}
+    .phone{border-radius:36px;margin:24px auto;box-shadow:0 0 0 1px #1c1c20,0 40px 100px rgba(0,0,0,.6);min-height:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="sheet">
+    <div class="drag"></div>
+
+    <div class="header">
+      <div class="title">谢谢你的反馈，我们会继续优化进步</div>
+      <button class="x" aria-label="关闭" id="close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="body" id="root"></div>
+
+    <button class="submit" id="submit" disabled>提交</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA = [
+  { group: "针对问题", multi: true, options: [
+    "理解错误", "上下文错误", "未识别问题中的错误"
+  ]},
+  { group: "针对回答", multi: true, options: [
+    "事实错误", "推理错误", "内容不完整",
+    "内容不专业", "计算错误", "违法有害"
+  ]},
+  { group: "针对格式", multi: true, options: [
+    "格式错误", "乱码错误", "内容重复",
+    "需画图但生成文本"
+  ]}
+];
+
+const root = document.getElementById('root');
+const picks = new Set();
+let text = '';
+
+function chip(label){
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'chip';
+  el.textContent = label;
+  el.onclick = () => {
+    el.classList.toggle('on');
+    el.classList.contains('on') ? picks.add(label) : picks.delete(label);
+    sync();
+  };
+  return el;
+}
+
+DATA.forEach(sec => {
+  const g = document.createElement('div');
+  g.className = 'group';
+  const h = document.createElement('h3');
+  h.textContent = sec.group;
+  g.appendChild(h);
+  const row = document.createElement('div');
+  row.className = 'chips';
+  sec.options.forEach(o => row.appendChild(chip(o)));
+  g.appendChild(row);
+  root.appendChild(g);
+});
+
+// 补充区
+const g = document.createElement('div');
+g.className = 'group';
+const h = document.createElement('h3');
+h.textContent = '我要补充';
+const ta = document.createElement('textarea');
+ta.placeholder = '请写下更多反馈内容';
+ta.addEventListener('input', e => { text = e.target.value; sync(); });
+g.appendChild(h); g.appendChild(ta);
+root.appendChild(g);
+
+const submit = document.getElementById('submit');
+function sync(){
+  const ok = picks.size > 0 || text.trim().length > 0;
+  submit.disabled = !ok;
+  submit.classList.toggle('ready', ok);
+}
+
+const toast = document.getElementById('toast');
+function show(msg){ toast.textContent = msg; toast.classList.add('show');
+  clearTimeout(show._t); show._t = setTimeout(()=>toast.classList.remove('show'),1600); }
+
+submit.onclick = () => {
+  if(submit.disabled) return;
+  const payload = { tags:[...picks], text:text.trim() };
+  console.log('submit', payload);      // 接后端时换成 fetch
+  show('已提交，感谢反馈 🙌');
+  setTimeout(()=> document.getElementById('close').click(), 900);
+};
+document.getElementById('close').onclick = () => show('已关闭');
+</script>
+</body>
+</html>

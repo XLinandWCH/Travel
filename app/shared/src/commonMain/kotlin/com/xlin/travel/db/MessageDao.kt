@@ -80,6 +80,14 @@ internal fun SQLiteConnection.updateMessage(
     }
 }
 
+/** 删除单条消息（重新生成时先移除旧的 AI 回答） */
+internal fun SQLiteConnection.deleteMessage(id: String) {
+    withStatement("DELETE FROM message WHERE id = ?") { statement ->
+        statement.bindText(1, id)
+        statement.step()
+    }
+}
+
 private fun SQLiteStatement.readMessage() = MessageRecord(
     id = getText(0),
     conversationId = getText(1),

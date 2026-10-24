@@ -11,6 +11,12 @@ enum class MessageRole {
     Assistant,
 }
 
+/** 用户对 AI 回答的反馈，点击正文下方的点赞 / 踩按钮后记录在内存中 */
+enum class Feedback {
+    Like,
+    Dislike,
+}
+
 /**
  * 单条聊天消息。
  * AI 消息把「思考内容」与「正文内容」分开保存，便于界面用不同颜色渲染。
@@ -28,6 +34,14 @@ class ChatMessage(
 
     /** 思考（Reasoning）内容 */
     var reasoning: String by mutableStateOf(reasoning)
+        internal set
+
+    /** 对应 message 表的主键；数据库写入失败时为 null，重新生成时据此删除旧记录 */
+    var recordId: String? = null
+        internal set
+
+    /** 用户反馈（赞同 / 不赞同），不落库，仅用于按钮高亮 */
+    var feedback: Feedback? by mutableStateOf(null)
         internal set
 
     /** 是否已有任何可展示的内容 */

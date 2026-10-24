@@ -94,6 +94,46 @@ val BtnAddBorder: Color
 val SettingDivider: Color
     get() = themeColor(Color(0x0DFFFFFF), Color(0x14000000))    // 卡片内分隔线：深叠白 5% / 浅叠黑 8% [设置]
 
+// ==================== 消息动作按钮 / 提示 / 反馈面板 ====================
+val ActionIconColor: Color
+    get() = themeColor(Color(0xFFFFFFFF), Color(0xFF1A1A1A))    // 正文下方动作图标：深色白 / 浅色黑 [消息]
+val FeedbackAccent: Color = Color(0xFF2F6BFF)                   // 反馈面板选中态蓝 [反馈]
+val ToastBackground: Color
+    get() = themeColor(Color(0xE62A2B32), Color(0xE6333333))    // 顶部提示胶囊底 [反馈]
+val ToastText: Color = Color(0xFFFFFFFF)                        // 顶部提示文字，两套主题都是白 [反馈]
+val SheetBackground: Color
+    get() = themeColor(Color(0xFF141418), Color(0xFFFFFFFF))    // 底部动作面板底 [反馈]
+val SheetHandle: Color
+    get() = themeColor(Color(0xFF3A3A42), Color(0xFFC7C7C7))    // 面板顶部拖拽条 [反馈]
+val SheetDivider: Color
+    get() = themeColor(Color(0xFF202025), Color(0xFFE6E6E6))    // 面板标题栏分隔线 [反馈]
+val ChipBorder: Color
+    get() = themeColor(Color(0xFF2C2D34), Color(0xFFD5D5D5))    // 反馈标签默认边框 [反馈]
+val ChipSelectedBackground: Color
+    get() = themeColor(Color(0x1F2F6BFF), Color(0x142F6BFF))    // 反馈标签选中底：蓝色 12% / 8% [反馈]
+val ChipSelectedText: Color
+    get() = themeColor(Color(0xFFC9DBFF), Color(0xFF2F6BFF))    // 反馈标签选中文字 [反馈]
+val SubmitDisabledBackground: Color
+    get() = themeColor(Color(0xFF25262C), Color(0xFFE0E0E0))    // 提交按钮不可用底 [反馈]
+val SubmitDisabledText: Color
+    get() = themeColor(Color(0xFF9A9AA0), Color(0xFF8A8A90))    // 提交按钮不可用文字 [反馈]
+val SubmitReadyBackground: Color
+    get() = themeColor(Color(0xFFECECF0), Color(0xFF1A1A1A))    // 提交按钮可用底：与主题反转 [反馈]
+val SubmitReadyText: Color
+    get() = themeColor(Color(0xFF141418), Color(0xFFF5F5F5))    // 提交按钮可用文字 [反馈]
+
+// ==================== Markdown 渲染 ====================
+val CodeBlockBackground: Color
+    get() = themeColor(Color(0xFF232327), Color(0xFFEDEDED))    // 代码块容器底 [markdown]
+val CodeBlockText: Color
+    get() = themeColor(Color(0xFFD4D4D8), Color(0xFF27272A))    // 代码块文字 [markdown]
+val InlineCodeBackground: Color
+    get() = themeColor(Color(0xFF2A2A2E), Color(0xFFE4E4E4))    // 行内代码底 [markdown]
+val MarkdownLinkColor: Color
+    get() = themeColor(Color(0xFF7BA4FF), Color(0xFF2F6BFF))    // 链接文字 [markdown]
+val QuoteBarColor: Color
+    get() = themeColor(Color(0xFF3A3B43), Color(0xFFC9C9CF))    // 引用左侧竖条 [markdown]
+
 // ==================== 阴影与遮罩 ====================
 val InputCardShadow: Color
     get() = themeColor(Color(0x4D000000), Color(0x26000000))    // 卡片阴影（浅色主题下减淡）[输入框]

@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.xlin.travel.color.AssistantTextColor
 import com.xlin.travel.color.ReasoningTextColor
 import com.xlin.travel.color.UserBubbleBackground
 import com.xlin.travel.color.UserMessageText
@@ -46,29 +45,48 @@ fun UserMessageBubble(text: String) {
     }
 }
 
-/** AI 消息：左侧展示，思考内容灰色，正文白色 */
+/**
+ * AI 消息：左侧展示，思考内容灰色小字，正文按 Markdown 渲染。
+ * 正文输出结束后（[showActions] 为 true）在下方从左到右排开四个动作按钮。
+ */
 @Composable
-fun AssistantMessageBlock(message: ChatMessage) {
+fun AssistantMessageBlock(
+    message: ChatMessage,
+    showActions: Boolean,
+    canRegenerate: Boolean,
+    onLike: () -> Unit,
+    onDislike: () -> Unit,
+    onRegenerate: () -> Unit,
+    onCopy: () -> Unit,
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         if (message.reasoning.isNotEmpty()) {
+            // 思考内容末尾常带换行，trimEnd 后与正文只保留一个很小的间距
             Text(
-                text = message.reasoning,
+                text = message.reasoning.trimEnd(),
                 color = ReasoningTextColor,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
             )
             if (message.content.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
             }
         }
 
         if (message.content.isNotEmpty()) {
-            Text(
-                text = message.content,
-                color = AssistantTextColor,
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-            )
+            MarkdownText(message.content)
+
+            if (showActions) {
+                Spacer(Modifier.height(6.dp))
+                MessageActionRow(
+                    message = message,
+                    canRegenerate = canRegenerate,
+                    onLike = onLike,
+                    onDislike = onDislike,
+                    onRegenerate = onRegenerate,
+                    onCopy = onCopy,
+                )
+            }
         } else if (message.reasoning.isEmpty()) {
             // 还没有任何输出时展示等待提示
             Text(

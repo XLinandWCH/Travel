@@ -78,6 +78,11 @@ class ChatRepository(private val database: ChatDatabase) {
         }
     }
 
+    /** 删除单条消息，例如“重新生成”时移除旧的 AI 回答 */
+    suspend fun deleteMessage(id: String) {
+        database.withConnection { it.deleteMessage(id) }
+    }
+
     /** 删除会话及其全部消息 */
     suspend fun deleteConversation(id: String) {
         database.withConnection { it.deleteConversation(id) }

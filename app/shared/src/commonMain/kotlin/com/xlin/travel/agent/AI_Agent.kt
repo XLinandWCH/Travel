@@ -6,6 +6,7 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.features.eventHandler.feature.handleEvents
+import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
@@ -13,10 +14,11 @@ import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
 import com.xlin.travel.agent.tool.CalculatorTool
+import kotlinx.io.files.Path
 
 val TravelModel = LLModel(
     provider = LLMProvider.OpenAI,
-    id = "Agents-A1",
+    id = "Sage-A1.5",
     capabilities = listOf(
         LLMCapability.Completion,
         LLMCapability.Temperature,
@@ -68,7 +70,8 @@ suspend fun chatStreaming(
         systemPrompt = TravelSystemPrompt,
         temperature = 0.8,
         toolRegistry = myTools,
-        strategy = strategy("streaming-demo", myTools)
+        strategy = strategy("streaming-demo", myTools),
+
     ) {
         handleEvents {
             install(ChatMemory) {
