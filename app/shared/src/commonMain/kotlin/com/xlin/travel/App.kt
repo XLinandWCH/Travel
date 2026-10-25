@@ -41,6 +41,7 @@ import com.xlin.travel.setting.DocumentScreen
 import com.xlin.travel.setting.HelpCenterScreen
 import com.xlin.travel.setting.HistoryManageScreen
 import com.xlin.travel.setting.LegalDoc
+import com.xlin.travel.setting.MessageCenterScreen
 import com.xlin.travel.setting.SettingsScreen
 import com.xlin.travel.setting.ThemeColorScreen
 import kotlinx.coroutines.launch
@@ -55,6 +56,7 @@ private enum class AppScreen {
     Search,
     ThemeColor,
     History,
+    MessageCenter,
     ComingSoon,
     HelpCenter,
     Document,
@@ -113,7 +115,7 @@ fun App() {
         AppBackHandler(enabled = screen != AppScreen.Chat && screen != AppScreen.Guest) {
             screen = when (screen) {
                 AppScreen.ThemeColor, AppScreen.History, AppScreen.ComingSoon,
-                AppScreen.HelpCenter, AppScreen.Document,
+                AppScreen.HelpCenter, AppScreen.Document, AppScreen.MessageCenter,
                 AppScreen.AccountControl -> AppScreen.Settings
                 AppScreen.Login -> AppScreen.Guest
                 else -> AppScreen.Chat
@@ -206,6 +208,7 @@ fun App() {
                         }
                     },
                     onOpenThemeColor = { screen = AppScreen.ThemeColor },
+                    onOpenMessageCenter = { screen = AppScreen.MessageCenter },
                     onOpenHistory = { screen = AppScreen.History },
                     onOpenHelpCenter = { screen = AppScreen.HelpCenter },
                     onOpenDoc = { doc ->
@@ -252,7 +255,13 @@ fun App() {
                     onBack = { screen = AppScreen.Settings },
                 )
 
+                AppScreen.MessageCenter -> MessageCenterScreen(
+                    session = session,
+                    onBack = { screen = AppScreen.Settings },
+                )
+
                 AppScreen.HelpCenter -> HelpCenterScreen(
+                    session = session,
                     onBack = { screen = AppScreen.Settings },
                 )
 

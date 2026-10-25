@@ -56,6 +56,7 @@ data class UserDto(
     val usageDays: Int,
     val registeredAt: String,
     val avatar: String? = null,
+    val type: String? = null,               // 角色：“admin” 管理员；普通用户为 null（服务端 users.type）
 )
 
 @Serializable

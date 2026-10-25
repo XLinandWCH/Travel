@@ -73,7 +73,7 @@ fun UserMessageBubble(message: ChatMessage) {
 }
 
 /**
- * AI 消息：左侧展示，思考内容灰色小字，正文按 Markdown 渲染。
+ * AI message：左侧展示，思考内容灰色小字，正文按 Markdown 渲染。
  * 正文输出结束后（[showActions] 为 true）在下方从左到右排开四个动作按钮。
  */
 @Composable

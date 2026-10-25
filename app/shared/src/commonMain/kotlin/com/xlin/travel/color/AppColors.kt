@@ -76,9 +76,9 @@ val InputPlaceholderColor: Color
 val ModeTextColor: Color
     get() = themeColor(Color(0xFFBBBBBB), Color(0xFF555555))    // 模式选择文字 / 下三角 [输入框]
 val AssistantTextColor: Color
-    get() = themeColor(Color(0xFFFFFFFF), Color(0xFF1A1A1A))    // AI 回答正文 [消息]
+    get() = themeColor(Color(0xFFFFFFFF), Color(0xFF1A1A1A))    // AI 回答正文 [message]
 val ReasoningTextColor: Color
-    get() = themeColor(Color(0xFF9E9E9E), Color(0xFF616161))    // AI 思考内容灰色（与设置数值同值）[消息]
+    get() = themeColor(Color(0xFF9E9E9E), Color(0xFF616161))    // AI 思考内容灰色（与设置数值同值）[message]
 val BtnAddIcon: Color
     get() = themeColor(Color(0xFFCCCCCC), Color(0xFF444444))    // “+”按钮图标 [输入框]
 val WhiteBtnIcon: Color
@@ -96,7 +96,7 @@ val SettingDivider: Color
 
 // ==================== 消息动作按钮 / 提示 / 反馈面板 ====================
 val ActionIconColor: Color
-    get() = themeColor(Color(0xFFFFFFFF), Color(0xFF1A1A1A))    // 正文下方动作图标：深色白 / 浅色黑 [消息]
+    get() = themeColor(Color(0xFFFFFFFF), Color(0xFF1A1A1A))    // 正文下方动作图标：深色白 / 浅色黑 [message]
 val FeedbackAccent: Color = Color(0xFF2F6BFF)                   // 反馈面板选中态蓝 [反馈]
 val ToastBackground: Color
     get() = themeColor(Color(0xE62A2B32), Color(0xE6333333))    // 顶部提示胶囊底 [反馈]

@@ -41,6 +41,7 @@ import travel.app.shared.generated.resources.email
 import travel.app.shared.generated.resources.help
 import travel.app.shared.generated.resources.history
 import travel.app.shared.generated.resources.log_out
+import travel.app.shared.generated.resources.message
 import travel.app.shared.generated.resources.phone_number
 import travel.app.shared.generated.resources.privacy
 import travel.app.shared.generated.resources.safe
@@ -60,6 +61,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onLogout: () -> Unit,
     onOpenThemeColor: () -> Unit,
+    onOpenMessageCenter: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenHelpCenter: () -> Unit,
     onOpenDoc: (LegalDoc) -> Unit,
@@ -108,6 +110,13 @@ fun SettingsScreen(
                     value = AppTheme.preference.label,
                     showChevron = true,
                     onClick = onOpenThemeColor,
+                )
+                SettingRowDivider()
+                SettingRow(
+                    icon = Res.drawable.message,
+                    label = "消息中心",
+                    showChevron = true,
+                    onClick = onOpenMessageCenter,
                 )
                 SettingRowDivider()
                 SettingRow(

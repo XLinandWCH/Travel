@@ -23,7 +23,7 @@ data class LoginRequest(
     val password: String,
 )
 
-/** 对外返回的用户信息（不含密码哈希） */
+/** 对外返回的用户信息（不含密码哈希）；type="admin" 为管理员，普通用户为 null */
 @Serializable
 data class UserDto(
     val id: Long,
@@ -33,6 +33,7 @@ data class UserDto(
     val usageDays: Int,
     val registeredAt: String,
     val avatar: String? = null,
+    val type: String? = null,
 )
 
 /** 登录 / 注册成功：返回会话 token 与用户信息 */

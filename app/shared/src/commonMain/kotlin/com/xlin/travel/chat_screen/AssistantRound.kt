@@ -20,7 +20,7 @@ internal class AssistantRound(
 ) {
 
     /**
-     * @param reply 已经上屏的空白 AI 消息，流式增量会直接写进它
+     * @param reply 已经上屏的空白 AI message，流式增量会直接写进它
      * @param cutoffSeq 只加载 seq 小于等于该值的历史，用于排除本轮的用户提示词
      * @return 这条 AI 回复在 message 表中的主键，落库失败时为 null
      */

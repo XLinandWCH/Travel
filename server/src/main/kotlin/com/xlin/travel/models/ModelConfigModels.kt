@@ -9,15 +9,17 @@ import kotlinx.serialization.Serializable
 
 /**
  * 模型配置拉取请求：token 为登录令牌（复用 /api/auth 签发的 HMAC token）。
- * modelId 为空时服务端返回 id 最小的一条记录，即默认模型。
+ * scope 区分拆表：“llm”（默认，取自 llm_models）/ “voice”（取自 voice_models）。
+ * modelId 为空时：llm 返回 id 最小的默认模型；voice 必传 modelId。
  */
 @Serializable
 data class ModelConfigRequest(
     val token: String,
     val modelId: String? = null,
+    val scope: String? = null,
 )
 
-/** 模型配置响应：与 model_api_keys 表列一一对应 */
+/** 模型配置响应：llm 来自 llm_models，voice 来自 voice_models；type 仅语音模型返回（ASR/TTS） */
 @Serializable
 data class ModelConfigResponse(
     val modelId: String,
@@ -25,4 +27,5 @@ data class ModelConfigResponse(
     val baseUrl: String,
     val systemPrompt: String? = null,
     val temperature: Double? = null,
+    val type: String? = null,
 )

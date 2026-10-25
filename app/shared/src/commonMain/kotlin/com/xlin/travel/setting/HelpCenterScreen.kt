@@ -23,6 +23,7 @@ import com.xlin.travel.chat_screen.ChatToastState
 import com.xlin.travel.chat_screen.TopToast
 import com.xlin.travel.chat_screen.rememberClipboardWriter
 import com.xlin.travel.color.ChatBackground
+import com.xlin.travel.login.UserSession
 import com.xlin.travel.navigation.PageTopBar
 import com.xlin.travel.sheet.MultilineInputField
 import com.xlin.travel.sheet.SheetSubmitButton
@@ -32,10 +33,13 @@ import kotlinx.coroutines.launch
 
 /**
  * 帮助中心子页面（与「账号控制」「主题颜色」一样是独立页面）：
- * 常见问题手风琴 + 底部「意见反馈」入口，意见反馈本身仍是真正的底部面板。
+ * 常见问题手风琴 + 底部「意见反馈」入口，意见反馈本身仍是真正的底部面板；
+ * 提交后经 /api/feedback/submit 写入云端 feedback_tickets，服务端生成 #7 位工单号，
+ * 管理员在消息中心回复，用户在消息中心查看回复（需已登录）。
  */
 @Composable
 fun HelpCenterScreen(
+    session: UserSession,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -45,15 +49,29 @@ fun HelpCenterScreen(
     var expanded by remember { mutableStateOf<String?>(null) }
     var feedbackOpen by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
+    var submitting by remember { mutableStateOf(false) }
 
     fun submitFeedback() {
-        // 账号体系与上报接口接入前，草稿先在本地汇总，后续可直接把内容发给后端
-        draft = ""
-        feedbackOpen = false
-        // 面板是独立窗口层，会遮住页面顶部的提示，因此等它收起后再弹
+        if (!session.loggedIn) {
+            toast.show("请先登录后再提交反馈")
+            return
+        }
+        if (submitting) return
+        submitting = true
+        val content = draft.trim()
         scope.launch {
-            delay(SheetDismissMillis)
-            toast.show("感谢您的反馈")
+            when (val result = MessageApi.submit(session.token, content)) {
+                is MessageMutationResult.Submitted -> {
+                    draft = ""
+                    feedbackOpen = false
+                    // 面板是独立窗口层，会遮住页面顶部的提示，因此等它收起后再弹
+                    delay(SheetDismissMillis)
+                    toast.show("反馈已提交，工单号 ${result.ticketId}")
+                }
+                is MessageMutationResult.Failed -> toast.show(result.message)
+                is MessageMutationResult.Done -> toast.show(result.message)
+            }
+            submitting = false
         }
     }
 
@@ -104,7 +122,11 @@ fun HelpCenterScreen(
                 maxHeight = 300.dp,
             )
         }
-        SheetSubmitButton(enabled = draft.isNotBlank(), onClick = ::submitFeedback)
+        SheetSubmitButton(
+            enabled = draft.isNotBlank() && !submitting,
+            text = if (submitting) "提交中…" else "提交反馈",
+            onClick = ::submitFeedback,
+        )
     }
 
     TopToast(toast, modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))

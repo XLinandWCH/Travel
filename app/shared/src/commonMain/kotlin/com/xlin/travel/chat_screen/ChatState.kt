@@ -18,7 +18,7 @@ import kotlinx.coroutines.cancel
 import kotlin.coroutines.coroutineContext
 
 /**
- * 聊天状态：维护消息列表，把消息写入 SQLite，并把 Agent 的流式事件写入对应的 AI 消息。
+ * 聊天状态：维护消息列表，把消息写入 SQLite，并把 Agent 的流式事件写入对应的 AI message。
  *
  * 一轮回复的流式过程拆到 [AssistantRound]，发送新消息与重新生成共用。
  *

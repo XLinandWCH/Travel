@@ -32,6 +32,10 @@ class UserSession {
     var email by mutableStateOf("")
         private set
 
+    /** 是否管理员（users.type == "admin"）：随登录/资料刷新同步，决定消息中心展示视图 */
+    var isAdmin by mutableStateOf(false)
+        private set
+
     /** 头像预览位图：由 [avatarBase64] 解码得到，仅本次进程内使用（不直接持久化） */
     var avatar by mutableStateOf<ImageBitmap?>(null)
         private set
@@ -112,6 +116,7 @@ class UserSession {
         username = ""
         phone = ""
         email = ""
+        isAdmin = false
         avatar = null
         avatarBase64 = null
     }
@@ -126,6 +131,7 @@ class UserSession {
         username = user.username
         phone = user.phone
         email = user.email
+        isAdmin = user.type == "admin"
     }
 
     private companion object {

@@ -7,17 +7,18 @@ import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 
 /**
- * 模型配置初始化：保证 model_api_keys 里有一条可直接下发的默认模型记录。
+ * 模型配置初始化：保证 llm_models / voice_models 各有一条可直接下发的默认记录。
  *
- * 安全约定（与 DB_PASSWORD 同规则）：API_KEY 是机密，不写进源码，
- * 轮换 / 首次建库时通过 JVM 系统属性或环境变量注入：
- *   java -DMODEL_API_KEY=sk-xxx -jar server.jar
- *   export MODEL_API_KEY=sk-xxx && java -jar server.jar
- * 未注入时不会覆盖表里已有的密钥，因此线上库已有数据则无需注入。
+ * 表已按用途从 model_api_keys 拆分为 llm_models（对话大模型）与 voice_models（语音模型，
+ * 含必填类型列 ASR/TTS）。本 Seeder：
+ *   1) 先把历史 model_api_keys 里的行迁移到对应新表（INSERT-if-absent，绝不 DROP / 删除旧表旧数据）；
+ *   2) 再补齐新表里缺省的默认记录。
  *
- * 模型 id / baseUrl / 系统提示词 / 温度同样以表数据为准：
- * 客户端不再硬编码这些信息，改表即可生效，无需重新打包客户端。
- * 这里的默认值只在表里对应列为空时补写，不覆盖手工编辑过的值。
+ * 安全约定：API_KEY 是机密，正式环境通过 JVM 系统属性或环境变量注入轮换：
+ *   java -DMODEL_API_KEY=sk-xxx -DASR_API_KEY=sk-xxx -jar server.jar
+ *   export MODEL_API_KEY=sk-xxx ASR_API_KEY=sk-xxx && java -jar server.jar
+ * beta 期用户不会手动注入，故 ASR 给一个内置默认密钥（见 ASR_DEFAULT_API_KEY）首次启动自动落库；
+ * 环境变量 / -D 优先级更高。旧表已有数据一律保留，不覆盖已手工编辑过的记录。
  */
 object ModelKeySeeder {
 
@@ -28,18 +29,20 @@ object ModelKeySeeder {
     private const val DEFAULT_TEMPERATURE = 0.2
 
     /**
-     * 语音识别（Fun-ASR-Flash）配置：与普通对话模型共用 model_api_keys 表，
-     * 只是 model_id / url 指向 ASR 的多模态生成接口，客户端凭 modelId 单独拉取。
-     * 密钥同样是机密，不写进源码：通过 ASR_API_KEY（-D 系统属性 > 环境变量）注入，
-     * 未注入且表里无记录时跳过（不写空密钥）。url 存的是完整调用端点，客户端直接 POST。
+     * 语音识别（Fun-ASR-Flash）配置：落在 voice_models 表，类型列固定 ASR。
+     * 密钥同样是机密，正式环境通过 ASR_API_KEY（-D > 环境变量）注入；
+     * url 存的是完整调用端点，客户端直接 POST。
      */
     private const val ASR_MODEL_ID = "fun-asr-flash-2026-06-15"
     private const val ASR_DEFAULT_URL =
         "https://cn-beijing.maas.qianwenaiapi.com/api/v1/services/aigc/multimodal-generation/generation"
 
+    /** voice_models.type 必填取值：语音识别 */
+    private const val VOICE_TYPE_ASR = "ASR"
+
     /**
      * beta 期便捷写入：用户不会在启动命令里注入 ASR_API_KEY，这里给一个默认密钥，
-     * 启动时由 seedAsrModel() 以 INSERT-if-absent 方式写入 model_api_keys（绝不 DROP / 重建表、
+     * 启动时由 seedAsrModel() 以 INSERT-if-absent 方式写入 voice_models（绝不 DROP / 重建表、
      * 也不覆盖已有记录）。环境变量 / -D ASR_API_KEY 优先级更高，正式环境请改用注入轮换。
      */
     private const val ASR_DEFAULT_API_KEY =
@@ -70,79 +73,116 @@ object ModelKeySeeder {
             ?: ""
 
     fun seed() {
+        // model_api_keys 已不再创建：旧库存在则一次性迁移，新库无此表时忽略失败（不影响下面默认记录写入）
+        runCatching { migrateLegacyRows() }
+            .onFailure { log.info("跳过 model_api_keys 迁移（旧表可能不存在或已迁移）：${it.message}") }
         seedChatModel()
         seedAsrModel()
     }
 
-    /** 语音识别模型记录：只在缺记录时写入，已有则保留（改表即可轮换密钥 / 换端点） */
+    /**
+     * 一次性迁移：把历史 model_api_keys 的行搬到拆分后的新表，仅在目标缺同 id 记录时写入。
+     * ASR 记录（[ASR_MODEL_ID]）进 voice_models 并补 type=ASR，其余进 llm_models。
+     * 全程 INSERT-if-absent，绝不 DROP / 删除旧表或旧数据。
+     */
+    private fun migrateLegacyRows() {
+        transaction {
+            ModelApiKeys.selectAll().forEach { legacy ->
+                val mid = legacy[ModelApiKeys.modelId]
+                if (mid == ASR_MODEL_ID) {
+                    if (VoiceModels.selectAll().where { VoiceModels.modelId eq mid }.firstOrNull() == null) {
+                        VoiceModels.insert {
+                            it[VoiceModels.modelId] = mid
+                            it[apiKey] = legacy[ModelApiKeys.apiKey]
+                            it[url] = legacy[ModelApiKeys.url]
+                            it[type] = VOICE_TYPE_ASR
+                        }
+                        log.info("已从 model_api_keys 迁移语音记录到 voice_models：$mid")
+                    }
+                } else if (LlmModels.selectAll().where { LlmModels.modelId eq mid }.firstOrNull() == null) {
+                    LlmModels.insert {
+                        it[LlmModels.modelId] = mid
+                        it[apiKey] = legacy[ModelApiKeys.apiKey]
+                        it[url] = legacy[ModelApiKeys.url]
+                        it[systemPrompt] = legacy[ModelApiKeys.systemPrompt]
+                        it[temperature] = legacy[ModelApiKeys.temperature]
+                    }
+                    log.info("已从 model_api_keys 迁移对话记录到 llm_models：$mid")
+                }
+            }
+        }
+    }
+
+    /** 语音模型记录：写入 voice_models（type=ASR）；缺记录才补，已有则仅在显式注入时轮换 */
     private fun seedAsrModel() {
         // 密钥优先级：-D/环境变量 ASR_API_KEY > 内置默认（beta 便捷写入），保证首次启动即落库
         val injectedKey = env("ASR_API_KEY").ifBlank { ASR_DEFAULT_API_KEY }
         val asrUrl = env("ASR_BASE_URL").ifBlank { ASR_DEFAULT_URL }
         transaction {
-            val row = ModelApiKeys.selectAll().where { ModelApiKeys.modelId eq ASR_MODEL_ID }.firstOrNull()
+            val row = VoiceModels.selectAll().where { VoiceModels.modelId eq ASR_MODEL_ID }.firstOrNull()
             if (row == null) {
-                ModelApiKeys.insert {
-                    it[ModelApiKeys.modelId] = ASR_MODEL_ID
+                VoiceModels.insert {
+                    it[VoiceModels.modelId] = ASR_MODEL_ID
                     it[apiKey] = injectedKey
                     it[url] = asrUrl
-                    // ASR 无系统提示词 / 温度概念，留 null
+                    it[type] = VOICE_TYPE_ASR
                 }
-                log.info("已写入语音识别配置默认记录：$ASR_MODEL_ID")
+                log.info("已写入语音模型默认记录：$ASR_MODEL_ID（type=$VOICE_TYPE_ASR）")
                 return@transaction
             }
             // 已存在：仅在显式注入密钥（非内置默认）时才轮换，url 为空时补默认，其余保留
             val explicitKey = env("ASR_API_KEY")
-            val needUpdate = explicitKey.isNotBlank() || row[ModelApiKeys.url].isBlank()
+            val needUpdate = explicitKey.isNotBlank() || row[VoiceModels.url].isBlank()
             if (!needUpdate) return@transaction
-            ModelApiKeys.update({ ModelApiKeys.modelId eq ASR_MODEL_ID }) {
+            VoiceModels.update({ VoiceModels.modelId eq ASR_MODEL_ID }) {
                 if (explicitKey.isNotBlank()) it[apiKey] = explicitKey
-                if (row[ModelApiKeys.url].isBlank()) it[url] = asrUrl
+                if (row[VoiceModels.url].isBlank()) it[url] = asrUrl
             }
-            log.info("已更新语音识别配置：$ASR_MODEL_ID")
+            log.info("已更新语音模型配置：$ASR_MODEL_ID")
         }
     }
 
+    /** 对话模型记录：写入 llm_models；缺记录且注入了密钥才建，已有则只补空列 */
     private fun seedChatModel() {
         val modelId = env("MODEL_ID").ifBlank { DEFAULT_MODEL_ID }
         val baseUrl = env("MODEL_BASE_URL").ifBlank { DEFAULT_BASE_URL }
         val injectedKey = env("MODEL_API_KEY")
 
         transaction {
-            val row = ModelApiKeys.selectAll().where { ModelApiKeys.modelId eq modelId }.firstOrNull()
+            val row = LlmModels.selectAll().where { LlmModels.modelId eq modelId }.firstOrNull()
 
             if (row == null) {
                 // 新建记录必须有密钥，否则无法下发；提示后跳过，避免写入空密钥
                 if (injectedKey.isBlank()) {
-                    log.warn("model_api_keys 无 '$modelId' 记录且未注入 MODEL_API_KEY，跳过初始化")
+                    log.warn("llm_models 无 '$modelId' 记录且未注入 MODEL_API_KEY，跳过初始化")
                     return@transaction
                 }
-                ModelApiKeys.insert {
+                LlmModels.insert {
                     // 局部变量 modelId 与列同名，这里必须显式限定表列
-                    it[ModelApiKeys.modelId] = modelId
+                    it[LlmModels.modelId] = modelId
                     it[apiKey] = injectedKey
                     it[url] = baseUrl
                     it[systemPrompt] = DEFAULT_SYSTEM_PROMPT
                     it[temperature] = DEFAULT_TEMPERATURE
                 }
-                log.info("已写入模型配置默认记录：$modelId")
+                log.info("已写入 LLM 模型默认记录：$modelId")
                 return@transaction
             }
 
             // 已存在：只补空列，密钥仅在显式注入时才轮换（表里改过的值一律保留）
             val needUpdate = injectedKey.isNotBlank() ||
-                row[ModelApiKeys.url].isBlank() ||
-                row[ModelApiKeys.systemPrompt].isNullOrBlank() ||
-                row[ModelApiKeys.temperature] == null
+                row[LlmModels.url].isBlank() ||
+                row[LlmModels.systemPrompt].isNullOrBlank() ||
+                row[LlmModels.temperature] == null
             if (!needUpdate) return@transaction
 
-            ModelApiKeys.update({ ModelApiKeys.modelId eq modelId }) {
+            LlmModels.update({ LlmModels.modelId eq modelId }) {
                 if (injectedKey.isNotBlank()) it[apiKey] = injectedKey
-                if (row[ModelApiKeys.url].isBlank()) it[url] = baseUrl
-                if (row[ModelApiKeys.systemPrompt].isNullOrBlank()) it[systemPrompt] = DEFAULT_SYSTEM_PROMPT
-                if (row[ModelApiKeys.temperature] == null) it[temperature] = DEFAULT_TEMPERATURE
+                if (row[LlmModels.url].isBlank()) it[url] = baseUrl
+                if (row[LlmModels.systemPrompt].isNullOrBlank()) it[systemPrompt] = DEFAULT_SYSTEM_PROMPT
+                if (row[LlmModels.temperature] == null) it[temperature] = DEFAULT_TEMPERATURE
             }
-            log.info("已补齐模型配置缺省字段：$modelId")
+            log.info("已补齐 LLM 模型配置缺省字段：$modelId")
         }
     }
 }

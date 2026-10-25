@@ -60,18 +60,24 @@ object DatabaseFactory {
         })
         Database.connect(dataSource)
 
-        // 3. 建表：登录服务使用的 users + 模型配置下发的 model_api_keys + 暂未接入的 feedback_tickets
+        // 3. 建表：users + 模型配置 llm_models / voice_models
+        //    + 反馈工单 feedback_tickets + 管理员公告 broadcast_messages。
+        //    历史统一表 model_api_keys 不再创建（旧库中已存在则原样保留、不引用、不 DROP）。
+        //    SchemaUtils.create 是“缺表才建、存在即跳过”，绝不会 DROP / 重建已有表与数据。
         transaction {
-            SchemaUtils.create(Users, ModelApiKeys, FeedbackTickets)
+            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets)
         }
 
-        // 4. 增量迁移：为已存在的旧表补上新列
-        //    （MySQL 无 ADD COLUMN IF NOT EXISTS，列已存在时报错即忽略）
+        // 4. 增量迁移：为已存在的旧表补上新列 / 外键
+        //    （MySQL 无 ADD COLUMN / ADD CONSTRAINT IF NOT EXISTS，已存在时报错即被 runCatching 忽略）
         listOf(
             "ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL",
             "ALTER TABLE users ADD COLUMN avatar TEXT NULL",
-            "ALTER TABLE model_api_keys ADD COLUMN system_prompt TEXT NULL",
-            "ALTER TABLE model_api_keys ADD COLUMN temperature DOUBLE NULL",
+            "ALTER TABLE users ADD COLUMN `type` VARCHAR(16) NULL",
+            "ALTER TABLE feedback_tickets ADD COLUMN reply TEXT NULL",
+            "ALTER TABLE feedback_tickets ADD COLUMN replied_by VARCHAR(32) NULL",
+            "ALTER TABLE feedback_tickets ADD COLUMN replied_at DATETIME NULL",
+            "ALTER TABLE feedback_tickets ADD CONSTRAINT fk_fb_user FOREIGN KEY (username) REFERENCES users(username)",
         ).forEach { ddl ->
             runCatching {
                 dataSource.connection.use { conn ->

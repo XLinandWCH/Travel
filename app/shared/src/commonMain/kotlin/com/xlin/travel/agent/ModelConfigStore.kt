@@ -16,7 +16,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * 服务端下发的模型配置（对应 server 的 ModelConfigResponse / model_api_keys 表）。
+ * 服务端下发的模型配置（对应 server 的 ModelConfigResponse / llm_models 表）。
  * 替代此前硬编码在 AI_Agent.{android,ios,jvm}.kt 里的 API_KEY 与 baseUrl。
  */
 @Serializable

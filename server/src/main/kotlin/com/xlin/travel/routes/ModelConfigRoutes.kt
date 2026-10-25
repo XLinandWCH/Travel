@@ -22,7 +22,7 @@ fun Route.modelConfigRoutes() {
         post("/config") {
             if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
             val request = call.receiveOrNull<ModelConfigRequest>() ?: return@post badRequest(call)
-            when (val result = ModelConfigService.getConfig(request.token, request.modelId)) {
+            when (val result = ModelConfigService.getConfig(request.token, request.modelId, request.scope)) {
                 is ModelConfigService.ConfigResult.Success -> call.respond(result.config)
                 is ModelConfigService.ConfigResult.Failed ->
                     call.respond(HttpStatusCode.fromValue(result.status), ApiError(result.message))

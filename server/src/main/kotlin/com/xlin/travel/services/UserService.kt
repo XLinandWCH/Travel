@@ -268,5 +268,6 @@ object UserService {
         usageDays = this[Users.usageDays],
         registeredAt = this[Users.registeredAt].toString(),
         avatar = this[Users.avatar],
+        type = this[Users.userType],
     )
 }

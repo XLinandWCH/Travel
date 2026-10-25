@@ -20,7 +20,7 @@ import kotlinx.serialization.json.Json
  * 语音识别配置的获取与缓存，沿用 [com.xlin.travel.agent.ModelConfigStore] 的四级降级策略：
  * 内存 10 分钟复用 → 在线拉取并缓存本地 → 断网退回 7 天内本地缓存 → 都失败抛错，绝不回退硬编码密钥。
  *
- * 与普通对话模型复用同一张服务端 model_api_keys 表，只是按 [ASR_MODEL_ID] 单独拉取；
+ * 语音模型配置存于服务端独立表 voice_models（含必填类型列 ASR/TTS），scope="voice" 按 [ASR_MODEL_ID] 拉取；
  * 服务端下发的 url 列即为 Fun-ASR 的完整调用端点，apiKey 为百炼 / DashScope 密钥。
  */
 object AsrConfigStore {
@@ -97,4 +97,4 @@ private object AsrConfigApi {
 }
 
 @Serializable
-private data class AsrConfigRequest(val token: String, val modelId: String)
+private data class AsrConfigRequest(val token: String, val modelId: String, val scope: String = "voice")

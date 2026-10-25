@@ -1,16 +1,11 @@
 package com.xlin.travel.inputbox.voice
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,8 +52,10 @@ internal fun Waveform(state: VoiceInputState) {
 /**
  * 底部居中状态行：
  * - 准备中 / 正在聆听 / 识别中…（默认白字）；
- * - 进入末尾倒计时时改为橘色的「X 秒后自动发送 / 结束」；
- * - 录音态右侧带「自动发送」开关。
+ * - 进入末尾倒计时（录音满 50 秒后）改为橘色的「X 秒后自动发送」。
+ *
+ * 不再提供“自动发送 开/关”开关：默认策略固定为——1 分钟内用户可自行点发送，
+ * 满 1 分钟（最后 10 秒倒计时）则自动发送。
  */
 @Composable
 internal fun StatusLine(state: VoiceInputState) {
@@ -68,8 +65,7 @@ internal fun StatusLine(state: VoiceInputState) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val (text, color) = when {
-            countdown -> "${state.remainingSeconds} 秒后" +
-                (if (state.autoSend) "自动发送" else "结束") to AccentOrange
+            countdown -> "${state.remainingSeconds} 秒后自动发送" to AccentOrange
             state.phase == VoicePhase.Starting -> "准备中…" to SettingValueText
             state.phase == VoicePhase.Transcribing -> "识别中…" to SettingValueText
             else -> "正在聆听，请说话" to TextWhite
@@ -79,31 +75,6 @@ internal fun StatusLine(state: VoiceInputState) {
             color = color,
             fontSize = 15.sp,
             fontWeight = if (countdown) FontWeight.SemiBold else FontWeight.Normal,
-        )
-        if (state.phase == VoicePhase.Recording && !countdown) {
-            Spacer(Modifier.size(8.dp))
-            AutoSendToggle(state)
-        }
-    }
-}
-
-/** 「自动发送」开关：点击切换 [VoiceInputState.autoSend] */
-@Composable
-private fun AutoSendToggle(state: VoiceInputState) {
-    Row(
-        modifier = Modifier
-            .clip(CircleShape)
-            .clickable { state.autoSend = !state.autoSend }
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("自动发送", color = SettingValueText, fontSize = 13.sp)
-        Spacer(Modifier.size(6.dp))
-        Text(
-            text = if (state.autoSend) "开" else "关",
-            color = if (state.autoSend) AccentOrange else SettingValueText,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
         )
     }
 }

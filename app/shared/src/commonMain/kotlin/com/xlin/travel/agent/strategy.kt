@@ -14,7 +14,7 @@ private suspend fun AIAgentContext.historyIsTooLong(threshold: Int = 50): Boolea
     llm.readSession { prompt.messages.size > threshold }
 
 /**
- * 工具轮次是否已达上限：统计会话中「包含工具调用的 Assistant 消息」数量。
+ * 工具轮次是否已达上限：统计会话中「包含工具调用的 Assistant message」数量。
  * 用于切断弱模型反复发起同一工具调用导致的 sendToolResult ⇄ executeToolCall 死循环。
  */
 private suspend fun AIAgentContext.toolRoundsExceeded(limit: Int): Boolean =

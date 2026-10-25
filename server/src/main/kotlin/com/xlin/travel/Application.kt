@@ -3,6 +3,7 @@ package com.xlin.travel
 import com.xlin.travel.db.DatabaseFactory
 import com.xlin.travel.db.ModelKeySeeder
 import com.xlin.travel.routes.authRoutes
+import com.xlin.travel.routes.feedbackRoutes
 import com.xlin.travel.routes.modelConfigRoutes
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -47,8 +48,9 @@ fun Application.module() {
         get("/") {
             call.respondText(sayHello("Ktor"))
         }
-        // 账号服务（注册 / 登录）与模型配置下发接口接入数据库；其它服务先不做连接
+        // 账号服务（注册 / 登录）、模型配置下发、反馈 / 消息服务接入数据库
         authRoutes()
         modelConfigRoutes()
+        feedbackRoutes()
     }
 }
