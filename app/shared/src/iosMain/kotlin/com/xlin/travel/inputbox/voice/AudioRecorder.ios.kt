@@ -67,7 +67,8 @@ actual class AudioRecorder actual constructor() {
     actual fun stop(): ByteArray {
         val rec = recorder ?: return ByteArray(0)
         rec.stop()
-        val bytes = filePath?.let { readFileBytes(it) }.orEmpty()
+        // 注意：common/native stdlib 没有 ByteArray?.orEmpty() 特化重载，用 ?: 代替
+        val bytes = filePath?.let { readFileBytes(it) } ?: ByteArray(0)
         recorder = null
         filePath = null
         return bytes

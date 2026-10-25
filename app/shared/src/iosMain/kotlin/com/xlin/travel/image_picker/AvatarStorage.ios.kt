@@ -35,7 +35,9 @@ import kotlin.math.roundToInt
  * iOS 26 / Kotlin 2.4 interop 注意（同 ImagePicker.ios.kt）：Foundation 已被
  * Swift 重写，NSData 的 base64 / getBytes / create 系方法无法互操作——
  * 写文件走 NSFileManager.createFileAtPath，读字节走 POSIX（readFileBytes），
- * base64 编解码走 stdlib kotlin.io.encoding.Base64。
+ * base64 编解码走 stdlib kotlin.io.encoding.Base64（2.4 无 encodeToString，
+ * 用 encode(...).decodeToString()）。
+ * 另：removeItemAtPath 带 NSError** 出参，需 ExperimentalForeignApi opt-in。
  */
 @Composable
 actual fun rememberAvatarPicker(onResult: (AvatarData?) -> Unit): () -> Unit {
@@ -63,7 +65,7 @@ private class AvatarPickerDelegate(
     private val onResult: (AvatarData?) -> Unit,
 ) : NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {
 
-    @OptIn(ExperimentalEncodingApi::class)
+    @OptIn(ExperimentalEncodingApi::class, ExperimentalForeignApi::class)
     override fun imagePickerController(
         picker: UIImagePickerController,
         didFinishPickingMediaWithInfo: Map<Any?, *>,
@@ -80,7 +82,7 @@ private class AvatarPickerDelegate(
                 val bytes = readFileBytes(tmp)
                 NSFileManager.defaultManager.removeItemAtPath(tmp, null)
                 AvatarData(
-                    base64 = Base64.encodeToString(bytes),
+                    base64 = Base64.encode(bytes).decodeToString(),
                     preview = Image.makeFromEncoded(bytes).toComposeImageBitmap(),
                 )
             }.getOrNull()
