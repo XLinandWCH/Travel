@@ -1,7 +1,7 @@
 package com.xlin.travel.inputbox.voice
 
+import com.xlin.travel.io.readFileBytes
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.refTo
 import platform.AVFAudio.AVAudioRecorder
 import platform.AVFAudio.AVFormatIDKey
 import platform.AVFAudio.AVLinearPCMBitDepthKey
@@ -9,7 +9,6 @@ import platform.AVFAudio.AVLinearPCMIsBigEndianKey
 import platform.AVFAudio.AVLinearPCMIsFloatKey
 import platform.AVFAudio.AVNumberOfChannelsKey
 import platform.AVFAudio.AVSampleRateKey
-import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
@@ -17,12 +16,16 @@ import platform.Foundation.NSUUID
 
 /**
  * iOS 录音：AVAudioRecorder 直接落 16kHz / 单声道 / 16bit 线性 PCM 的 WAV 临时文件，
- * [stop] 时读回字节；[level] 用 averagePower(forChannel:) 的 dB 值归一化，驱动真实波形。
+ * [stop] 时用 POSIX stdio 读回字节（iOS 26 的 Foundation 已被 Swift 重写，
+ * NSData.dataWithContentsOfFile / getBytes 在 Kotlin/Native 中不可解析）；
+ * [level] 用 averagePowerForChannel 的 dB 值归一化，驱动真实波形。
  * 权限由 [rememberMicPermission]（AVAudioSession）先行申请。
  *
- * 注意：本文件仅在 iOS 目标编译，当前开发机（非 Apple 芯片）无法 native 编译 iOS。
- * 若 AVAudioRecorder 初始化 / 属性方法签名在真机 SDK 上有出入，请对照 Xcode 报错微调
- * （与 ImagePicker.ios.kt 同样的处理方式）。
+ * iOS 26 / Kotlin 2.4 interop 注意（CI 实测）：
+ * - 构造器 settings 参数类型是 Map<Any?, *>，Kotlin Map 对键不变，mapOf 字面量
+ *   必须显式标注类型，否则 "None of the following candidates is applicable"；
+ * - ObjC 对象由 ARC 管理，没有 dispose()，置空引用即可；
+ * - removeItemAtPath 需要额外的 error 实参（传 null）。
  */
 @OptIn(ExperimentalForeignApi::class)
 actual class AudioRecorder actual constructor() {
@@ -32,9 +35,9 @@ actual class AudioRecorder actual constructor() {
 
     actual fun start(): Boolean {
         val path = NSTemporaryDirectory() + "rec_${NSUUID().UUIDString}.wav"
-        val url = NSURL.fileURLWithPath(path)
+        val url = NSURL.fileURLWithPath(path) ?: return false
         // kAudioFormatLinearPCM = 'lpcm' (0x6C70636D)，输出未压缩 PCM 便于加 WAV 头
-        val settings = mapOf(
+        val settings: Map<Any?, *> = mapOf<Any?, Any?>(
             AVFormatIDKey to 1819304813L,
             AVSampleRateKey to 16000.0,
             AVNumberOfChannelsKey to 1L,
@@ -43,10 +46,9 @@ actual class AudioRecorder actual constructor() {
             AVLinearPCMIsBigEndianKey to false,
         )
         val rec = AVAudioRecorder(url, settings, null) ?: return false
-        rec.settings = settings
         rec.meteringEnabled = true
         if (!rec.prepareToRecord() || !rec.record()) {
-            rec.dispose()
+            recorder = null
             return false
         }
         recorder = rec
@@ -65,27 +67,18 @@ actual class AudioRecorder actual constructor() {
     actual fun stop(): ByteArray {
         val rec = recorder ?: return ByteArray(0)
         rec.stop()
-        val bytes = filePath?.let { NSData.dataWithContentsOfFile(it)?.toByteArray() }.orEmpty()
-        rec.dispose()
+        val bytes = filePath?.let { readFileBytes(it) }.orEmpty()
         recorder = null
         filePath = null
         return bytes
     }
 
     actual fun release() {
-        recorder?.let {
-            runCatching { it.stop() }
-            it.dispose()
-        }
-        filePath?.let { runCatching { NSFileManager.defaultManager.removeItemAtPath(it) } }
+        recorder?.let { runCatching { it.stop() } }
         recorder = null
+        filePath?.let { path ->
+            runCatching { NSFileManager.defaultManager.removeItemAtPath(path, null) }
+        }
         filePath = null
     }
-}
-
-private fun NSData.toByteArray(): ByteArray {
-    val size = length.toInt()
-    val bytes = ByteArray(size)
-    if (size > 0) getBytes(bytes.refTo(0), length)
-    return bytes
 }

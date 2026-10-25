@@ -2,12 +2,12 @@ package com.xlin.travel.image_picker
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.LocalUIViewController
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
-import kotlinx.cinterop.*
+import androidx.compose.ui.interop.LocalUIViewController
+import com.xlin.travel.io.readFileBytes
 import org.jetbrains.skia.Image
-import platform.Foundation.NSData
+import platform.Foundation.NSFileManager
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSUUID
 import platform.UIKit.UIImage
@@ -15,7 +15,6 @@ import platform.UIKit.UIImagePNGRepresentation
 import platform.UIKit.UIImagePickerController
 import platform.UIKit.UIImagePickerControllerDelegateProtocol
 import platform.UIKit.UIImagePickerControllerOriginalImage
-import platform.UIKit.UIImagePickerControllerSourceTypePhotoLibrary
 import platform.UIKit.UINavigationControllerDelegateProtocol
 import platform.darwin.NSObject
 
@@ -25,17 +24,19 @@ import platform.darwin.NSObject
  *
  * PNG 数据写入临时目录，回调其绝对路径供 media_analysis 工具读取。
  *
- * 注意：本文件仅在 iOS 目标编译。当前开发机（非 Apple 芯片）无法 native 编译 iOS，
- * 若 interop 方法签名在真机上有出入，请对照 Xcode 报错微调 didFinishPickingMediaWithInfo 的重写名。
+ * iOS 26 / Kotlin 2.4 interop 注意（CI 实测）：
+ * - LocalUIViewController 位于 androidx.compose.ui.interop 包；
+ * - 不设置 sourceType：其默认值就是 PhotoLibrary
+ *   （UIImagePickerControllerSourceType* 枚举常量在当前绑定中不可解析）；
+ * - Foundation 已被 Swift 重写，NSData 的 writeToFile / getBytes 无法互操作，
+ *   写文件走 NSFileManager.createFileAtPath，读回字节走 POSIX（readFileBytes）。
  */
-@OptIn(ExperimentalForeignApi::class)
 @Composable
 actual fun rememberImagePicker(onResult: (bitmap: ImageBitmap?, path: String?) -> Unit): () -> Unit {
     val host = LocalUIViewController.current
     val delegate = remember(onResult) { ImagePickerDelegate(onResult) }
     return {
         val picker = UIImagePickerController()
-        picker.sourceType = UIImagePickerControllerSourceTypePhotoLibrary
         picker.delegate = delegate
         host.presentViewController(picker, animated = true, completion = null)
     }
@@ -45,24 +46,27 @@ private class ImagePickerDelegate(
     private val onResult: (bitmap: ImageBitmap?, path: String?) -> Unit,
 ) : NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {
 
-    @OptIn(ExperimentalForeignApi::class)
     override fun imagePickerController(
         picker: UIImagePickerController,
         didFinishPickingMediaWithInfo: Map<Any?, *>,
     ) {
         val image = didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage
-        val data = image?.let { UIImagePNGRepresentation(it) }
-        val bitmap = data?.toByteArray()?.let {
-            runCatching { Image.makeFromEncoded(it).toComposeImageBitmap() }.getOrNull()
-        }
-        // 写入临时目录，得到工具可读的本地绝对路径
-        val path = data?.let {
+        // PNG 写入临时目录供工具读取，再读回字节解码出预览位图
+        val result = image?.let { img ->
             runCatching {
+                val data = UIImagePNGRepresentation(img) ?: return@runCatching null
                 val file = NSTemporaryDirectory() + "img_${NSUUID().UUIDString}.png"
-                if (it.writeToFile(file, atomically = true)) file else null
+                if (!NSFileManager.defaultManager.createFileAtPath(file, data, null)) {
+                    return@runCatching null
+                }
+                val bytes = readFileBytes(file)
+                val bitmap = runCatching {
+                    Image.makeFromEncoded(bytes).toComposeImageBitmap()
+                }.getOrNull()
+                bitmap to file
             }.getOrNull()
         }
-        onResult(bitmap, path)
+        onResult(result?.first, result?.second)
         picker.dismissViewControllerAnimated(true, completion = null)
     }
 
@@ -70,12 +74,4 @@ private class ImagePickerDelegate(
         onResult(null, null)
         picker.dismissViewControllerAnimated(true, completion = null)
     }
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private fun NSData.toByteArray(): ByteArray {
-    val size = length.toInt()
-    val bytes = ByteArray(size)
-    if (size > 0) getBytes(bytes.refTo(0), length)
-    return bytes
 }

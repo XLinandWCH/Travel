@@ -1,0 +1,128 @@
+Run echo "===== Xcode 版本 ====="
+===== Xcode 版本 =====
+Xcode 26.6
+Build version 17F113
+===== 可用 SDK =====
+[
+  {
+    "canonicalName" : "driverkit25.5",
+    "displayName" : "DriverKit 25.5",
+    "isBaseSdk" : true,
+    "platform" : "driverkit",
+    "platformPath" : "/Applications/Xcode_26.6.app/Contents/Developer/Platforms/DriverKit.platform",
+    "platformVersion" : "25.5",
+    "sdkPath" : "/Applications/Xcode_26.6.app/Contents/Developer/Platforms/DriverKit.platform/Developer/SDKs/DriverKit25.5.sdk",
+    "sdkVersion" : "25.5"
+  },
+  {
+    "buildID" : "5DDDAD38-596F-11F1-80E6-834BE4FBF366",
+    "canonicalName" : "iphoneos26.5",
+    "displayName" : "iOS 26.5",
+    "isBaseSdk" : true,
+    "platform" : "iphoneos",
+    "platformPath" : "/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform",
+    "platformVersion" : "26.5",
+    "productBuildVersion" : "23F81a",
+    "productCopyright" : "1983-2026 Apple Inc.",
+    "productName" : "iPhone OS",
+    "productVersion" : "26.5.1",
+    "sdkPath" : "/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk",
+    "sdkVersion" : "26.5"
+  },
+  {
+    "buildID" : "5DDDAD38-596F-11F1-80E6-834BE4FBF366",
+    "canonicalName" : "iphonesimulator26.5",
+    "displayName" : "Simulator - iOS 26.5",
+    "isBaseSdk" : true,
+    "platform" : "iphonesimulator",
+    "platformPath" : "/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform",
+    "platformVersion" : "26.5",
+    "productBuildVersion" : "23F81a",
+    "productCopyright" : "1983-2026 Apple Inc.",
+    "productName" : "iPhone OS",
+    "productVersion" : "26.5.1",
+    "sdkPath" : "/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+    "sdkVersion" : "26.5"
+  },
+  {
+    "buildID" : "68E32B32-42C6-11F1-B58E-42443597F508",
+    "canonicalName" : "macosx26.5",
+    "displayName" : "macOS 26.5",
+    "iOSSupportVersion" : "26.5",
+    "isBaseSdk" : true,
+    "platform" : "macosx",
+    "platformPath" : "/Applications/Xcode_26.6.app/Conte
+===== Kotlin/Native 编译错误（Stage 1）=====
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/chat_screen/Clipboard.ios.kt:9:28 Unresolved reference 'general'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/db/DatabasePlatform.ios.kt:25:15 Unresolved reference 'timeIntervalSince1970' on receiver of type 'NSDate'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:5:28 Unresolved reference 'LocalUIViewController'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:18:23 Unresolved reference 'UIImagePickerControllerSourceTypePhotoLibrary'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:36:16 Unresolved reference 'LocalUIViewController'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:40:29 Unresolved reference 'UIImagePickerControllerSourceTypePhotoLibrary'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:49:16 Unresolved reference 'create'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:57:16 Unresolved reference 'create'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:77:33 Unresolved reference 'base64EncodedStringWithOptions' on receiver of type 'NSData'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:117:19 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:117:19 Candidate 'fun <T : CVariable> CValues<T>.getBytes(): ByteArray' is inapplicable because of a receiver type mismatch.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:5:28 Unresolved reference 'LocalUIViewController'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:18:23 Unresolved reference 'UIImagePickerControllerSourceTypePhotoLibrary'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:34:16 Unresolved reference 'LocalUIViewController'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:38:29 Unresolved reference 'UIImagePickerControllerSourceTypePhotoLibrary'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:62:24 Unresolved reference 'writeToFile' on receiver of type 'NSData'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:79:19 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:79:19 Candidate 'fun <T : CVariable> CValues<T>.getBytes(): ByteArray' is inapplicable because of a receiver type mismatch.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:45:19 None of the following candidates is applicable:
+constructor(uRL: NSURL, settings: Map<Any?, *>, error: CPointer<ObjCObjectVar<NSError?>>?): AVAudioRecorder:
+constructor(uRL: NSURL, format: AVAudioFormat, error: CPointer<ObjCObjectVar<NSError?>>?): AVAudioRecorder:
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:46:13 Unresolved reference 'settings'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:47:13 Unresolved reference 'meteringEnabled'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:48:18 Unresolved reference 'prepareToRecord'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:48:44 Unresolved reference 'record'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:49:17 Unresolved reference 'dispose'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:68:44 Unresolved reference 'dataWithContentsOfFile'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:68:88 Candidate 'fun String?.orEmpty(): String' is inapplicable because of a receiver type mismatch.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:69:13 Unresolved reference 'dispose' on receiver of type 'AVAudioRecorder'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:72:16 Return type mismatch: expected 'ByteArray', actual 'String'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:76:19 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:78:16 Unresolved reference 'dispose' on receiver of type 'AVAudioRecorder'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:80:68 No value passed for parameter 'error'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:89:19 Unresolved reference 'getBytes'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:89:34 This declaration needs opt-in. Its usage must be marked with '@kotlinx.cinterop.ExperimentalForeignApi' or '@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)'
+===== Framework 链接错误（Stage 1c）=====
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/chat_screen/Clipboard.ios.kt:9:28 Unresolved reference 'general'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/db/DatabasePlatform.ios.kt:25:15 Unresolved reference 'timeIntervalSince1970' on receiver of type 'NSDate'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:5:28 Unresolved reference 'LocalUIViewController'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:18:23 Unresolved reference 'UIImagePickerControllerSourceTypePhotoLibrary'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:36:16 Unresolved reference 'LocalUIViewController'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:40:29 Unresolved reference 'UIImagePickerControllerSourceTypePhotoLibrary'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:49:16 Unresolved reference 'create'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:57:16 Unresolved reference 'create'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:77:33 Unresolved reference 'base64EncodedStringWithOptions' on receiver of type 'NSData'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:117:19 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:117:19 Candidate 'fun <T : CVariable> CValues<T>.getBytes(): ByteArray' is inapplicable because of a receiver type mismatch.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:5:28 Unresolved reference 'LocalUIViewController'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:18:23 Unresolved reference 'UIImagePickerControllerSourceTypePhotoLibrary'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:34:16 Unresolved reference 'LocalUIViewController'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:38:29 Unresolved reference 'UIImagePickerControllerSourceTypePhotoLibrary'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:62:24 Unresolved reference 'writeToFile' on receiver of type 'NSData'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:79:19 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/ImagePicker.ios.kt:79:19 Candidate 'fun <T : CVariable> CValues<T>.getBytes(): ByteArray' is inapplicable because of a receiver type mismatch.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:45:19 None of the following candidates is applicable:
+constructor(uRL: NSURL, settings: Map<Any?, *>, error: CPointer<ObjCObjectVar<NSError?>>?): AVAudioRecorder:
+constructor(uRL: NSURL, format: AVAudioFormat, error: CPointer<ObjCObjectVar<NSError?>>?): AVAudioRecorder:
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:46:13 Unresolved reference 'settings'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:47:13 Unresolved reference 'meteringEnabled'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:48:18 Unresolved reference 'prepareToRecord'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:48:44 Unresolved reference 'record'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:49:17 Unresolved reference 'dispose'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:68:44 Unresolved reference 'dataWithContentsOfFile'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:68:88 Candidate 'fun String?.orEmpty(): String' is inapplicable because of a receiver type mismatch.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:69:13 Unresolved reference 'dispose' on receiver of type 'AVAudioRecorder'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:72:16 Return type mismatch: expected 'ByteArray', actual 'String'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:76:19 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:78:16 Unresolved reference 'dispose' on receiver of type 'AVAudioRecorder'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:80:68 No value passed for parameter 'error'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:89:19 Unresolved reference 'getBytes'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:89:34 This declaration needs opt-in. Its usage must be marked with '@kotlinx.cinterop.ExperimentalForeignApi' or '@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)'
+===== Xcode 构建错误（Stage 3）=====
+xcodebuild: error: destination implies architecture, architecture must not also be specified.

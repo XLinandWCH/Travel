@@ -153,7 +153,9 @@ jobs:
       # ------------------------------------------------------------------
       # 阶段 3：Xcode 构建（自动调用 embedAndSignAppleFrameworkForXcode
       # 链接 Shared.framework；sqlite-bundled 的 iOS 原生库会静态链接进去）
-      # -arch arm64 固定真机架构，避免模拟器 x86_64 切片触发 K/N 不支持目标报错
+      # 注意：-destination 'generic/platform=iOS' 已隐含 arm64 真机架构，
+      # 不能再加 -arch arm64，否则 xcodebuild 报
+      # "destination implies architecture, architecture must not also be specified"
       # ------------------------------------------------------------------
       - name: 'Stage 3: Xcode Build (Release)'
         if: inputs.buildMode == 'full'
@@ -173,7 +175,6 @@ jobs:
             -scheme iosApp \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -arch arm64 \
             -derivedDataPath build_ios/DerivedData \
             MARKETING_VERSION=${{ github.event.inputs.versionName }} \
             CURRENT_PROJECT_VERSION=${{ github.event.inputs.versionCode }} \
