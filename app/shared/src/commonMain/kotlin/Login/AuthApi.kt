@@ -10,9 +10,9 @@ import kotlinx.serialization.Serializable
 
 /**
  * 账号服务客户端：对接 server 模块 /api/auth 接口（Ktor + kotlinx.serialization）。
- * 服务器为公网 IP + 开发端口，换环境时只需改 AUTH_BASE_URL。
+ * 服务器为公网 IP + 开发端口，换环境时只需改 SERVER_BASE_URL（模型配置接口也用它）。
  */
-private const val AUTH_BASE_URL = "http://193.112.23.199:8080"
+internal const val SERVER_BASE_URL = "http://193.112.23.199:8080"
 
 // ---------- 与 server/models/AuthModels.kt 对应的报文结构 ----------
 
@@ -83,7 +83,7 @@ object AuthApi {
 
     /** 登录：account 为邮箱或手机号（与后端 LoginRequest 规则一致） */
     suspend fun login(account: String, password: String): AuthApiResult =
-        post("$AUTH_BASE_URL/api/auth/login", LoginRequest(account.trim(), password))
+        post("$SERVER_BASE_URL/api/auth/login", LoginRequest(account.trim(), password))
 
     suspend fun register(
         username: String,
@@ -91,7 +91,7 @@ object AuthApi {
         email: String,
         password: String,
     ): AuthApiResult = post(
-        "$AUTH_BASE_URL/api/auth/register",
+        "$SERVER_BASE_URL/api/auth/register",
         RegisterRequest(username.trim(), phone.trim(), email.trim(), password),
     )
 
@@ -117,22 +117,22 @@ object AuthApi {
 
     /** 修改用户名：携带 token，成功后带回最新 UserDto */
     suspend fun changeUsername(token: String, username: String): MutationApiResult =
-        mutate("$AUTH_BASE_URL/api/auth/update-username", UpdateUsernameRequest(token, username.trim()))
+        mutate("$SERVER_BASE_URL/api/auth/update-username", UpdateUsernameRequest(token, username.trim()))
 
     /** 修改密码：携带 token + 原密码 + 新密码，服务端强制 14 天冷却 */
     suspend fun changePassword(token: String, oldPassword: String, newPassword: String): MutationApiResult =
         mutate(
-            "$AUTH_BASE_URL/api/auth/update-password",
+            "$SERVER_BASE_URL/api/auth/update-password",
             UpdatePasswordRequest(token, oldPassword, newPassword),
         )
 
     /** 注销账号：携带 token，服务端删除该用户全部信息 */
     suspend fun deleteAccount(token: String): MutationApiResult =
-        mutate("$AUTH_BASE_URL/api/auth/delete-account", DeleteAccountRequest(token))
+        mutate("$SERVER_BASE_URL/api/auth/delete-account", DeleteAccountRequest(token))
 
     /** 上传头像：携带 token 与 base64，服务端保存一份用于跨设备同步 */
     suspend fun uploadAvatar(token: String, avatarBase64: String): MutationApiResult =
-        mutate("$AUTH_BASE_URL/api/auth/upload-avatar", UploadAvatarRequest(token, avatarBase64))
+        mutate("$SERVER_BASE_URL/api/auth/upload-avatar", UploadAvatarRequest(token, avatarBase64))
 
     private suspend inline fun <reified B : Any> mutate(url: String, body: B): MutationApiResult {
         return try {

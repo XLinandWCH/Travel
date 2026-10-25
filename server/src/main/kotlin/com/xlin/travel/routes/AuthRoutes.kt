@@ -20,7 +20,7 @@ import io.ktor.server.routing.*
 /**
  * 账号服务路由：注册 / 登录。
  * 数据库未初始化（本机没起 MySQL / 隧道没通）时统一返回 503，服务本身仍可运行，
- * 模型密钥、反馈工单等其它接口暂不开放。
+ * 反馈工单等其它接口暂不开放（模型配置见 modelConfigRoutes）。
  */
 fun Route.authRoutes() {
     route("/api/auth") {
@@ -101,11 +101,12 @@ fun Route.authRoutes() {
     }
 }
 
-private suspend inline fun <reified T> ApplicationCall.receiveOrNull(): T? =
+// 以下三个工具供同包各路由复用（authRoutes / modelConfigRoutes）
+internal suspend inline fun <reified T> ApplicationCall.receiveOrNull(): T? =
     runCatching { receive<T>() }.getOrNull()
 
-private suspend fun badRequest(call: ApplicationCall) =
+internal suspend fun badRequest(call: ApplicationCall) =
     call.respond(HttpStatusCode.BadRequest, ApiError("请求体解析失败，请提交 JSON"))
 
-private suspend fun databaseUnavailable(call: ApplicationCall) =
+internal suspend fun databaseUnavailable(call: ApplicationCall) =
     call.respond(HttpStatusCode.ServiceUnavailable, ApiError("数据库服务未初始化"))

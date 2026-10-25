@@ -7,14 +7,15 @@ import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.serialization.typeToken
+import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.agent.createChatExecutor
 import kotlinx.io.files.Path
 import kotlinx.serialization.Serializable
 
-/** 图片 / 文件识别专用模型：在旅行主模型能力基础上补充视觉与文档输入能力。 */
-private val MediaVisionModel = LLModel(
+/** 图片 / 文件识别专用模型：在云端下发的模型 id 基础上补充视觉与文档输入能力。 */
+private fun mediaVisionModel(modelId: String): LLModel = LLModel(
     provider = LLMProvider.OpenAI,
-    id = "Sage-A1.5",
+    id = modelId,
     capabilities = listOf(
         LLMCapability.Completion,
         LLMCapability.Temperature,
@@ -60,6 +61,9 @@ object MediaAnalysisTool : Tool<MediaAnalysisTool.Args, String>(
     }
 
     override suspend fun execute(args: Args): String {
+        // 主 Agent 运行前已拉取云端配置（ModelConfigStore.ensure），这里直接取内存快照，不再硬编码密钥
+        val config = ModelConfigStore.current()
+            ?: error("模型配置尚未加载，无法识别图片 / 文档，请重新发送")
         val prompt = prompt("mixed_content") {
             system("You are a helpful assistant skilled at reading images and documents.")
             user {
@@ -70,7 +74,7 @@ object MediaAnalysisTool : Tool<MediaAnalysisTool.Args, String>(
         }
 
         // 非流式：直接执行并取回完整文本结果
-        val response = createChatExecutor().execute(prompt, MediaVisionModel)
+        val response = createChatExecutor(config).execute(prompt, mediaVisionModel(config.modelId))
         return response.textContent().ifBlank { "（未能识别出有效内容，请确认图片 / 文件路径是否正确）" }
     }
 }

@@ -7,8 +7,8 @@ import java.time.LocalDateTime
 /**
  * 业务表结构（Exposed DSL）。启动时由 DatabaseFactory 统一 SchemaUtils.create。
  *
- * 当前接入服务的只有 users 表（登录 / 注册）；
- * model_api_keys 与 feedback_tickets 仅先建表，对应服务后续再接入。
+ * 当前接入服务的有 users 表（登录 / 注册）与 model_api_keys 表（模型配置下发）；
+ * feedback_tickets 仅先建表，对应服务后续再接入。
  */
 
 /** 用户信息：用户名 / 手机号 / 邮箱 / 密码哈希 / 使用天数 / 注册时间 */
@@ -26,12 +26,17 @@ object Users : Table("users") {
     override val primaryKey = PrimaryKey(id)
 }
 
-/** 模型密钥：模型 id / API_KEY / URL（暂未接入服务） */
+/**
+ * 模型配置：模型 id / API_KEY / URL / 系统提示词 / 温度。
+ * 客户端不再硬编码这些信息，登录后通过 /api/model/config 拉取。
+ */
 object ModelApiKeys : Table("model_api_keys") {
     val id = long("id").autoIncrement()
     val modelId = varchar("model_id", 64)
     val apiKey = varchar("api_key", 256)
     val url = varchar("url", 256)
+    val systemPrompt = text("system_prompt").nullable()      // 系统提示词，NULL 表示未配置
+    val temperature = double("temperature").nullable()        // 采样温度，NULL 表示由客户端默认值决定
 
     override val primaryKey = PrimaryKey(id)
 

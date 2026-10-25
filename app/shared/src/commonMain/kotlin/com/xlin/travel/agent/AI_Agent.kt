@@ -13,9 +13,12 @@ import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
 import com.xlin.travel.agent.tool.MediaAnalysisTool
 
-val TravelModel = LLModel(
+/**
+ * 旅行主模型：模型 id 由服务端 model_api_keys 下发，客户端只固定能力清单。
+ */
+fun travelModel(modelId: String): LLModel = LLModel(
     provider = LLMProvider.OpenAI,
-    id = "Sage-A1.5",
+    id = modelId,
     capabilities = listOf(
         LLMCapability.Completion,
         LLMCapability.Temperature,
@@ -27,32 +30,19 @@ val TravelModel = LLModel(
     contextLength = 32_000
 )
 
-// 1. commonMain 里用 expect 拿 executor
-expect fun createChatExecutor(): PromptExecutor
+/** 服务端 system_prompt 未配置时的兜底提示词（正式提示词以云端表数据为准） */
+private const val FALLBACK_SYSTEM_PROMPT =
+    "你是一个旅行助手：给出可执行的行程、地点、交通与预算建议，需要工具调用时按工具结果回答，语气克制、温和、专业。"
 
-/** 旅行助手的系统提示词，同时会随会话记录一起存入数据库 */
-const val TravelSystemPrompt = """
-    你是一个名为 Claude 的 AI 助手，由 Anthropic 制作。（如果有人问起你是什么模型你就如实回答就行，没人问AI模型就不要说这个
-    
-    你现在运行在一个旅行助手产品里（主要），用户问旅行相关问题时：
-    - 给出可执行的行程、地点、交通、预算建议
-    - 需要工具调用时按工具结果回答
-    - 保持 Claude 的克制、温和、专业语气
-
-    图片 / 文件识别：
-    - 当用户消息里附带了图片（会给出本地绝对路径）或你需要识别图片 / 文档内容时，
-      调用 media_analysis 工具，instruction 填写用户诉求，imagePath 填写给出的图片路径
-
-    工具调用铁律（避免重复调用）：
-    - 同一个工具针对相同参数最多只调用一次
-    - 一旦收到工具返回的结果，就必须直接基于该结果给出最终回答，绝对不能再重复上一次的调用！牢记！
-"""
+// 1. commonMain 里用 expect 拿 executor；密钥与地址来自云端配置，不写死在各平台
+expect fun createChatExecutor(config: RemoteModelConfig): PromptExecutor
 
 /**
  * 运行 Agent 并流式输出。
  *
  * @param message 用户输入
  * @param sessionId 会话 ID（即 conversation.id），ChatMemory 用它区分不同会话
+ * @param config 云端下发的模型配置（apiKey / baseUrl / 模型 id / 系统提示词 / 温度）
  * @param historyProvider 历史记录提供者；传入数据库实现即可跨重启恢复上下文
  * @param onEvent 流式事件回调（思考 / 正文 / 结束），由界面层渲染
  * @return 本次对话的最终完整结果
@@ -60,6 +50,7 @@ const val TravelSystemPrompt = """
 suspend fun chatStreaming(
     message: String,
     sessionId: String,
+    config: RemoteModelConfig,
     historyProvider: ChatHistoryProvider? = null,
     onEvent: (ChatStreamEvent) -> Unit = {},
 ): String {
@@ -68,10 +59,10 @@ suspend fun chatStreaming(
     }
 
     val agent = AIAgent(
-        promptExecutor = createChatExecutor(),   // ← 不写 client，写 expect 函数
-        llmModel = TravelModel,
-        systemPrompt = TravelSystemPrompt,
-        temperature = 0.2,
+        promptExecutor = createChatExecutor(config),   // ← 不写 client，写 expect 函数
+        llmModel = travelModel(config.modelId),
+        systemPrompt = config.systemPrompt?.takeIf { it.isNotBlank() } ?: FALLBACK_SYSTEM_PROMPT,
+        temperature = config.temperature ?: ModelConfigStore.DEFAULT_TEMPERATURE,
         toolRegistry = myTools,
         strategy = strategy("streaming-demo"),
 

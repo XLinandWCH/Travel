@@ -60,16 +60,18 @@ object DatabaseFactory {
         })
         Database.connect(dataSource)
 
-        // 3. 建表：登录服务使用的 users + 暂未接入的 model_api_keys / feedback_tickets
+        // 3. 建表：登录服务使用的 users + 模型配置下发的 model_api_keys + 暂未接入的 feedback_tickets
         transaction {
             SchemaUtils.create(Users, ModelApiKeys, FeedbackTickets)
         }
 
-        // 4. 增量迁移：为已存在的旧 users 表补上 password_changed_at / avatar 列
+        // 4. 增量迁移：为已存在的旧表补上新列
         //    （MySQL 无 ADD COLUMN IF NOT EXISTS，列已存在时报错即忽略）
         listOf(
             "ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL",
             "ALTER TABLE users ADD COLUMN avatar TEXT NULL",
+            "ALTER TABLE model_api_keys ADD COLUMN system_prompt TEXT NULL",
+            "ALTER TABLE model_api_keys ADD COLUMN temperature DOUBLE NULL",
         ).forEach { ddl ->
             runCatching {
                 dataSource.connection.use { conn ->

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>语音输入 UI 复刻</title>
+<style>
+  body {
+    background-color: #121212;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  /* 整体容器：加宽、加高 */
+  .input-container {
+    width: 420px; 
+    min-height: 130px;
+    background-color: #222222;
+    border-radius: 28px;
+    padding: 22px 24px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+
+  /* 上半部分：拉长的竖向波形 */
+  .top-section {
+    width: 100%;
+    height: 36px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .waveform {
+    width: 95%; 
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px; 
+  }
+
+  .bar {
+    flex: 1;
+    background-color: #8a8a8a;
+    border-radius: 2px;
+    transform-origin: center;
+    animation: voiceBeat 1.2s infinite ease-in-out alternate;
+    /* 黄绿到亮绿渐变，模拟原图中间高亮的波 */
+    background: linear-gradient(to top, #a8e063, #56ab2f);
+  }
+
+  /* 模拟中间高两边低的声波形态 (共15根，更拉长) */
+  .bar:nth-child(1) { height: 15%; animation-delay: 0.1s; }
+  .bar:nth-child(2) { height: 25%; animation-delay: 0.3s; }
+  .bar:nth-child(3) { height: 40%; animation-delay: 0.5s; }
+  .bar:nth-child(4) { height: 55%; animation-delay: 0.2s; }
+  .bar:nth-child(5) { height: 70%; animation-delay: 0.6s; }
+  .bar:nth-child(6) { height: 85%; animation-delay: 0.4s; }
+  .bar:nth-child(7) { height: 100%; animation-delay: 0.0s; } /* 最高 */
+  .bar:nth-child(8) { height: 85%; animation-delay: 0.5s; }
+  .bar:nth-child(9) { height: 70%; animation-delay: 0.2s; }
+  .bar:nth-child(10){ height: 55%; animation-delay: 0.7s; }
+  .bar:nth-child(11){ height: 40%; animation-delay: 0.3s; }
+  .bar:nth-child(12){ height: 25%; animation-delay: 0.6s; }
+  .bar:nth-child(13){ height: 15%; animation-delay: 0.1s; }
+
+  @keyframes voiceBeat {
+    0% { transform: scaleY(0.6); opacity: 0.7; }
+    100% { transform: scaleY(1.25); opacity: 1; }
+  }
+
+  /* 下半部分：状态与按钮区 */
+  .bottom-section {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* 左侧关闭按钮 */
+  .btn-close {
+    width: 46px;
+    height: 46px;
+    background-color: #333333;
+    border-radius: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .btn-close svg {
+    width: 22px;
+    height: 22px;
+    stroke: #fff;
+    stroke-width: 2.5;
+    fill: none;
+  }
+
+  /* 中间文字状态 */
+  .status-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-grow: 1;
+    justify-content: center;
+    padding: 0 10px;
+  }
+  .text-autosend {
+    color: #ffffff;
+    font-size: 19px;
+    font-weight: 500;
+  }
+  .badge-on {
+    background-color: #3a2a20;
+    color: #ff7b29;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+
+  /* 右侧发送按钮 */
+  .btn-send {
+    width: 54px;
+    height: 54px;
+    background-color: #ffffff;
+    border-radius: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .btn-send svg {
+    width: 26px;
+    height: 26px;
+    stroke: #000;
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+</style>
+</head>
+<body>
+
+  <div class="input-container">
+    <!-- 上半部分：拉长的竖向矩形波形 -->
+    <div class="top-section">
+      <div class="waveform">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+      </div>
+    </div>
+
+    <!-- 下半部分：X / 自动发送 ON / 向上发送 -->
+    <div class="bottom-section">
+      <!-- 左侧 X -->
+      <div class="btn-close">
+        <svg viewBox="0 0 24 24">
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+        </svg>
+      </div>
+
+      <!-- 中间 自动发送 -->
+      <div class="status-group">
+        <span class="text-autosend">自动发送</span>
+        <span class="badge-on">ON</span>
+      </div>
+
+      <!-- 右侧 发送 -->
+      <div class="btn-send">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 19V5"></path>
+          <path d="M5 12l7-7 7 7"></path>
+          <line x1="5" y1="19" x2="19" y2="19"></line>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

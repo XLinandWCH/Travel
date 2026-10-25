@@ -1,6 +1,7 @@
 package com.xlin.travel.chat_screen
 
 import com.xlin.travel.agent.ChatStreamEvent
+import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.agent.chatStreaming
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.DatabaseChatHistoryProvider
@@ -39,9 +40,13 @@ internal class AssistantRound(
         }.getOrNull()?.id
 
         try {
+            // 密钥 / 模型 id / 系统提示词都由服务端下发：先确保拿到配置，
+            // 拉取失败走下方 catch，在 AI 气泡里展示原因
+            val config = ModelConfigStore.ensure(repository)
             val result = chatStreaming(
                 message = prompt,
                 sessionId = conversationId,
+                config = config,
                 historyProvider = DatabaseChatHistoryProvider(repository, untilSeq = cutoffSeq),
             ) { event ->
                 when (event) {

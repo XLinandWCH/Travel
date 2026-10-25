@@ -6,6 +6,15 @@ import androidx.sqlite.SQLiteConnection
 object SettingKeys {
     /** 主题颜色偏好，值为 ThemePreference 的枚举名（System / Dark / Light） */
     const val ThemePreference = "theme_preference"
+
+    /** 登录 token，由 UserSession 读写；模型配置接口也用它鉴权 */
+    const val AuthToken = "auth_token"
+
+    /**
+     * 服务端下发的模型配置（含 apiKey）缓存，供断网时兜底使用。
+     * 退出登录 / 注销时会清空，避免密钥长期留在本地。
+     */
+    const val ModelConfigCache = "model_config_cache"
 }
 
 /** 读取设置项，不存在时返回 null */

@@ -7,11 +7,12 @@ import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 
-actual fun createChatExecutor(): PromptExecutor {
+// 平台 actual 只负责选 http 引擎；apiKey / baseUrl 由 ModelConfigStore 从服务端拉取，不写死在代码里
+actual fun createChatExecutor(config: RemoteModelConfig): PromptExecutor {
     val client = OpenAILLMClient(
-        apiKey = "sk-d4ccf0c247f52781cf7f82ca3528c587246799952545d4d0d2e485174ee0a1ea",
+        apiKey = config.apiKey,
         settings = OpenAIClientSettings(
-            baseUrl = "https://discovery-api.intern-ai.org.cn/"
+            baseUrl = config.baseUrl
         ),
         httpClientFactory = KtorKoogHttpClient.Factory()
     )

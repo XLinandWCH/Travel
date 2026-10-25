@@ -3,6 +3,7 @@ package com.xlin.travel
 import com.xlin.travel.db.DatabaseFactory
 import com.xlin.travel.db.ModelKeySeeder
 import com.xlin.travel.routes.authRoutes
+import com.xlin.travel.routes.modelConfigRoutes
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -19,7 +20,7 @@ fun main() {
     // 数据库初始化失败不阻断服务启动：登录 / 注册接口会返回 503，便于先排查配置
     runCatching {
         DatabaseFactory.init()
-        // 模型信息（Sage-A1.5 / API_KEY / URL）写入 model_api_keys，不开放接口
+        // 保证 model_api_keys 有默认模型记录（密钥靠 MODEL_API_KEY 注入，不写在代码里）
         ModelKeySeeder.seed()
     }.onFailure {
         LoggerFactory.getLogger("Application").error("MySQL 初始化失败（登录/注册接口暂不可用）", it)
@@ -46,7 +47,8 @@ fun Application.module() {
         get("/") {
             call.respondText(sayHello("Ktor"))
         }
-        // 目前仅账号服务（注册 / 登录）接入数据库；其它服务先不做连接
+        // 账号服务（注册 / 登录）与模型配置下发接口接入数据库；其它服务先不做连接
         authRoutes()
+        modelConfigRoutes()
     }
 }

@@ -5,7 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
+import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.db.ChatRepository
+import com.xlin.travel.db.SettingKeys
 import com.xlin.travel.image_picker.decodeAvatar
 import kotlinx.serialization.json.Json
 
@@ -51,7 +53,7 @@ class UserSession {
 
     /** 启动时从数据库恢复登录态 */
     suspend fun load(repository: ChatRepository) {
-        val savedToken = repository.getSetting(KEY_TOKEN).orEmpty()
+        val savedToken = repository.getSetting(SettingKeys.AuthToken).orEmpty()
         val savedUser = repository.getSetting(KEY_USER).orEmpty()
         if (savedToken.isBlank() || savedUser.isBlank()) return
         val user = runCatching { json.decodeFromString<UserDto>(savedUser) }.getOrNull() ?: return
@@ -68,7 +70,7 @@ class UserSession {
         applyUser(user)
         this.token = token
         loggedIn = true
-        repository.setSetting(KEY_TOKEN, token)
+        repository.setSetting(SettingKeys.AuthToken, token)
         repository.setSetting(KEY_USER, json.encodeToString(UserDto.serializer(), user))
         // 服务端随登录下发的头像（若有）缓存到本地，离线也能立即显示
         restoreAvatar(user.avatar)
@@ -90,13 +92,19 @@ class UserSession {
     /** 退出登录：清除登录态与缓存的账号信息，保留本地聊天记录 */
     suspend fun signOut(repository: ChatRepository) {
         resetInMemory()
-        repository.setSetting(KEY_TOKEN, "")
+        repository.setSetting(SettingKeys.AuthToken, "")
         repository.setSetting(KEY_USER, "")
         repository.setSetting(KEY_AVATAR, "")
+        // 密钥类缓存一并作废：内存副本清空 + 本地缓存置空，下次登录重新向服务端拉取
+        ModelConfigStore.forget()
+        repository.setSetting(SettingKeys.ModelConfigCache, "")
     }
 
     /** 注销账号后：彻底清空内存会话（数据库清空由 repository.clearAllLocalData 负责） */
-    fun erase() = resetInMemory()
+    fun erase() {
+        resetInMemory()
+        ModelConfigStore.forget()
+    }
 
     private fun resetInMemory() {
         loggedIn = false
@@ -121,7 +129,6 @@ class UserSession {
     }
 
     private companion object {
-        const val KEY_TOKEN = "auth_token"
         const val KEY_USER = "auth_user"
         const val KEY_AVATAR = "auth_avatar"
     }

@@ -6,8 +6,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
-import com.xlin.travel.agent.TravelModel
-import com.xlin.travel.agent.TravelSystemPrompt
+import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.MessageRecord
 import com.xlin.travel.db.MessageRoles
@@ -92,6 +91,9 @@ class ChatState(
         try {
             // 仅作为本轮发送给模型的输入：把真实图片路径交给工具，用户看不到这段话
             val llmPrompt = content.withImageHint(imagePath)
+            // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
+            // 失败不在这里抛出，由 AssistantRound 统一在 AI 气泡里展示错误
+            runCatching { ModelConfigStore.ensure(repository) }
             val activeConversation = ensureConversation(content)
 
             // 本轮之前的历史分界线：ChatMemory 只加载 seq <= cutoff 的消息，
@@ -165,11 +167,13 @@ class ChatState(
     private suspend fun ensureConversation(firstMessage: String): String {
         conversationId?.let { return it }
 
+        // 模型 id 与系统提示词都来自云端配置（send 开头已预热）；尚未加载时留空
+        val config = ModelConfigStore.current()
         val created = runCatching {
             repository.createConversation(
                 title = firstMessage.toConversationTitle(),
-                model = TravelModel.id,
-                systemPrompt = TravelSystemPrompt,
+                model = config?.modelId,
+                systemPrompt = config?.systemPrompt,
             )
         }.getOrNull()
 
