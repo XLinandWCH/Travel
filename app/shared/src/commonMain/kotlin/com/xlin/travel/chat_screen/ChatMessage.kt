@@ -49,6 +49,13 @@ class ChatMessage(
     var feedback: Feedback? by mutableStateOf(null)
         internal set
 
+    /**
+     * 本轮「深度思考」耗时（秒），仅在流式结束时于内存中写入，不落库。
+     * 历史会话恢复时为 null，此时收起态标题只显示「已深度思考」不带用时。
+     */
+    var thinkingSeconds: Int? by mutableStateOf(null)
+        internal set
+
     /** 是否已有任何可展示的内容 */
     val hasAnyContent: Boolean get() = content.isNotEmpty() || reasoning.isNotEmpty()
 }

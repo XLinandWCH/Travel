@@ -2,6 +2,7 @@ package com.xlin.travel.chat_screen
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,87 +22,103 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.xlin.travel.color.ReasoningTextColor
 import com.xlin.travel.color.UserBubbleBackground
 import com.xlin.travel.color.UserMessageText
 
 /**
  * 用户消息：靠右对齐。
  * 若附带了图片，则缩略图在上、提示词气泡在下（与输入框预览图同大小，均为 64.dp）。
+ * 长按整个内容区触发 [onLongPress]，由上层在气泡右下角展开 [menuContent]（上下文菜单）。
  */
 @Composable
-fun UserMessageBubble(message: ChatMessage) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+fun UserMessageBubble(
+    message: ChatMessage,
+    onLongPress: () -> Unit,
+    menuContent: @Composable () -> Unit = {},
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
         ) {
-            // 图片缩略图：尺寸与输入框预览一致，右上角圆角方形
-            message.imageBitmap?.let { image ->
-                Image(
-                    bitmap = image,
-                    contentDescription = "用户发送的图片",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                )
-            }
-
-            // 提示词气泡：无文字时（仅发图）不渲染空气泡
-            if (message.content.isNotBlank()) {
-                Box(
-                    modifier = Modifier
-                        .widthIn(max = 280.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(UserBubbleBackground)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                ) {
-                    Text(
-                        text = message.content,
-                        color = UserMessageText,
-                        fontSize = 16.sp,
-                        lineHeight = 22.sp,
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = onLongPress,
+                ),
+            ) {
+                // 图片缩略图：尺寸与输入框预览一致，右上角圆角方形
+                message.imageBitmap?.let { image ->
+                    Image(
+                        bitmap = image,
+                        contentDescription = "用户发送的图片",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(12.dp)),
                     )
                 }
+
+                // 提示词气泡：无文字时（仅发图）不渲染空气泡
+                if (message.content.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .widthIn(max = 280.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(UserBubbleBackground)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                    ) {
+                        Text(
+                            text = message.content,
+                            color = UserMessageText,
+                            fontSize = 16.sp,
+                            lineHeight = 22.sp,
+                        )
+                    }
+                }
             }
+        }
+        // 长按弹出的上下文菜单锚点：DropdownMenu 优先把自身起点对齐「父级」起点，
+        // 父级若是撑满整行的 Box，菜单就会跑到左边；这里改用零尺寸、贴在气泡右下角的锚点，
+        // 菜单就贴齐用户消息的右侧并从气泡下方展开（下方放不下时框架自动翻到上方）
+        Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+            menuContent()
         }
     }
 }
 
 /**
- * AI message：左侧展示，思考内容灰色小字，正文按 Markdown 渲染。
- * 正文输出结束后（[showActions] 为 true）在下方从左到右排开四个动作按钮。
+ * AI message：左侧展示，思考区为可折叠的「深度思考」卡片（ReasoningSection），
+ * 正文按 Markdown 渲染。正文输出结束后（[showActions] 为 true）在下方从左到右排开四个动作按钮。
+ *
+ * [isThinking] 为 true 表示这条消息正处于思考阶段（流式中且正文还没开始），
+ * 思考区标题显示跳动的「思考中…」并默认展开；思考结束后自动收起为「已深度思考」。
  */
 @Composable
 fun AssistantMessageBlock(
     message: ChatMessage,
     showActions: Boolean,
     canRegenerate: Boolean,
+    isThinking: Boolean,
     onLike: () -> Unit,
     onDislike: () -> Unit,
     onRegenerate: () -> Unit,
     onCopy: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        if (message.reasoning.isNotEmpty()) {
-            // 思考内容末尾常带换行，trimEnd 后与正文只保留一个很小的间距
-            Text(
-                text = message.reasoning.trimEnd(),
-                color = ReasoningTextColor,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-            )
-            if (message.content.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-            }
-        }
+        // 思考区：思考中 / 已深度思考两种标题态，点击可展开收起
+        ReasoningSection(message = message, isThinking = isThinking)
 
         if (message.content.isNotEmpty()) {
-            MarkdownText(message.content)
+            if (message.reasoning.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+            }
+            // 正文用强调橙半透明选区色，长按 / 拖选即可复制
+            SelectionBox {
+                MarkdownText(message.content)
+            }
 
             if (showActions) {
                 Spacer(Modifier.height(6.dp))
@@ -114,13 +131,6 @@ fun AssistantMessageBlock(
                     onCopy = onCopy,
                 )
             }
-        } else if (message.reasoning.isEmpty()) {
-            // 还没有任何输出时展示等待提示
-            Text(
-                text = "正在思考…",
-                color = ReasoningTextColor,
-                fontSize = 14.sp,
-            )
         }
     }
 }

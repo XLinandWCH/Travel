@@ -51,16 +51,40 @@ class ChatState(
     /** 当前正在进行的流式回复所对应的协程 Job，用于「停止生成」时取消它；空闲时为 null */
     private var activeJob: Job? = null
 
+    /**
+     * 「编辑重发」待发送的消息：点「编辑」只预填输入框并记住目标，原消息与后续历史原地不动；
+     * 直到用户再次点「发送」才删掉原文及其后续、把新内容当全新轮次发出。
+     * 清空输入框 / 切换会话 / 开新对话都会取消，原对话毫发无损。
+     */
+    var editingMessage: ChatMessage? by mutableStateOf(null)
+        private set
+
     /** 开始一个全新对话：清空消息，会话记录在首次发送时写入数据库 */
     fun startNewChat() {
         _messages.clear()
         conversationId = null
         nextId = 0L
+        editingMessage = null
     }
 
     /** 停止当前 AI 输出：取消正在流式的协程，保留已生成的部分内容 */
     fun stopStreaming() {
         activeJob?.cancel()
+    }
+
+    /**
+     * 进入「编辑重发」：只允许最新一条用户消息（列表里最后一条 User），流式输出中不允许。
+     * 本方法只记录待编辑目标，不删任何内容；预填输入框由界面层完成。
+     */
+    fun startEdit(message: ChatMessage) {
+        if (isStreaming || message.role != MessageRole.User) return
+        if (message != _messages.lastOrNull { it.role == MessageRole.User }) return
+        editingMessage = message
+    }
+
+    /** 取消「编辑重发」：原消息与后续历史保持不动 */
+    fun cancelEdit() {
+        editingMessage = null
     }
 
     /** 打开历史对话，从数据库恢复消息 */
@@ -69,6 +93,7 @@ class ChatState(
 
         val records = runCatching { repository.messages(id) }.getOrDefault(emptyList())
         conversationId = id
+        editingMessage = null
         _messages.clear()
         nextId = 0L
         records.forEach { record -> record.toChatMessage()?.let { _messages.add(it) } }
@@ -89,6 +114,13 @@ class ChatState(
         isStreaming = true
         activeJob = coroutineContext[Job]
         try {
+            // 「编辑重发」在发送这一刻才回删：先删掉原消息及其后的全部历史（界面 + 数据库），
+            // 再按全新轮次发出本轮内容；分界线 cutoff 在回删后才计算，因此上下文不会残留被删内容
+            editingMessage?.let { edit ->
+                editingMessage = null
+                truncateFrom(edit)
+            }
+
             // 仅作为本轮发送给模型的输入：把真实图片路径交给工具，用户看不到这段话
             val llmPrompt = content.withImageHint(imagePath)
             // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
@@ -161,6 +193,43 @@ class ChatState(
     fun markFeedback(message: ChatMessage, feedback: Feedback) {
         if (message.role != MessageRole.Assistant) return
         message.feedback = feedback
+    }
+
+    /**
+     * 删除一条用户消息，并连带删除它对应的那条 AI 回答 —— 一问一答算一组。
+     * 组内成员：这条用户消息 + 紧随其后的所有 AI 消息（遇到下一条用户消息为止），
+     * 本地 SQLite 逐条删除，界面同步移除。流式输出中禁止操作。
+     */
+    suspend fun deleteMessage(message: ChatMessage) {
+        if (isStreaming || message.role != MessageRole.User) return
+        val from = _messages.indexOf(message)
+        if (from < 0) return
+        // 待发送的「编辑重发」目标属于这一组时，一并取消
+        val editIndex = editingMessage?.let { _messages.indexOf(it) } ?: -1
+        // 往后收集属于这一组的 AI 回答（工具调用等异常历史可能有多条）
+        var to = from + 1
+        while (to < _messages.size && _messages[to].role != MessageRole.User) to++
+        (from until to).forEach { i ->
+            _messages[i].recordId?.let { runCatching { repository.deleteMessage(it) } }
+        }
+        // 从后往前删，避免删除过程中的索引漂移
+        for (i in to - 1 downTo from) _messages.removeAt(i)
+        if (editIndex in from until to) editingMessage = null
+    }
+
+    /**
+     * 「编辑重发」的历史回删：从这条用户消息开始（含它自身）删掉界面与数据库里的后续全部内容。
+     * 只在用户真正点「发送」时调用；记录未落库时只删界面内容，不走数据库操作。
+     */
+    private suspend fun truncateFrom(message: ChatMessage) {
+        val index = _messages.indexOf(message)
+        if (index < 0) return
+        val conversation = conversationId
+        val recordId = message.recordId
+        if (conversation != null && recordId != null) {
+            runCatching { repository.deleteMessagesFrom(conversation, recordId) }
+        }
+        while (_messages.size > index) _messages.removeAt(_messages.size - 1)
     }
 
     /** 首次发送时创建会话；创建失败也不阻塞聊天，只是本轮不落库 */

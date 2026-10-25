@@ -87,6 +87,18 @@ class ChatRepository(private val database: ChatDatabase) {
         database.withConnection { it.deleteMessage(id) }
     }
 
+    /**
+     * 「编辑重发」用：从 [fromMessageId] 这条消息开始（含它自身）删除本会话的全部后续消息，
+     * 并刷新会话活跃时间。在一个事务内先查 seq 再删除，避免其它写入插进来导致删错范围。
+     */
+    suspend fun deleteMessagesFrom(conversationId: String, fromMessageId: String) {
+        database.withTransaction { connection ->
+            val seq = connection.messageSeq(fromMessageId) ?: return@withTransaction
+            connection.deleteMessagesFrom(conversationId, seq)
+            connection.updateConversationTimestamp(conversationId, currentEpochMillis())
+        }
+    }
+
     /** 删除会话及其全部消息 */
     suspend fun deleteConversation(id: String) {
         database.withConnection { it.deleteConversation(id) }

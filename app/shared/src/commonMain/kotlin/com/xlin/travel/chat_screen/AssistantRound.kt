@@ -8,6 +8,8 @@ import com.xlin.travel.db.DatabaseChatHistoryProvider
 import com.xlin.travel.db.MessageRoles
 import com.xlin.travel.db.MessageStatuses
 import kotlinx.coroutines.CancellationException
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * 一轮 AI 回复的完整过程：占位落库 → 流式接收 → 回写内容与状态。
@@ -43,6 +45,20 @@ internal class AssistantRound(
             // 密钥 / 模型 id / 系统提示词都由服务端下发：先确保拿到配置，
             // 拉取失败走下方 catch，在 AI 气泡里展示原因
             val config = ModelConfigStore.ensure(repository)
+
+            // 思考耗时计量：从第一条思考（reasoning / 工具）事件开始，
+            // 到正文首字到达（或流结束）为止，只结算一次
+            var thinkingStart: TimeMark? = null
+            var thinkingFinalized = false
+            fun finalizeThinking() {
+                if (!thinkingFinalized) {
+                    thinkingFinalized = true
+                    thinkingStart?.let {
+                        reply.thinkingSeconds = it.elapsedNow().inWholeSeconds.coerceAtLeast(1L).toInt()
+                    }
+                }
+            }
+
             val result = chatStreaming(
                 message = prompt,
                 sessionId = conversationId,
@@ -50,19 +66,28 @@ internal class AssistantRound(
                 historyProvider = DatabaseChatHistoryProvider(repository, untilSeq = cutoffSeq),
             ) { event ->
                 when (event) {
-                    is ChatStreamEvent.Reasoning -> reply.reasoning += event.text
-                    is ChatStreamEvent.Content -> reply.content += event.text
-                    is ChatStreamEvent.ToolCallStarted ->
+                    is ChatStreamEvent.Reasoning -> {
+                        if (thinkingStart == null) thinkingStart = TimeSource.Monotonic.markNow()
+                        reply.reasoning += event.text
+                    }
+                    is ChatStreamEvent.Content -> {
+                        finalizeThinking()
+                        reply.content += event.text
+                    }
+                    is ChatStreamEvent.ToolCallStarted -> {
+                        if (thinkingStart == null) thinkingStart = TimeSource.Monotonic.markNow()
                         reply.reasoning += "\n🔧 正在调用工具 ${event.toolName}，参数：${event.args}\n"
+                    }
                     is ChatStreamEvent.ToolCallFinished ->
                         reply.reasoning += "✅ 工具 ${event.toolName} 返回：${event.result}\n"
                     is ChatStreamEvent.ToolValidationFailed ->
                         reply.reasoning += "⚠️ 工具 ${event.toolName} 参数校验失败：${event.message}\n"
                     is ChatStreamEvent.ToolCallFailed ->
                         reply.reasoning += "❌ 工具 ${event.toolName} 执行失败：${event.message}\n"
-                    ChatStreamEvent.Completed -> Unit
+                    ChatStreamEvent.Completed -> finalizeThinking()
                 }
             }
+            finalizeThinking()
             // 兜底：若没有收到任何流式内容，用最终结果直接展示，避免界面一直停留在“正在思考”
             if (reply.content.isEmpty() && result.isNotEmpty()) {
                 reply.content = result

@@ -89,6 +89,22 @@ internal fun SQLiteConnection.deleteMessage(id: String) {
     }
 }
 
+/** 取某条消息在会话内的顺序号；记录不存在时返回 null */
+internal fun SQLiteConnection.messageSeq(id: String): Long? =
+    withStatement("SELECT seq FROM message WHERE id = ?") { statement ->
+        statement.bindText(1, id)
+        if (statement.step()) statement.getLong(0) else null
+    }
+
+/** 「编辑重发」：删除会话内 seq >= [fromSeq] 的全部消息（含被编辑的那条及其后续） */
+internal fun SQLiteConnection.deleteMessagesFrom(conversationId: String, fromSeq: Long) {
+    withStatement("DELETE FROM message WHERE conversation_id = ? AND seq >= ?") { statement ->
+        statement.bindText(1, conversationId)
+        statement.bindLong(2, fromSeq)
+        statement.step()
+    }
+}
+
 private fun SQLiteStatement.readMessage() = MessageRecord(
     id = getText(0),
     conversationId = getText(1),

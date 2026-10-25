@@ -145,9 +145,9 @@ fun RenameDialog(
 
 // ==================== 弹窗共用部件 ====================
 
-/** 弹窗卡片外壳：圆角卡片，内容纵向排布 */
+/** 弹窗卡片外壳：圆角卡片，内容纵向排布（聊天消息删除确认弹窗也复用这套骨架） */
 @Composable
-private fun ActionDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun ActionDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -162,7 +162,7 @@ private fun ActionDialog(onDismiss: () -> Unit, content: @Composable ColumnScope
 
 /** 右下按钮组：取消（灰字）+ 动作（着色文字） */
 @Composable
-private fun DialogButtons(
+internal fun DialogButtons(
     cancelText: String,
     confirmText: String,
     confirmColor: Color,

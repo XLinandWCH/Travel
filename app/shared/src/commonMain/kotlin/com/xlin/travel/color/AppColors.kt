@@ -53,6 +53,15 @@ val MenuButtonBackground = Color.Transparent   // 移动端菜单按钮底 [抽�
 
 // ==================== 强调色 ====================
 val AccentOrange = Color(0xFFFF5722)           // 主强调橙 --accent：光标条 / 设置图标 / 退出登录，两套主题一致
+// 思考卡片左侧竖条：强调橙透明度降低 30%（70% 不透明度），视觉更柔和 [message]
+val ReasoningBarColor = Color(0xB3FF5722)
+// 文本选区高亮：强调橙提高透明度（25% 不透明度），不盖住正文 [message]
+val TextSelectionBackground = Color(0x40FF5722)
+// 文本选区拖拽手柄：强调橙轻度半透明（80% 不透明度）[message]
+val TextSelectionHandle = Color(0xCCFF5722)
+// 「回到底部」按钮非输出态图标：白 70% 不透明度；浅色主题下同档黑，避免白底看不见 [message]
+val ScrollButtonIdleIcon: Color
+    get() = themeColor(Color(0xB3FFFFFF), Color(0xB31A1A1A))    // 白色 70% / 黑 70%
 
 // ==================== 文本与图标 ====================
 val TextWhite: Color
