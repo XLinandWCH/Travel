@@ -5,7 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.LocalUIViewController
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
-import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.*
 import org.jetbrains.skia.Image
 import platform.Foundation.NSData
 import platform.Foundation.NSTemporaryDirectory
@@ -48,7 +48,7 @@ private class ImagePickerDelegate(
     @OptIn(ExperimentalForeignApi::class)
     override fun imagePickerController(
         picker: UIImagePickerController,
-        didFinishPickingMediaWithInfo: Map<Any?, *?>,
+        didFinishPickingMediaWithInfo: Map<Any?, *>,
     ) {
         val image = didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage
         val data = image?.let { UIImagePNGRepresentation(it) }

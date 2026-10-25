@@ -5,8 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.LocalUIViewController
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.useContents
+import kotlinx.cinterop.*
 import org.jetbrains.skia.Image
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
@@ -67,7 +66,7 @@ private class AvatarPickerDelegate(
 
     override fun imagePickerController(
         picker: UIImagePickerController,
-        didFinishPickingMediaWithInfo: Map<Any?, *?>,
+        didFinishPickingMediaWithInfo: Map<Any?, *>,
     ) {
         val image = didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage
         val data = image?.let { UIImagePNGRepresentation(it.scaledToFit(AVATAR_MAX_DIM)) }

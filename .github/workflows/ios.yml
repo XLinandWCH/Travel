@@ -1,0 +1,240 @@
+name: iOS Build (排查)
+
+# 专用于重点排查 iOS 编译问题：从 Android 发版流程中拆出来独立运行。
+# 分阶段构建：先单独跑 Kotlin/Native 编译（快速暴露 expect/actual 与 UIKit interop 错误），
+# 再跑 Xcode 链接打包；任何一步失败都会收集诊断日志。
+#
+# 说明：iOS 签名与 Android 签名完全不能通用——
+#   Android：.jks/.keystore + 口令（ANDROID_* 那组 Secrets）
+#   iOS    ：Apple 开发者证书 .p12 + 描述文件 .mobileprovision + Apple ID 认证（需要付费开发者账号）
+# 因此 iOS 默认产出未签名 .ipa（仅用于验证编译），签名步骤检测到 IOS_* Secrets 才会启用。
+on:
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: '应用版本号（如 1.2.0）'
+        required: true
+        default: '1.0'
+      versionCode:
+        description: '构建号 CFBundleVersion（纯整数，每次递增）'
+        required: true
+        default: '1'
+      buildMode:
+        description: '构建范围：kotlin-only 只跑 Kotlin/Native 编译（快，适合反复排查代码错误）；full 再加 Xcode 打包 .ipa'
+        required: true
+        type: choice
+        default: 'kotlin-only'
+        options:
+          - kotlin-only
+          - full
+      checkSimulator:
+        description: '额外检查 iosSimulatorArm64 目标（多一次 K/N 编译，更耗时）'
+        required: false
+        type: choice
+        default: 'false'
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  ios:
+    name: iOS 编译排查
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 先把环境打印出来：macos-latest 是 Apple 硅（arm64），支持 iosArm64 /
+      # iosSimulatorArm64；若这里出现 x86_64 或旧 SDK，说明 runner 类型不对
+      - name: '环境信息'
+        run: |
+          sw_vers
+          uname -m
+          xcodebuild -version
+          xcode-select -p
+          java -version 2>&1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle（缓存 Gradle 依赖与构建缓存）
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      # ~/.konan 是 Kotlin/Native 编译器及其预编译依赖（klib / LLVM）的存放目录，
+      # 首次构建要下几百 MB；Gradle 依赖缓存由上面的 setup-gradle 负责，这里只管 ~/.konan
+      - name: Cache ~/.konan
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.arch }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.arch }}-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # ------------------------------------------------------------------
+      # 阶段 1：只编译 iOS 的 Kotlin/Native 代码（不经过 Xcode）
+      # expect/actual 不匹配、UIKit interop 签名写错等“代码级”问题都会在这一步
+      # 以纯 Kotlin 报错形式暴露出来，日志短、定位快。
+      # ------------------------------------------------------------------
+      - name: 'Stage 1: Kotlin/Native 编译 (iosArm64)'
+        run: >
+          ./gradlew :app:shared:compileKotlinIosArm64
+          --no-configuration-cache --stacktrace --console=plain
+          2>&1 | tee /tmp/kn-compile-iosarm64.log
+
+      - name: 'Stage 1b: Kotlin/Native 编译 (iosSimulatorArm64，可选)'
+        if: inputs.checkSimulator == 'true'
+        run: >
+          ./gradlew :app:shared:compileKotlinIosSimulatorArm64
+          --no-configuration-cache --stacktrace --console=plain
+          2>&1 | tee /tmp/kn-compile-iossim.log
+
+      # 链接出 Shared.framework（静态库 + sqlite-bundled 原生库），不经过 Xcode
+      - name: 'Stage 1c: 链接 Release Framework (iosArm64)'
+        if: inputs.buildMode == 'full'
+        run: >
+          ./gradlew :app:shared:linkReleaseFrameworkIosArm64
+          --no-configuration-cache --stacktrace --console=plain
+          2>&1 | tee /tmp/kn-link-framework.log
+
+      # ------------------------------------------------------------------
+      # 阶段 2：Apple 签名环境（可选）。
+      # 未配置任何 IOS_* Secrets 时跳过，继续产出未签名 .ipa。
+      # 需要的 Secrets（与 Android 那组完全不通用）：
+      #   IOS_CERT_P12_BASE64   —— 从钥匙串导出的开发者发布证书 .p12 的 Base64
+      #   IOS_CERT_PASSWORD     —— 导出 .p12 时设置的口令
+      #   IOS_PROFILE_BASE64    —— 描述文件 .mobileprovision 的 Base64
+      #   IOS_TEAM_ID           —— 10 位 Team ID
+      # ------------------------------------------------------------------
+      - name: 'Stage 2: Import Signing Certificate（有 IOS_* Secrets 才启用）'
+        env:
+          CERT_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+        run: |
+          set -e
+          if [ -z "$CERT_BASE64" ]; then
+            echo "未配置 IOS_CERT_P12_BASE64，跳过签名（产物为未签名 .ipa）"
+            exit 0
+          fi
+          echo "IOS_SIGNED=true" >> "$GITHUB_ENV"
+          # 导出环境变量给后续 xcodebuild（描述文件与 Team ID）
+          {
+            echo "IOS_PROFILE_BASE64=${{ secrets.IOS_PROFILE_BASE64 }}"
+            echo "DEVELOPMENT_TEAM=${{ secrets.IOS_TEAM_ID }}"
+          } >> "$GITHUB_ENV"
+          KEYCHAIN="$RUNNER_TEMP/build.keychain"
+          security create-keychain -p ci "$KEYCHAIN"
+          security unlock-keychain -p ci "$KEYCHAIN"
+          security set-keychain-settings -t 21600 "$KEYCHAIN"
+          # 把新钥匙串加进搜索列表（不替换默认串，避免影响其他工具）
+          security list-keychains -d user -s "$KEYCHAIN" "$HOME/Library/Keychains/login.keychain-db"
+          CERT_P12="$RUNNER_TEMP/ios-dist.p12"
+          printf '%s' "$CERT_BASE64" | tr -d ' \r\n' | base64 -d > "$CERT_P12"
+          security import "$CERT_P12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KEYCHAIN"
+          echo "✅ 证书已导入临时钥匙串"
+          security find-identity -v -p codesigning "$KEYCHAIN" || true
+          if [ -n "${IOS_PROFILE_BASE64:-}" ]; then
+            mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+            printf '%s' "$IOS_PROFILE_BASE64" | tr -d ' \r\n' | base64 -d \
+              > "$HOME/Library/MobileDevice/Provisioning Profiles/travel.mobileprovision"
+            echo "✅ 描述文件已安装（travel.mobileprovision）"
+          fi
+
+      # ------------------------------------------------------------------
+      # 阶段 3：Xcode 构建（自动调用 embedAndSignAppleFrameworkForXcode
+      # 链接 Shared.framework；sqlite-bundled 的 iOS 原生库会静态链接进去）
+      # -arch arm64 固定真机架构，避免模拟器 x86_64 切片触发 K/N 不支持目标报错
+      # ------------------------------------------------------------------
+      - name: 'Stage 3: Xcode Build (Release)'
+        if: inputs.buildMode == 'full'
+        run: |
+          set -o pipefail
+          if [ "${IOS_SIGNED:-false}" = "true" ]; then
+            echo "使用签名构建：CODE_SIGN_IDENTITY=-（钥匙串中的证书）"
+            SIGN_FLAGS="CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES"
+            EXTRA_FLAGS="-allowProvisioningUpdates"
+          else
+            echo "无签名构建：仅验证编译与链接，产物不可直接安装"
+            SIGN_FLAGS="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="
+            EXTRA_FLAGS=""
+          fi
+          xcodebuild \
+            -project app/iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -arch arm64 \
+            -derivedDataPath build_ios/DerivedData \
+            MARKETING_VERSION=${{ github.event.inputs.versionName }} \
+            CURRENT_PROJECT_VERSION=${{ github.event.inputs.versionCode }} \
+            $SIGN_FLAGS \
+            $EXTRA_FLAGS \
+            build 2>&1 | tee /tmp/xcodebuild.log
+
+      # ------------------------------------------------------------------
+      # 阶段 4：打包 .ipa（签名/未签名两种路径）
+      # ------------------------------------------------------------------
+      - name: 'Stage 4: Package .ipa'
+        if: inputs.buildMode == 'full'
+        run: |
+          set -e
+          PRODUCTS=build_ios/DerivedData/Build/Products/Release-iphoneos
+          APP=$(find "$PRODUCTS" -maxdepth 1 -name '*.app' | head -n 1)
+          [ -n "$APP" ] || { echo "::error::❌ 未找到 .app 产物"; exit 1; }
+          mkdir -p Payload
+          cp -r "$APP" Payload/
+          if [ "${IOS_SIGNED:-false}" = "true" ]; then
+            zip -qry "Travel-v${{ github.event.inputs.versionName }}-iOS-signed.ipa" Payload
+            echo "IPA_NAME=Travel-v${{ github.event.inputs.versionName }}-iOS-signed.ipa" >> "$GITHUB_ENV"
+          else
+            zip -qry "Travel-v${{ github.event.inputs.versionName }}-iOS-unsigned.ipa" Payload
+            echo "IPA_NAME=Travel-v${{ github.event.inputs.versionName }}-iOS-unsigned.ipa" >> "$GITHUB_ENV"
+          fi
+          echo "✅ 打包完成：$IPA_NAME"
+
+      - name: Upload iOS artifact
+        if: inputs.buildMode == 'full'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Travel-iOS-v${{ github.event.inputs.versionName }}
+          path: ${{ env.IPA_NAME }}
+
+      # ------------------------------------------------------------------
+      # 失败诊断：把各阶段日志收集成 artifact，不用在一屏屏翻 CI 日志
+      # ------------------------------------------------------------------
+      - name: '诊断信息（失败时）'
+        if: failure()
+        run: |
+          echo "===== Xcode 版本 ====="
+          xcodebuild -version
+          echo "===== 可用 SDK ====="
+          xcodebuild -showsdks -json | head -c 2000 || true
+          echo
+          echo "===== Kotlin/Native 编译错误（Stage 1）====="
+          grep -E "^e: |error:" /tmp/kn-compile-iosarm64.log 2>/dev/null | head -n 60 || echo "（无）"
+          echo "===== Framework 链接错误（Stage 1c）====="
+          grep -E "^e: |error:|Undefined symbols|linker" /tmp/kn-link-framework.log 2>/dev/null | head -n 40 || echo "（无）"
+          echo "===== Xcode 构建错误（Stage 3）====="
+          grep -E "error:|fatal error" /tmp/xcodebuild.log 2>/dev/null | head -n 60 || echo "（无）"
+          mkdir -p /tmp/ios-diagnostics
+          cp /tmp/kn-compile-iosarm64.log /tmp/ios-diagnostics/ 2>/dev/null || true
+          cp /tmp/kn-compile-iossim.log /tmp/ios-diagnostics/ 2>/dev/null || true
+          cp /tmp/kn-link-framework.log /tmp/ios-diagnostics/ 2>/dev/null || true
+          cp /tmp/xcodebuild.log /tmp/ios-diagnostics/ 2>/dev/null || true
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-build-diagnostics
+          path: /tmp/ios-diagnostics/

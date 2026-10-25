@@ -80,16 +80,15 @@ kotlin {
             implementation(libs.kotlin.test)
         }
 
-        val iosMain by creating {
-            dependencies {
-                implementation(libs.koog.agents)
-                implementation(libs.koog.agents.additions)
-                implementation(libs.koog.http.client.ktor)
-                implementation(libs.ktor.clientDarwin)
-            }
+        // iOS 公共 actual 放 iosMain：由 Kotlin 默认层级模板自动挂到 commonMain 之下，
+        // 不能再用 `by creating` + 手写 dependsOn，否则 iosMain 脱离 commonMain，
+        // expect/actual 互相看不见，编译出一串 "has no corresponding 'expect'" 级联错误
+        iosMain.dependencies {
+            implementation(libs.koog.agents)
+            implementation(libs.koog.agents.additions)
+            implementation(libs.koog.http.client.ktor)
+            implementation(libs.ktor.clientDarwin)
         }
-        val iosArm64Main by getting { dependsOn(iosMain) }
-        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
 
         jvmMain.dependencies {
             // JVM
