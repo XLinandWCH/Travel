@@ -27,6 +27,14 @@ on:
         options:
           - kotlin-only
           - full
+      linkMode:
+        description: '链接模式（仅 full 生效）：debug 验证管线快（几分钟）；release 产物级，全程序 LLVM 优化，本项目实测 10~30 分钟且中途无输出属正常'
+        required: false
+        type: choice
+        default: 'debug'
+        options:
+          - debug
+          - release
       checkSimulator:
         description: '额外检查 iosSimulatorArm64 目标（多一次 K/N 编译，更耗时）'
         required: false
@@ -97,13 +105,23 @@ jobs:
           --no-configuration-cache --stacktrace --console=plain
           2>&1 | tee /tmp/kn-compile-iossim.log
 
-      # 链接出 Shared.framework（静态库 + sqlite-bundled 原生库），不经过 Xcode
-      - name: 'Stage 1c: 链接 Release Framework (iosArm64)'
+      # 链接出 Shared.framework（静态库 + sqlite-bundled 原生库），不经过 Xcode。
+      # Debug 链接跳过 LLVM 全程序优化，验证管线用它；release 才跑慢的 Release 链接。
+      # K/N 链接期间没有任何输出，这里每 2 分钟打一次心跳以区分“慢”与“挂死”。
+      - name: 'Stage 1c: 链接 Framework (iosArm64)'
         if: inputs.buildMode == 'full'
-        run: >
-          ./gradlew :app:shared:linkReleaseFrameworkIosArm64
-          --no-configuration-cache --stacktrace --console=plain
-          2>&1 | tee /tmp/kn-link-framework.log
+        env:
+          LINK_TASK: ${{ inputs.linkMode == 'release' && 'linkReleaseFrameworkIosArm64' || 'linkDebugFrameworkIosArm64' }}
+        run: |
+          set -o pipefail
+          echo "链接任务：$LINK_TASK"
+          ( while sleep 120; do echo "[链接进行中] $(date -u '+%H:%M:%S')Z"; done ) & HB=$!
+          ./gradlew :app:shared:"$LINK_TASK" \
+            --no-configuration-cache --stacktrace --console=plain \
+            2>&1 | tee /tmp/kn-link-framework.log
+          RC=$?
+          kill $HB 2>/dev/null || true
+          exit $RC
 
       # ------------------------------------------------------------------
       # 阶段 2：Apple 签名环境（可选）。
@@ -157,10 +175,13 @@ jobs:
       # 不能再加 -arch arm64，否则 xcodebuild 报
       # "destination implies architecture, architecture must not also be specified"
       # ------------------------------------------------------------------
-      - name: 'Stage 3: Xcode Build (Release)'
+      - name: 'Stage 3: Xcode Build'
         if: inputs.buildMode == 'full'
+        env:
+          XCODE_CONFIG: ${{ inputs.linkMode == 'release' && 'Release' || 'Debug' }}
         run: |
           set -o pipefail
+          echo "Xcode 配置：$XCODE_CONFIG（Debug 配置会链接 K/N debug framework，快得多）"
           if [ "${IOS_SIGNED:-false}" = "true" ]; then
             echo "使用签名构建：CODE_SIGN_IDENTITY=-（钥匙串中的证书）"
             SIGN_FLAGS="CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES"
@@ -173,7 +194,7 @@ jobs:
           xcodebuild \
             -project app/iosApp/iosApp.xcodeproj \
             -scheme iosApp \
-            -configuration Release \
+            -configuration "$XCODE_CONFIG" \
             -destination 'generic/platform=iOS' \
             -derivedDataPath build_ios/DerivedData \
             MARKETING_VERSION=${{ github.event.inputs.versionName }} \
@@ -189,17 +210,18 @@ jobs:
         if: inputs.buildMode == 'full'
         run: |
           set -e
-          PRODUCTS=build_ios/DerivedData/Build/Products/Release-iphoneos
+          CONFIG=${{ inputs.linkMode == 'release' && 'Release' || 'Debug' }}
+          PRODUCTS=build_ios/DerivedData/Build/Products/${CONFIG}-iphoneos
           APP=$(find "$PRODUCTS" -maxdepth 1 -name '*.app' | head -n 1)
           [ -n "$APP" ] || { echo "::error::❌ 未找到 .app 产物"; exit 1; }
           mkdir -p Payload
           cp -r "$APP" Payload/
           if [ "${IOS_SIGNED:-false}" = "true" ]; then
-            zip -qry "Travel-v${{ github.event.inputs.versionName }}-iOS-signed.ipa" Payload
-            echo "IPA_NAME=Travel-v${{ github.event.inputs.versionName }}-iOS-signed.ipa" >> "$GITHUB_ENV"
+            zip -qry "Travel-v${{ github.event.inputs.versionName }}-iOS-${CONFIG}-signed.ipa" Payload
+            echo "IPA_NAME=Travel-v${{ github.event.inputs.versionName }}-iOS-${CONFIG}-signed.ipa" >> "$GITHUB_ENV"
           else
-            zip -qry "Travel-v${{ github.event.inputs.versionName }}-iOS-unsigned.ipa" Payload
-            echo "IPA_NAME=Travel-v${{ github.event.inputs.versionName }}-iOS-unsigned.ipa" >> "$GITHUB_ENV"
+            zip -qry "Travel-v${{ github.event.inputs.versionName }}-iOS-${CONFIG}-unsigned.ipa" Payload
+            echo "IPA_NAME=Travel-v${{ github.event.inputs.versionName }}-iOS-${CONFIG}-unsigned.ipa" >> "$GITHUB_ENV"
           fi
           echo "✅ 打包完成：$IPA_NAME"
 
