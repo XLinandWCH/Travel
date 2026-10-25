@@ -53,19 +53,10 @@ Build version 17F113
 "platform" : "macosx",
 "platformPath" : "/Applications/Xcode_26.6.app/Conte
 ===== Kotlin/Native 编译错误（Stage 1）=====
-e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:81:46 This declaration needs opt-in. Its usage must be marked with '@kotlinx.cinterop.ExperimentalForeignApi' or '@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)'
-e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:83:37 Unresolved reference 'encodeToString'.
-e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:70:57 Candidate 'fun String?.orEmpty(): String' is inapplicable because of a receiver type mismatch.
-e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:73:16 Return type mismatch: expected 'ByteArray', actual 'String'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:85:51 Candidate 'fun ByteArray.decodeToString(): String' is inapplicable because of a receiver type mismatch.
 ===== Framework 链接错误（Stage 1c）=====
-e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:81:46 This declaration needs opt-in. Its usage must be marked with '@kotlinx.cinterop.ExperimentalForeignApi' or '@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)'
-e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:83:37 Unresolved reference 'encodeToString'.
-e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:70:57 Candidate 'fun String?.orEmpty(): String' is inapplicable because of a receiver type mismatch.
-e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:73:16 Return type mismatch: expected 'ByteArray', actual 'String'.
+e: file:///Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:85:51 Candidate 'fun ByteArray.decodeToString(): String' is inapplicable because of a receiver type mismatch.
 ===== Xcode 构建错误（Stage 3）=====
-/Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:81:46: error: This declaration needs opt-in. Its usage must be marked with '@kotlinx.cinterop.ExperimentalForeignApi' or '@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)'
-/Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:83:37: error: Unresolved reference 'encodeToString'.
-/Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:70:57: error: Candidate 'fun String?.orEmpty(): String' is inapplicable because of a receiver type mismatch.
-/Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.ios.kt:73:16: error: Return type mismatch: expected 'ByteArray', actual 'String'.
+/Users/runner/work/Travel/Travel/app/shared/src/iosMain/kotlin/com/xlin/travel/image_picker/AvatarStorage.ios.kt:85:51: error: Candidate 'fun ByteArray.decodeToString(): String' is inapplicable because of a receiver type mismatch.
 error: Compilation finished with errors
 error: Compilation finished with errors
