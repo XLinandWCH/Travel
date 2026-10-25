@@ -1,5 +1,6 @@
 package com.xlin.travel.chat_screen
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,38 +10,64 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xlin.travel.color.ReasoningTextColor
 import com.xlin.travel.color.UserBubbleBackground
 import com.xlin.travel.color.UserMessageText
 
-/** 用户消息：右侧气泡，靠右对齐 */
+/**
+ * 用户消息：靠右对齐。
+ * 若附带了图片，则缩略图在上、提示词气泡在下（与输入框预览图同大小，均为 64.dp）。
+ */
 @Composable
-fun UserMessageBubble(text: String) {
+fun UserMessageBubble(message: ChatMessage) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
     ) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(UserBubbleBackground)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = text,
-                color = UserMessageText,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-            )
+            // 图片缩略图：尺寸与输入框预览一致，右上角圆角方形
+            message.imageBitmap?.let { image ->
+                Image(
+                    bitmap = image,
+                    contentDescription = "用户发送的图片",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                )
+            }
+
+            // 提示词气泡：无文字时（仅发图）不渲染空气泡
+            if (message.content.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 280.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(UserBubbleBackground)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                ) {
+                    Text(
+                        text = message.content,
+                        color = UserMessageText,
+                        fontSize = 16.sp,
+                        lineHeight = 22.sp,
+                    )
+                }
+            }
         }
     }
 }

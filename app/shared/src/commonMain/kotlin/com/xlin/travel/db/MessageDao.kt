@@ -5,7 +5,7 @@ import androidx.sqlite.SQLiteStatement
 
 private const val Columns =
     "id, conversation_id, role, content, reasoning, seq, status, " +
-        "prompt_tokens, completion_tokens, created_at, updated_at"
+        "prompt_tokens, completion_tokens, created_at, updated_at, image_path"
 
 /** 取会话内下一个顺序号（从 1 开始） */
 internal fun SQLiteConnection.nextMessageSeq(conversationId: String): Long =
@@ -16,7 +16,7 @@ internal fun SQLiteConnection.nextMessageSeq(conversationId: String): Long =
 
 /** 插入一条消息 */
 internal fun SQLiteConnection.insertMessage(record: MessageRecord) {
-    withStatement("INSERT INTO message($Columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)") { statement ->
+    withStatement("INSERT INTO message($Columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)") { statement ->
         statement.bindText(1, record.id)
         statement.bindText(2, record.conversationId)
         statement.bindText(3, record.role)
@@ -28,6 +28,7 @@ internal fun SQLiteConnection.insertMessage(record: MessageRecord) {
         statement.bindIntOrNull(9, record.completionTokens)
         statement.bindLong(10, record.createdAt)
         statement.bindLong(11, record.updatedAt)
+        statement.bindTextOrNull(12, record.imagePath)
         statement.step()
     }
 }
@@ -100,8 +101,13 @@ private fun SQLiteStatement.readMessage() = MessageRecord(
     completionTokens = getIntOrNull(8),
     createdAt = getLong(9),
     updatedAt = getLong(10),
+    imagePath = getTextOrNull(11),
 )
 
 private fun SQLiteStatement.bindIntOrNull(index: Int, value: Int?) {
     if (value == null) bindNull(index) else bindInt(index, value)
+}
+
+private fun SQLiteStatement.bindTextOrNull(index: Int, value: String?) {
+    if (value == null) bindNull(index) else bindText(index, value)
 }

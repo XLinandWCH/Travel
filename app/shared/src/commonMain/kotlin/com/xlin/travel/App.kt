@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
@@ -16,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import com.xlin.travel.chat_screen.ChatState
 import com.xlin.travel.chat_screen.MainChatContent
 import com.xlin.travel.color.AppTheme
@@ -36,6 +39,7 @@ import com.xlin.travel.setting.AccountControlScreen
 import com.xlin.travel.setting.ComingSoonScreen
 import com.xlin.travel.setting.DocumentScreen
 import com.xlin.travel.setting.HelpCenterScreen
+import com.xlin.travel.setting.HistoryManageScreen
 import com.xlin.travel.setting.LegalDoc
 import com.xlin.travel.setting.SettingsScreen
 import com.xlin.travel.setting.ThemeColorScreen
@@ -50,6 +54,7 @@ private enum class AppScreen {
     Settings,
     Search,
     ThemeColor,
+    History,
     ComingSoon,
     HelpCenter,
     Document,
@@ -73,6 +78,9 @@ fun App() {
         val scope = rememberCoroutineScope()
         val session = remember { UserSession() }
         var screen by remember { mutableStateOf(AppScreen.Guest) }
+        // 启动时先不渲染任何业务页面，等数据库异步恢复完登录态再决定去向，
+        // 避免已登录用户看到未登入界面一闪而过
+        var appReady by remember { mutableStateOf(false) }
         var comingSoonTitle by remember { mutableStateOf("") }
         var legalDoc by remember { mutableStateOf(LegalDoc.Terms) }
         val systemIsDark = isSystemInDarkTheme()
@@ -87,6 +95,7 @@ fun App() {
             // 恢复登录态：已登录进主聊天，否则停在未登入界面
             session.load(repository)
             screen = if (session.loggedIn) AppScreen.Chat else AppScreen.Guest
+            appReady = true
         }
 
         // 跟随系统：把系统深色状态同步给 AppTheme（System 偏好时生效）
@@ -103,7 +112,7 @@ fun App() {
         // 聊天页与未登入界面为根页，交给系统退出应用；帮助中心面板为独立窗口，返回键由它自己消费
         AppBackHandler(enabled = screen != AppScreen.Chat && screen != AppScreen.Guest) {
             screen = when (screen) {
-                AppScreen.ThemeColor, AppScreen.ComingSoon,
+                AppScreen.ThemeColor, AppScreen.History, AppScreen.ComingSoon,
                 AppScreen.HelpCenter, AppScreen.Document,
                 AppScreen.AccountControl -> AppScreen.Settings
                 AppScreen.Login -> AppScreen.Guest
@@ -117,6 +126,16 @@ fun App() {
                 .fillMaxSize()
                 .background(ChatBackground),
         ) {
+            // 登录态尚未从数据库恢复完成：先铺一层中性背景，不渲染未登入 / 聊天页
+            if (!appReady) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center).size(28.dp),
+                    color = com.xlin.travel.color.AccentOrange,
+                    strokeWidth = 2.dp,
+                )
+                return@Box
+            }
+
             when (screen) {
                 AppScreen.Chat -> ModalNavigationDrawer(
                     drawerState = drawerState,
@@ -165,7 +184,12 @@ fun App() {
                                 drawerState.open()
                             }
                         },
-                        onSend = { text -> scope.launch { chatState.send(text) } },
+                        onSend = { text ->
+                            // 同步读取已选图片的路径与缩略图，避免 onSent() 清空后再去协程里读到 null
+                            val imagePath = inputState.pickedImagePath
+                            val image = inputState.pickedImage
+                            scope.launch { chatState.send(text, imagePath, image) }
+                        },
                     )
                 }
 
@@ -181,6 +205,7 @@ fun App() {
                         }
                     },
                     onOpenThemeColor = { screen = AppScreen.ThemeColor },
+                    onOpenHistory = { screen = AppScreen.History },
                     onOpenHelpCenter = { screen = AppScreen.HelpCenter },
                     onOpenDoc = { doc ->
                         legalDoc = doc
@@ -206,6 +231,17 @@ fun App() {
                         // 立即全局生效，同时写入数据库，下次启动保持
                         AppTheme.preference = option
                         scope.launch { repository.setSetting(SettingKeys.ThemePreference, option.name) }
+                    },
+                    onBack = { screen = AppScreen.Settings },
+                )
+
+                AppScreen.History -> HistoryManageScreen(
+                    repository = repository,
+                    onHistoryCleared = {
+                        // 历史已从数据库清空：复位当前聊天并刷新抽屉列表，页面留在历史管理
+                        chatState.startNewChat()
+                        history.newChat()
+                        scope.launch { history.refresh() }
                     },
                     onBack = { screen = AppScreen.Settings },
                 )

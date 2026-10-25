@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>聊天界面布局演示</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0d0d10;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 32px 16px;
+  }
+
+  /* 手机外壳 */
+  .phone {
+    width: 360px;
+    height: 760px;
+    background: #121216;
+    border-radius: 44px;
+    box-shadow: 0 0 0 10px #1c1c22, 0 30px 60px rgba(0,0,0,.6);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 顶部状态栏 */
+  .statusbar {
+    height: 44px;
+    padding: 0 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #e8e8ea;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .3px;
+  }
+  .statusbar .right { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .notch {
+    position: absolute;
+    top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 104px; height: 26px;
+    background: #1c1c22;
+    border-radius: 0 0 18px 18px;
+    z-index: 5;
+  }
+  .battery {
+    width: 22px; height: 11px;
+    border: 1.4px solid #e8e8ea;
+    border-radius: 3px;
+    padding: 1px;
+  }
+  .battery::after {
+    content: ""; display: block;
+    width: 70%; height: 100%;
+    background: #34c759; border-radius: 1px;
+  }
+
+  /* 导航栏 */
+  .navbar {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    color: #e8e8ea;
+  }
+  .navbar .menu { font-size: 22px; line-height: 1; }
+  .navbar .title { font-size: 16px; font-weight: 600; }
+  .navbar .title span { font-size: 12px; opacity: .6; margin-left: 2px; }
+  .navbar .icon-expand { font-size: 19px; }
+
+  /* 消息区 */
+  .chat {
+    flex: 1;
+    padding: 18px 14px 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* 靠右的用户区域：图片在上，气泡在下 */
+  .user-block {
+    align-self: flex-end;      /* 整体靠右 */
+    max-width: 78%;
+    display: flex;
+    flex-direction: column;    /* 纵向排列 */
+    align-items: flex-end;     /* 内部元素右对齐 */
+    gap: 8px;
+  }
+  .thumb {
+    width: 196px;
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 50% 45%, #c9d8e8, #8fb4d8 45%, #5f94c4 100%);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  }
+  /* 用纯 CSS 画的占位示意：云 + 树枝 + 兔子剪影 */
+  .thumb::before {             /* 云 */
+    content: ""; position: absolute;
+    top: 22%; right: 14%;
+    width: 46px; height: 20px;
+    background: #fff; border-radius: 20px;
+    box-shadow: -18px 8px 0 -4px #fff, -34px -2px 0 -8px #fff;
+    opacity: .95;
+  }
+  .thumb::after {              /* 树枝 */
+    content: ""; position: absolute;
+    top: 56%; left: -6%;
+    width: 112%; height: 5px;
+    background: linear-gradient(90deg, #6b4a2b, #8a5f38);
+    border-radius: 3px;
+    transform: rotate(-6deg);
+  }
+  .bush {                      /* 兔子剪影 */
+    position: absolute;
+    bottom: 6%; left: 50%;
+    transform: translateX(-50%);
+    width: 62px; height: 84px;
+    background: #9aa0a8;
+    border-radius: 50% 50% 46% 46%;
+    box-shadow:
+      0 30px 0 -14px #9aa0a8,
+      -16px -34px 0 -8px #9aa0a8,
+      16px -34px 0 -8px #9aa0a8;
+  }
+  .bush::before {              /* 肚皮 */
+    content: ""; position: absolute;
+    bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 34px; height: 40px;
+    background: #eef0f3; border-radius: 50%;
+  }
+
+  .bubble {
+    background: #26262d;
+    color: #f2f2f4;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 11px 15px;
+    border-radius: 18px 18px 4px 18px;   /* 右下角尖角 */
+    word-break: break-word;
+  }
+
+  /* 对方（AI）区域：靠左 */
+  .ai-block {
+    align-self: flex-start;
+    max-width: 86%;
+    color: #9a9aa2;
+    font-size: 13.5px;
+    line-height: 1.65;
+  }
+  .ai-label {
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #5f5f68;
+    margin-bottom: 6px;
+  }
+  .ai-text { background: transparent; }
+
+  /* 标注 */
+  .callout {
+    position: absolute;
+    font-size: 11.5px;
+    color: #7fb8ff;
+    pointer-events: none;
+  }
+  .callout em {
+    font-style: normal;
+    color: #e8e8ea;
+    font-weight: 600;
+  }
+  .line {
+    position: absolute;
+    border: 0;
+    border-top: 1px dashed #4a6f9c;
+    pointer-events: none;
+  }
+  .tag-img   { top: 212px; left: 14px; }
+  .tag-bub   { top: 452px; left: 14px; }
+  .tag-ai    { top: 528px; left: 14px; }
+  .l1 { top: 300px; left: 14px; width: 96px; transform: rotate(-18deg); transform-origin: left center; }
+  .l2 { top: 472px; left: 14px; width: 104px; transform: rotate(-9deg); transform-origin: left center; }
+
+  /* 底部输入栏 */
+  .inputbar {
+    height: 88px;
+    padding: 0 14px 14px;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+  }
+  .inputbox {
+    flex: 1;
+    height: 44px;
+    background: #1e1e24;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    color: #4a4a52;
+    font-size: 14px;
+  }
+  .mic {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: #f2f2f4;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: #121216;
+  }
+  .homebar {
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 132px; height: 4px;
+    background: #f2f2f4; border-radius: 4px;
+    opacity: .5;
+  }
+
+  /* 右侧说明卡片 */
+  .note {
+    margin-left: 40px;
+    color: #c9c9cf;
+    max-width: 320px;
+  }
+  .note h2 { color: #f2f2f4; font-size: 20px; margin-bottom: 14px; font-weight: 600; }
+  .note ol { padding-left: 20px; line-height: 2; font-size: 14.5px; }
+  .note li b { color: #7fb8ff; }
+  .note .kbd {
+    display: inline-block;
+    background: #1e1e24;
+    border: 1px solid #2c2c34;
+    border-radius: 5px;
+    padding: 0 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    color: #e8e8ea;
+  }
+  @media (max-width: 760px) {
+    .note { margin-left: 0; margin-top: 28px; max-width: 100%; }
+    .phone { height: 680px; }
+    .callout, .line { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+
+  <div class="statusbar">
+    <span>1:08</span>
+    <span class="right">
+      <span>●●●</span><span>5G</span><span>5G</span>
+      <span class="battery"></span>
+    </span>
+  </div>
+
+  <div class="navbar">
+    <span class="menu">≡</span>
+    <span class="title">小兔子树枝图<span>▾</span></span>
+    <span class="icon-expand">⤢</span>
+  </div>
+
+  <div class="chat">
+    <!-- 用户区域：图片在上，气泡在下，整体靠右 -->
+    <div class="user-block">
+      <div class="thumb">
+        <div class="bush"></div>
+      </div>
+      <div class="bubble">图片里面里面有什么什么</div>
+    </div>
+
+    <!-- 对方回复：靠左 -->
+    <div class="ai-block">
+      <div class="ai-label">AI 回复</div>
+      <div class="ai-text">这张图片的内容是：一只卡通风格的小兔子……（略）</div>
+    </div>
+  </div>
+
+  <div class="inputbar">
+    <div class="inputbox">Ask anything</div>
+    <div class="mic">🎙</div>
+  </div>
+  <div class="homebar"></div>
+
+  <!-- 布局标注 -->
+  <div class="callout tag-img">① <em>图片</em>：右上角，方形缩略图</div>
+  <div class="callout tag-bub">② <em>用户提示词</em>：紧贴图片下方，右对齐气泡</div>
+  <div class="callout tag-ai">③ <em>AI 回复</em>：换行后靠左排列</div>
+  <hr class="line l1">
+  <hr class="line l2">
+</div>
+
+<div class="note">
+  <h2>布局结构</h2>
+  <ol>
+    <li><b>用户消息块</b>整体用 <span class="kbd">align-self: flex-end</span> 靠右贴边。</li>
+    <li>块内设为 <span class="kbd">flex-direction: column</span>：<br>① 图片在上，② 提示词气泡在下，垂直依次堆叠。</li>
+    <li>气泡用 <span class="kbd">align-self: flex-end</span> + 右下角小圆角（<span class="kbd">18px 18px 4px 18px</span>），做出「我发出的」尖角感。</li>
+    <li>AI 回复另起一块，<span class="kbd">align-self: flex-start</span> 靠左，与用户块形成左右对称。</li>
+    <li>整个聊天区是一个纵向 <span class="kbd">flex</span> 容器，按「时间顺序从上往下」流排，不用绝对定位。</li>
+  </ol>
+</div>
+
+</body>
+</html>

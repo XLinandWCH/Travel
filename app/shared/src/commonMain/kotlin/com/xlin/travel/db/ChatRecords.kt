@@ -17,6 +17,7 @@ data class MessageRecord(
     val role: String,
     val content: String,
     val reasoning: String = "",
+    val imagePath: String? = null,
     val seq: Long,
     val status: String = MessageStatuses.Done,
     val promptTokens: Int? = null,

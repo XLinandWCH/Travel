@@ -53,6 +53,14 @@ actual fun decodeAvatar(base64: String): ImageBitmap? =
     }.getOrNull()
 
 @OptIn(ExperimentalForeignApi::class)
+actual fun decodeImageFromPath(path: String): ImageBitmap? =
+    runCatching {
+        NSData.create(contentsOfFile = path)
+            ?.toByteArray()
+            ?.let { Image.makeFromEncoded(it).toComposeImageBitmap() }
+    }.getOrNull()
+
+@OptIn(ExperimentalForeignApi::class)
 private class AvatarPickerDelegate(
     private val onResult: (AvatarData?) -> Unit,
 ) : NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {

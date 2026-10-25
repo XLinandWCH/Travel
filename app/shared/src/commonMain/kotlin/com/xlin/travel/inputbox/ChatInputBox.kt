@@ -49,6 +49,7 @@ import travel.app.shared.generated.resources.add_file
 import travel.app.shared.generated.resources.close_path
 import travel.app.shared.generated.resources.microphone
 import travel.app.shared.generated.resources.send
+import travel.app.shared.generated.resources.stop
 
 /**
  * AI 聊天输入框卡片，对应 UI设计/输入框设计初稿.html
@@ -58,10 +59,12 @@ import travel.app.shared.generated.resources.send
 fun ChatInputBox(
     state: ChatInputState,
     onSend: (String) -> Unit = {},
+    isStreaming: Boolean = false,
+    onStop: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    // 系统图片选择器：选中结果写入 state（取消为 null）
-    val pickImage = rememberImagePicker(onResult = { bitmap -> state.onImagePicked(bitmap) })
+    // 系统图片选择器：选中结果（位图 + 本地路径）写入 state（取消为 null）
+    val pickImage = rememberImagePicker(onResult = { bitmap, path -> state.onImagePicked(bitmap, path) })
 
     Column(
         modifier = modifier
@@ -85,8 +88,10 @@ fun ChatInputBox(
         // 下：工具栏
         Toolbar(
             state = state,
+            isStreaming = isStreaming,
             onAddImage = pickImage,
             onSend = { if (state.showSend) { onSend(state.text); state.onSent() } },
+            onStop = onStop,
         )
     }
 }
@@ -158,8 +163,10 @@ private fun ImagePreview(image: ImageBitmap, onRemove: () -> Unit) {
 @Composable
 private fun Toolbar(
     state: ChatInputState,
+    isStreaming: Boolean,
     onAddImage: () -> Unit,
     onSend: () -> Unit,
+    onStop: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -191,19 +198,28 @@ private fun Toolbar(
             }
         }
 
-        // 右侧白色动作按钮：无内容显示麦克风，有内容显示发送
+        // 右侧白色动作按钮：流式中显示停止，无内容显示麦克风，有内容显示发送
+        val actionEnabled = isStreaming || state.showSend
         Box(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(WhiteBtnBackground)
-                .clickable(enabled = state.showSend, onClick = onSend),
+                .clickable(enabled = actionEnabled) { if (isStreaming) onStop() else onSend() },
             contentAlignment = Alignment.Center,
         ) {
-            val iconRes = if (state.showSend) Res.drawable.send else Res.drawable.microphone
+            val iconRes = when {
+                isStreaming -> Res.drawable.stop
+                state.showSend -> Res.drawable.send
+                else -> Res.drawable.microphone
+            }
             Image(
                 painter = painterResource(iconRes),
-                contentDescription = if (state.showSend) "发送" else "语音输入",
+                contentDescription = when {
+                    isStreaming -> "停止生成"
+                    state.showSend -> "发送"
+                    else -> "语音输入"
+                },
                 modifier = Modifier.size(20.dp),
             )
         }

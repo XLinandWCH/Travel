@@ -125,7 +125,7 @@ fun ChatDrawer(
             ) {
                 item {
                     Text(
-                        text = "Older",
+                        text = "历史记录",
                         color = TextGray500,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,

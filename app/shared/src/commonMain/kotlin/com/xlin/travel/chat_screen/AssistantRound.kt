@@ -6,6 +6,7 @@ import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.DatabaseChatHistoryProvider
 import com.xlin.travel.db.MessageRoles
 import com.xlin.travel.db.MessageStatuses
+import kotlinx.coroutines.CancellationException
 
 /**
  * 一轮 AI 回复的完整过程：占位落库 → 流式接收 → 回写内容与状态。
@@ -63,6 +64,14 @@ internal class AssistantRound(
             }
             persist(recordId, reply, MessageStatuses.Done)
         } catch (t: Throwable) {
+            // 用户主动“停止生成”：保留已输出的部分内容并正常落库，不把协程取消当作错误
+            if (t is CancellationException) {
+                if (reply.content.isEmpty() && reply.reasoning.isEmpty()) {
+                    reply.content = "（已停止生成）"
+                }
+                persist(recordId, reply, MessageStatuses.Done)
+                throw t
+            }
             reply.content = reply.content.ifEmpty { "请求失败：${t.message ?: "未知错误"}" }
             persist(recordId, reply, MessageStatuses.Error)
         }

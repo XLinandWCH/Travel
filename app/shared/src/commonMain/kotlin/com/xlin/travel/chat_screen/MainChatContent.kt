@@ -64,6 +64,8 @@ internal fun MainChatContent(
         ChatInputBox(
             state = inputState,
             onSend = onSend,
+            isStreaming = chatState.isStreaming,
+            onStop = chatState::stopStreaming,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),

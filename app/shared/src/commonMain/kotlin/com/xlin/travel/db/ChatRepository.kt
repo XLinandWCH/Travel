@@ -42,13 +42,14 @@ class ChatRepository(private val database: ChatDatabase) {
         return record
     }
 
-    /** 追加一条消息，同时更新会话最后活跃时间 */
+    /** 追加一条消息，同时更新会话最后活跃时间；[imagePath] 为用户附图的本地绝对路径 */
     suspend fun appendMessage(
         conversationId: String,
         role: String,
         content: String,
         reasoning: String = "",
         status: String = MessageStatuses.Done,
+        imagePath: String? = null,
     ): MessageRecord = database.withTransaction { connection ->
         val now = currentEpochMillis()
         val record = MessageRecord(
@@ -57,6 +58,7 @@ class ChatRepository(private val database: ChatDatabase) {
             role = role,
             content = content,
             reasoning = reasoning,
+            imagePath = imagePath,
             seq = connection.nextMessageSeq(conversationId),
             status = status,
             createdAt = now,
@@ -88,6 +90,17 @@ class ChatRepository(private val database: ChatDatabase) {
     /** 删除会话及其全部消息 */
     suspend fun deleteConversation(id: String) {
         database.withConnection { it.deleteConversation(id) }
+    }
+
+    /**
+     * 仅清空历史聊天：删除全部会话与消息，但保留 app_setting（主题 / 登录缓存等）。
+     * 用于“历史管理 - 清空历史”，注销账号不会走到这里（它用 [clearAllLocalData]）。
+     */
+    suspend fun clearChatHistory() {
+        database.withTransaction { connection ->
+            connection.execSQL("DELETE FROM message")
+            connection.execSQL("DELETE FROM conversation")
+        }
     }
 
     /** 重命名会话标题 */

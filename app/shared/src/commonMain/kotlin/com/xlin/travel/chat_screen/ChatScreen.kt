@@ -88,7 +88,7 @@ fun ChatScreen(
         ) {
             itemsIndexed(state.messages, key = { _, message -> message.id }) { index, message ->
                 when (message.role) {
-                    MessageRole.User -> UserMessageBubble(message.content)
+                    MessageRole.User -> UserMessageBubble(message)
                     MessageRole.Assistant -> AssistantMessageBlock(
                         message = message,
                         // 每条 AI 回答都展示动作条，仅隐藏正在流式输出的最后一条

@@ -11,7 +11,7 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
-import com.xlin.travel.agent.tool.CalculatorTool
+import com.xlin.travel.agent.tool.MediaAnalysisTool
 
 val TravelModel = LLModel(
     provider = LLMProvider.OpenAI,
@@ -38,6 +38,14 @@ const val TravelSystemPrompt = """
     - 给出可执行的行程、地点、交通、预算建议
     - 需要工具调用时按工具结果回答
     - 保持 Claude 的克制、温和、专业语气
+
+    图片 / 文件识别：
+    - 当用户消息里附带了图片（会给出本地绝对路径）或你需要识别图片 / 文档内容时，
+      调用 media_analysis 工具，instruction 填写用户诉求，imagePath 填写给出的图片路径
+
+    工具调用铁律（避免重复调用）：
+    - 同一个工具针对相同参数最多只调用一次
+    - 一旦收到工具返回的结果，就必须直接基于该结果给出最终回答，绝对不能再重复上一次的调用！牢记！
 """
 
 /**
@@ -56,16 +64,16 @@ suspend fun chatStreaming(
     onEvent: (ChatStreamEvent) -> Unit = {},
 ): String {
     val myTools = ToolRegistry {
-        tool(CalculatorTool)
+        tool(MediaAnalysisTool)
     }
 
     val agent = AIAgent(
         promptExecutor = createChatExecutor(),   // ← 不写 client，写 expect 函数
         llmModel = TravelModel,
         systemPrompt = TravelSystemPrompt,
-        temperature = 0.8,
+        temperature = 0.2,
         toolRegistry = myTools,
-        strategy = strategy("streaming-demo", toolRegistry = myTools),
+        strategy = strategy("streaming-demo"),
 
     ) {
         handleEvents {

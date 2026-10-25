@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
 import com.xlin.travel.agent.TravelModel
 import com.xlin.travel.agent.TravelSystemPrompt
 import com.xlin.travel.db.ChatRepository
@@ -12,6 +13,10 @@ import com.xlin.travel.db.MessageRecord
 import com.xlin.travel.db.MessageRoles
 import com.xlin.travel.db.MessageStatuses
 import com.xlin.travel.db.randomUuid
+import com.xlin.travel.image_picker.decodeImageFromPath
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlin.coroutines.coroutineContext
 
 /**
  * 聊天状态：维护消息列表，把消息写入 SQLite，并把 Agent 的流式事件写入对应的 AI 消息。
@@ -44,11 +49,19 @@ class ChatState(
 
     private val round = AssistantRound(repository)
 
+    /** 当前正在进行的流式回复所对应的协程 Job，用于「停止生成」时取消它；空闲时为 null */
+    private var activeJob: Job? = null
+
     /** 开始一个全新对话：清空消息，会话记录在首次发送时写入数据库 */
     fun startNewChat() {
         _messages.clear()
         conversationId = null
         nextId = 0L
+    }
+
+    /** 停止当前 AI 输出：取消正在流式的协程，保留已生成的部分内容 */
+    fun stopStreaming() {
+        activeJob?.cancel()
     }
 
     /** 打开历史对话，从数据库恢复消息 */
@@ -65,30 +78,46 @@ class ChatState(
     /**
      * 发送用户消息：用户消息先立即上屏，再异步流式接收 AI 回复。
      * 用户消息与 AI 占位消息在请求前落库，流式结束后更新 AI 消息内容。
+     *
+     * [imagePath] / [image] 非空时，只把真实图片路径拼进「发送给模型的提示词」，
+     * 供 media_analysis 工具调用；上屏与落库的用户消息都只保留原始文本，
+     * 绝不会把系统提示语混进用户自己发送的内容里。
      */
-    suspend fun send(text: String) {
+    suspend fun send(text: String, imagePath: String? = null, image: ImageBitmap? = null) {
         val content = text.trim()
-        if (content.isEmpty() || isStreaming) return
+        if ((content.isEmpty() && imagePath.isNullOrBlank()) || isStreaming) return
 
         isStreaming = true
+        activeJob = coroutineContext[Job]
         try {
+            // 仅作为本轮发送给模型的输入：把真实图片路径交给工具，用户看不到这段话
+            val llmPrompt = content.withImageHint(imagePath)
             val activeConversation = ensureConversation(content)
 
             // 本轮之前的历史分界线：ChatMemory 只加载 seq <= cutoff 的消息，
             // 避免把刚刚写入的本轮用户消息重复拼进上下文
             val cutoff = runCatching { repository.lastMessageSeq(activeConversation) }.getOrDefault(0L)
 
-            // 用户消息先上屏，保证点击发送后立刻可见
-            _messages.add(ChatMessage(nextId++, MessageRole.User, content = content))
+            // 上屏与落库都用用户原始文本；图片缩略图仅在内存中随消息展示
+            _messages.add(
+                ChatMessage(
+                    id = nextId++,
+                    role = MessageRole.User,
+                    content = content,
+                    imagePath = imagePath,
+                    imageBitmap = image,
+                )
+            )
             val reply = ChatMessage(nextId++, MessageRole.Assistant)
             _messages.add(reply)
 
             runCatching {
-                repository.appendMessage(activeConversation, MessageRoles.User, content)
+                repository.appendMessage(activeConversation, MessageRoles.User, content, imagePath = imagePath)
             }
-            reply.recordId = round.run(content, activeConversation, cutoff, reply)
+            reply.recordId = round.run(llmPrompt, activeConversation, cutoff, reply)
         } finally {
             isStreaming = false
+            activeJob = null
         }
     }
 
@@ -100,10 +129,13 @@ class ChatState(
         val index = _messages.indexOfLast { it.role == MessageRole.Assistant }
         val conversation = conversationId ?: return
         if (index < 0 || isStreaming) return
-        val prompt = _messages.subList(0, index).lastOrNull { it.role == MessageRole.User }?.content
+        val userMessage = _messages.subList(0, index).lastOrNull { it.role == MessageRole.User }
             ?: return
+        // 重新发送时同样只把路径拼进给模型的提示词，用户消息本身仍是原始文本
+        val prompt = userMessage.content.withImageHint(userMessage.imagePath)
 
         isStreaming = true
+        activeJob = coroutineContext[Job]
         try {
             // 删除旧的 AI 记录，历史上下文才会停在用户提示词之前
             _messages[index].recordId?.let { oldId ->
@@ -119,6 +151,7 @@ class ChatState(
             reply.recordId = round.run(prompt, conversation, cutoff, reply)
         } finally {
             isStreaming = false
+            activeJob = null
         }
     }
 
@@ -159,6 +192,8 @@ class ChatState(
             role = messageRole,
             content = content,
             reasoning = reasoning,
+            imagePath = imagePath,
+            imageBitmap = imagePath?.let { decodeImageFromPath(it) },
         )
         message.recordId = id
         return message
@@ -168,3 +203,18 @@ class ChatState(
 /** 用用户的第一句话作为会话标题 */
 private fun String.toConversationTitle(): String =
     lineSequence().firstOrNull()?.trim().orEmpty().take(30).ifBlank { "新对话" }
+
+/**
+ * 只在「发送给模型」时把图片本地路径拼到用户原始文本之后，供 media_analysis 工具读取。
+ * 这段提示永远不上屏、不落库，因此不会出现在用户自己发送的消息里。
+ */
+private fun String.withImageHint(imagePath: String?): String {
+    if (imagePath.isNullOrBlank()) return this
+    return buildString {
+        append(this@withImageHint)
+        if (isNotEmpty()) append("\n\n")
+        append("[系统提示] 用户在本条消息附带了一张图片，本地绝对路径：")
+        append(imagePath)
+        append("。如需识别图片内容，请调用 media_analysis 工具，并把 imagePath 参数原样填写为上述路径。")
+    }
+}

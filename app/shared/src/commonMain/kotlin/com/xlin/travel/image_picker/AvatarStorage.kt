@@ -28,3 +28,10 @@ expect fun rememberAvatarPicker(onResult: (AvatarData?) -> Unit): () -> Unit
 
 /** 把持久化的 base64 解码为预览位图；数据损坏 / 平台不支持时返回 null */
 expect fun decodeAvatar(base64: String): ImageBitmap?
+
+/**
+ * 从本地文件绝对路径解码图片为位图。
+ * 用于聊天历史重新打开时，根据 message 表存的 image_path 复原用户附图的缩略图；
+ * 文件已被系统清理 / 解码失败 / 平台不支持时返回 null（界面只显示文字）。
+ */
+expect fun decodeImageFromPath(path: String): ImageBitmap?

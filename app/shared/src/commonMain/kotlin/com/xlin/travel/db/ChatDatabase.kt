@@ -51,11 +51,27 @@ class ChatDatabase internal constructor(
         try {
             opened.execSQL("PRAGMA foreign_keys = ON")
             ChatSchema.statements.forEach { opened.execSQL(it) }
+            migrateAddMessageImagePath(opened)
             return opened
         } catch (t: Throwable) {
             opened.close()
             throw t
         }
+    }
+
+    /**
+     * 安全增量迁移：给已存在的旧库 message 表补上 image_path 列。
+     * 全新安装时 CREATE TABLE 已带该列，这里检测到已存在就跳过，不会报错。
+     */
+    private fun migrateAddMessageImagePath(connection: SQLiteConnection) {
+        val hasColumn = connection.withStatement("PRAGMA table_info(message)") { statement ->
+            var found = false
+            while (statement.step()) {
+                if (statement.getText(1) == "image_path") found = true
+            }
+            found
+        }
+        if (!hasColumn) connection.execSQL("ALTER TABLE message ADD COLUMN image_path TEXT")
     }
 }
 

@@ -54,6 +54,9 @@ actual fun decodeAvatar(base64: String): ImageBitmap? =
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
     }.getOrNull()
 
+actual fun decodeImageFromPath(path: String): ImageBitmap? =
+    runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull()
+
 /** 等比缩放到最长边不超过 [AVATAR_MAX_DIM]，本身已够小则原样返回 */
 private fun scaleToFit(source: Bitmap): Bitmap {
     val longest = max(source.width, source.height)

@@ -26,6 +26,10 @@ class ChatInputState {
     var pickedImage: ImageBitmap? by mutableStateOf(null)
         internal set
 
+    /** 已选图片落盘后的本地绝对路径，供 media_analysis 工具识别；无图片时为 null */
+    var pickedImagePath: String? by mutableStateOf(null)
+        internal set
+
     /** 是否有有效文本（对应 JS updateState 的 trim 判断） */
     var hasText: Boolean by mutableStateOf(false)
         internal set
@@ -41,18 +45,21 @@ class ChatInputState {
         hasText = value.isNotBlank()
     }
 
-    /** 选择器返回图片；bitmap 为 null（取消/失败）时等同于移除 */
-    fun onImagePicked(bitmap: ImageBitmap?) {
+    /** 选择器返回图片；bitmap 为 null（取消/失败）时等同于移除。[path] 为本地绝对路径，供工具识别 */
+    fun onImagePicked(bitmap: ImageBitmap?, path: String?) {
         pickedImage = bitmap
+        pickedImagePath = path
     }
 
     fun onImageRemoved() {
         pickedImage = null
+        pickedImagePath = null
     }
 
     /** 发送成功后重置输入内容 */
     fun onSent() {
         onTextChange("")
         pickedImage = null
+        pickedImagePath = null
     }
 }

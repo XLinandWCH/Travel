@@ -27,7 +27,7 @@ import com.xlin.travel.inputbox.ChatInputBox
 import com.xlin.travel.inputbox.ChatInputState
 
 /**
- * 未登入界面，1:1 对应 UI设计/未登入界面UI.html：
+ *
  * - 右上角「登入」按钮（强调橙圆角），点击进入登录页；
  * - 居中仅保留 Welcome 大字；
  * - 底部使用项目自己的输入框 [ChatInputBox]（参考稿的输入框不采用）。

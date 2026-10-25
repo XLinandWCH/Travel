@@ -39,6 +39,7 @@ import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.dark
 import travel.app.shared.generated.resources.email
 import travel.app.shared.generated.resources.help
+import travel.app.shared.generated.resources.history
 import travel.app.shared.generated.resources.log_out
 import travel.app.shared.generated.resources.phone_number
 import travel.app.shared.generated.resources.privacy
@@ -59,6 +60,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onLogout: () -> Unit,
     onOpenThemeColor: () -> Unit,
+    onOpenHistory: () -> Unit,
     onOpenHelpCenter: () -> Unit,
     onOpenDoc: (LegalDoc) -> Unit,
     onOpenAccountControl: () -> Unit,
@@ -106,6 +108,13 @@ fun SettingsScreen(
                     value = AppTheme.preference.label,
                     showChevron = true,
                     onClick = onOpenThemeColor,
+                )
+                SettingRowDivider()
+                SettingRow(
+                    icon = Res.drawable.history,
+                    label = "历史管理",
+                    showChevron = true,
+                    onClick = onOpenHistory,
                 )
             }
 

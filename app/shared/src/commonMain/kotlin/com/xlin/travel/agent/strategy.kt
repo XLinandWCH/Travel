@@ -5,14 +5,28 @@ import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
 import ai.koog.agents.core.tools.ToolRegistry
+import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.streaming.toMessageResponse
 import kotlinx.coroutines.flow.toList
 
 private suspend fun AIAgentContext.historyIsTooLong(threshold: Int = 50): Boolean =
     llm.readSession { prompt.messages.size > threshold }
+
+/**
+ * 工具轮次是否已达上限：统计会话中「包含工具调用的 Assistant 消息」数量。
+ * 用于切断弱模型反复发起同一工具调用导致的 sendToolResult ⇄ executeToolCall 死循环。
+ */
+private suspend fun AIAgentContext.toolRoundsExceeded(limit: Int): Boolean =
+    llm.readSession {
+        prompt.messages.count {
+            it is Message.Assistant && it.parts.any { part -> part is MessagePart.Tool.Call }
+        } >= limit
+    }
 fun strategy(name: String,
-             toolRegistry: ToolRegistry,
+//             toolRegistry: ToolRegistry,
              compressionThreshold: Int = 50,
+             maxToolRounds: Int = 3,
 ): AIAgentGraphStrategy<String, String> {
 
     return strategy(name) {
@@ -51,7 +65,17 @@ fun strategy(name: String,
         edge(compressHistory forwardTo sendToolResult)
 
         // sendToolResult → 回路 or 结束
-        edge(sendToolResult forwardTo executeToolCall onToolCalls { true })
+        // 回路加护栏：未超工具轮次上限且确有工具调用，才继续执行
+        edge(sendToolResult forwardTo executeToolCall onToolCalls { true } onCondition {
+            !toolRoundsExceeded(maxToolRounds)
+        })
+        // 正常文本答复 → 结束
         edge(sendToolResult forwardTo nodeFinish onTextMessage { true })
+        // 兜底：已达轮次上限但模型仍在请求工具（无文本），强制收尾避免死循环 / 无匹配边死锁
+        edge(sendToolResult forwardTo nodeFinish onCondition {
+            toolRoundsExceeded(maxToolRounds)
+        } transformed {
+            "（已达到工具调用次数上限，请直接依据上述工具结果作答。）"
+        })
     }
 }

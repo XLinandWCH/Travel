@@ -4,6 +4,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
 
 /** 消息角色 */
 enum class MessageRole {
@@ -27,6 +28,10 @@ class ChatMessage(
     val role: MessageRole,
     content: String = "",
     reasoning: String = "",
+    /** 附带图片的本地绝对路径，仅用于「重新生成」时把路径重新交给识别工具；不落库 */
+    val imagePath: String? = null,
+    /** 附带图片的缩略图位图，仅在当前会话内存中随消息上屏展示；不落库 */
+    val imageBitmap: ImageBitmap? = null,
 ) {
     /** 正文内容 */
     var content: String by mutableStateOf(content)

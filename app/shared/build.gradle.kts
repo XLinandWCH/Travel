@@ -96,7 +96,9 @@ kotlin {
             implementation(libs.ktor.clientCio)
         }
         jvmTest.dependencies {
-            // JVM 测试
+            implementation(libs.koog.agents)
+            implementation(libs.koog.agents.additions)
+            implementation(libs.koog.http.client.ktor)
         }
     }
 }
