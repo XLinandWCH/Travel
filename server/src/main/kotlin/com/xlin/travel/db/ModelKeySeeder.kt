@@ -27,6 +27,16 @@ object ModelKeySeeder {
     private const val DEFAULT_BASE_URL = "https://discovery-api.intern-ai.org.cn/"
     private const val DEFAULT_TEMPERATURE = 0.2
 
+    /**
+     * 语音识别（Fun-ASR-Flash）配置：与普通对话模型共用 model_api_keys 表，
+     * 只是 model_id / url 指向 ASR 的多模态生成接口，客户端凭 modelId 单独拉取。
+     * 密钥同样是机密，不写进源码：通过 ASR_API_KEY（-D 系统属性 > 环境变量）注入，
+     * 未注入且表里无记录时跳过（不写空密钥）。url 存的是完整调用端点，客户端直接 POST。
+     */
+    private const val ASR_MODEL_ID = "fun-asr-flash-2026-06-15"
+    private const val ASR_DEFAULT_URL =
+        "https://cn-beijing.maas.qianwenaiapi.com/api/v1/services/aigc/multimodal-generation/generation"
+
     /** 旅行助手默认系统提示词，仅在表中未配置时写入 */
     private val DEFAULT_SYSTEM_PROMPT = """
         你是一个名为 Claude 的 AI 助手，由 Anthropic 制作。（如果有人问起你是什么模型你就如实回答就行，没人问AI模型就不要说这个
@@ -52,6 +62,42 @@ object ModelKeySeeder {
             ?: ""
 
     fun seed() {
+        seedChatModel()
+        seedAsrModel()
+    }
+
+    /** 语音识别模型记录：只在缺记录时写入，已有则保留（改表即可轮换密钥 / 换端点） */
+    private fun seedAsrModel() {
+        val injectedKey = env("ASR_API_KEY")
+        val asrUrl = env("ASR_BASE_URL").ifBlank { ASR_DEFAULT_URL }
+        transaction {
+            val row = ModelApiKeys.selectAll().where { ModelApiKeys.modelId eq ASR_MODEL_ID }.firstOrNull()
+            if (row == null) {
+                if (injectedKey.isBlank()) {
+                    log.warn("model_api_keys 无 '$ASR_MODEL_ID' 记录且未注入 ASR_API_KEY，跳过语音识别初始化")
+                    return@transaction
+                }
+                ModelApiKeys.insert {
+                    it[ModelApiKeys.modelId] = ASR_MODEL_ID
+                    it[apiKey] = injectedKey
+                    it[url] = asrUrl
+                    // ASR 无系统提示词 / 温度概念，留 null
+                }
+                log.info("已写入语音识别配置默认记录：$ASR_MODEL_ID")
+                return@transaction
+            }
+            // 已存在：仅显式注入密钥时轮换，url 为空时补默认，其余保留
+            val needUpdate = injectedKey.isNotBlank() || row[ModelApiKeys.url].isBlank()
+            if (!needUpdate) return@transaction
+            ModelApiKeys.update({ ModelApiKeys.modelId eq ASR_MODEL_ID }) {
+                if (injectedKey.isNotBlank()) it[apiKey] = injectedKey
+                if (row[ModelApiKeys.url].isBlank()) it[url] = asrUrl
+            }
+            log.info("已更新语音识别配置：$ASR_MODEL_ID")
+        }
+    }
+
+    private fun seedChatModel() {
         val modelId = env("MODEL_ID").ifBlank { DEFAULT_MODEL_ID }
         val baseUrl = env("MODEL_BASE_URL").ifBlank { DEFAULT_BASE_URL }
         val injectedKey = env("MODEL_API_KEY")

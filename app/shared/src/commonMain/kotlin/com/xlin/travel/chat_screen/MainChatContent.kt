@@ -33,6 +33,7 @@ internal fun MainChatContent(
     chatState: ChatState,
     onMenuClick: () -> Unit,
     onSend: (String) -> Unit,
+    onMicClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -66,6 +67,7 @@ internal fun MainChatContent(
             onSend = onSend,
             isStreaming = chatState.isStreaming,
             onStop = chatState::stopStreaming,
+            onMicClick = onMicClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),

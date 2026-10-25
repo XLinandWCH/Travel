@@ -31,6 +31,9 @@ import com.xlin.travel.drawer.ChatDrawer
 import com.xlin.travel.drawer.ChatHistoryState
 import com.xlin.travel.guest.GuestScreen
 import com.xlin.travel.inputbox.ChatInputState
+import com.xlin.travel.inputbox.voice.VoiceInputPanel
+import com.xlin.travel.inputbox.voice.VoiceInputState
+import com.xlin.travel.inputbox.voice.VoicePhase
 import com.xlin.travel.login.LoginScreen
 import com.xlin.travel.login.UserSession
 import com.xlin.travel.navigation.AppBackHandler
@@ -85,6 +88,10 @@ fun App() {
         var legalDoc by remember { mutableStateOf(LegalDoc.Terms) }
         val systemIsDark = isSystemInDarkTheme()
 
+        // 语音输入：麦克风按钮开合面板，面板为整屏遮罩覆盖在当前页之上
+        val voiceState = remember { VoiceInputState() }
+        var showVoice by remember { mutableStateOf(false) }
+
         // 启动时从数据库恢复历史会话列表、主题偏好与登录态
         LaunchedEffect(repository) {
             history.refresh()
@@ -107,6 +114,9 @@ fun App() {
         AppBackHandler(enabled = drawerState.currentValue == DrawerValue.Open) {
             scope.launch { drawerState.close() }
         }
+
+        // 语音面板打开时：系统返回键先关闭面板，不退出应用
+        AppBackHandler(enabled = showVoice) { showVoice = false }
 
         // 系统返回键：子页面先回设置列表，搜索回聊天页，登录回未登入界面；
         // 聊天页与未登入界面为根页，交给系统退出应用；帮助中心面板为独立窗口，返回键由它自己消费
@@ -189,6 +199,12 @@ fun App() {
                             val imagePath = inputState.pickedImagePath
                             val image = inputState.pickedImage
                             scope.launch { chatState.send(text, imagePath, image) }
+                        },
+                        onMicClick = {
+                            // 打开前复位面板状态，避免残留上次的错误 / 阶段
+                            voiceState.error = null
+                            voiceState.phase = VoicePhase.Starting
+                            showVoice = true
                         },
                     )
                 }
@@ -289,6 +305,25 @@ fun App() {
                         history.clearSearch()
                         screen = AppScreen.Chat
                     },
+                )
+            }
+
+            // 语音输入面板：整屏遮罩盖在当前内容之上（仅聊天页会打开）
+            if (showVoice) {
+                VoiceInputPanel(
+                    repository = repository,
+                    state = voiceState,
+                    onResult = { text, autoSend ->
+                        if (autoSend) {
+                            scope.launch { chatState.send(text, null, null) }
+                        } else {
+                            // 仅回填到输入框：与已有文字以空格拼接
+                            val merged = if (inputState.text.isBlank()) text
+                            else inputState.text + " " + text
+                            inputState.onTextChange(merged)
+                        }
+                    },
+                    onDismiss = { showVoice = false },
                 )
             }
         }

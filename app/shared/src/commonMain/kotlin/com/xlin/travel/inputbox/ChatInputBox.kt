@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
@@ -42,6 +43,7 @@ import com.xlin.travel.color.InputTextColor
 import com.xlin.travel.color.ModeTextColor
 import com.xlin.travel.color.RemoveButtonBackground
 import com.xlin.travel.color.WhiteBtnBackground
+import com.xlin.travel.color.WhiteBtnIcon
 import com.xlin.travel.image_picker.rememberImagePicker
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
@@ -61,6 +63,7 @@ fun ChatInputBox(
     onSend: (String) -> Unit = {},
     isStreaming: Boolean = false,
     onStop: () -> Unit = {},
+    onMicClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // 系统图片选择器：选中结果（位图 + 本地路径）写入 state（取消为 null）
@@ -92,6 +95,7 @@ fun ChatInputBox(
             onAddImage = pickImage,
             onSend = { if (state.showSend) { onSend(state.text); state.onSent() } },
             onStop = onStop,
+            onMicClick = onMicClick,
         )
     }
 }
@@ -167,6 +171,7 @@ private fun Toolbar(
     onAddImage: () -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
+    onMicClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -198,14 +203,19 @@ private fun Toolbar(
             }
         }
 
-        // 右侧白色动作按钮：流式中显示停止，无内容显示麦克风，有内容显示发送
-        val actionEnabled = isStreaming || state.showSend
+        // 右侧动作按钮：流式中→停止，有内容→发送，否则→麦克风语音输入
         Box(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(WhiteBtnBackground)
-                .clickable(enabled = actionEnabled) { if (isStreaming) onStop() else onSend() },
+                .clickable {
+                    when {
+                        isStreaming -> onStop()
+                        state.showSend -> onSend()
+                        else -> onMicClick()
+                    }
+                },
             contentAlignment = Alignment.Center,
         ) {
             val iconRes = when {
@@ -220,6 +230,9 @@ private fun Toolbar(
                     state.showSend -> "发送"
                     else -> "语音输入"
                 },
+                // 图标源色为深色，叠加主题反转的 WhiteBtnIcon：深色主题白底配黑图标、
+                // 浅色主题黑灰底配白图标，避免图标与背景同色看不见
+                colorFilter = ColorFilter.tint(WhiteBtnIcon),
                 modifier = Modifier.size(20.dp),
             )
         }

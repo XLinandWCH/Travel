@@ -15,6 +15,12 @@ object SettingKeys {
      * 退出登录 / 注销时会清空，避免密钥长期留在本地。
      */
     const val ModelConfigCache = "model_config_cache"
+
+    /**
+     * 服务端下发的语音识别（Fun-ASR-Flash）配置缓存，供断网兜底。
+     * 退出登录 / 注销时随其它设置一并清空。
+     */
+    const val AsrConfigCache = "asr_config_cache"
 }
 
 /** 读取设置项，不存在时返回 null */
