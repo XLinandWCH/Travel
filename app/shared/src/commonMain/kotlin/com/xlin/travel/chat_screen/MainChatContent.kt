@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.xlin.travel.color.MenuButtonBackground
 import com.xlin.travel.color.TopBarEdgeFadeBrush
+import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.inputbox.ChatInputBox
 import com.xlin.travel.inputbox.ChatInputState
 import org.jetbrains.compose.resources.painterResource
@@ -31,9 +32,9 @@ import travel.app.shared.generated.resources.menu
 internal fun MainChatContent(
     inputState: ChatInputState,
     chatState: ChatState,
+    repository: ChatRepository,
     onMenuClick: () -> Unit,
     onSend: (String) -> Unit,
-    onMicClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -67,7 +68,7 @@ internal fun MainChatContent(
             onSend = onSend,
             isStreaming = chatState.isStreaming,
             onStop = chatState::stopStreaming,
-            onMicClick = onMicClick,
+            repository = repository,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),

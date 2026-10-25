@@ -40,6 +40,31 @@ class ChatInputState {
     /** 右侧按钮是否显示发送图标：有文字或有图片时发送，否则显示麦克风 */
     val showSend: Boolean get() = hasText || hasImage
 
+    /**
+     * 语音输入模式：为 true 时输入框复用同一“上中下”卡片，
+     * 中部换成实时波形、底部左侧变关闭、右侧麦克风变完成发送。
+     */
+    var voiceMode: Boolean by mutableStateOf(false)
+        internal set
+
+    /** 进入语音模式（复用当前输入卡片，不再弹独立遮罩） */
+    fun startVoice() {
+        pickedImage = null
+        pickedImagePath = null
+        voiceMode = true
+    }
+
+    /** 退出语音模式 */
+    fun stopVoice() {
+        voiceMode = false
+    }
+
+    /** 把识别文本追加到输入框（非自动发送时用），已有文字以空格分隔 */
+    fun appendRecognized(recognized: String) {
+        if (recognized.isBlank()) return
+        onTextChange(if (text.isBlank()) recognized else "$text $recognized")
+    }
+
     fun onTextChange(value: String) {
         text = value
         hasText = value.isNotBlank()

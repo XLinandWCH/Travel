@@ -45,6 +45,17 @@ class VoiceInputState {
     var recognizedText: String by mutableStateOf("")
         internal set
 
+    /**
+     * 是否进入末尾倒计时提示：录音接近上限（[maxDurationMs]）的最后 10 秒为 true，
+     * 此时底部状态文字由“正在聆听”改为“X 秒后自动发送 / 结束”（橘色）。
+     */
+    var showCountdown: Boolean by mutableStateOf(false)
+        internal set
+
+    /** 倒计时剩余整秒数，仅在 [showCountdown] 为 true 时有意义 */
+    var remainingSeconds: Int by mutableStateOf(0)
+        internal set
+
     /** 滚动波形样本，初始给一条较低的基线，避免刚打开时是死平一线 */
     val levels = mutableStateListOf<Float>().apply { repeat(barCount) { add(0.06f) } }
 
@@ -57,5 +68,7 @@ class VoiceInputState {
     /** 复位为静音基线，用于开始新一段录音 */
     fun resetLevels() {
         repeat(levels.size) { levels[it] = 0.06f }
+        showCountdown = false
+        remainingSeconds = 0
     }
 }

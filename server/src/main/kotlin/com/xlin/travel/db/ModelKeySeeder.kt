@@ -37,6 +37,14 @@ object ModelKeySeeder {
     private const val ASR_DEFAULT_URL =
         "https://cn-beijing.maas.qianwenaiapi.com/api/v1/services/aigc/multimodal-generation/generation"
 
+    /**
+     * beta 期便捷写入：用户不会在启动命令里注入 ASR_API_KEY，这里给一个默认密钥，
+     * 启动时由 seedAsrModel() 以 INSERT-if-absent 方式写入 model_api_keys（绝不 DROP / 重建表、
+     * 也不覆盖已有记录）。环境变量 / -D ASR_API_KEY 优先级更高，正式环境请改用注入轮换。
+     */
+    private const val ASR_DEFAULT_API_KEY =
+        "sk-ws-H.PDEYIEY.RYBO.MEYCIQDX8HnLWNBePTO56b59vQfApxvLQ_DQl3HF0CZN1TGrowIhAOOHMy6xMR35YeYTqVVDNeaSJL9tcNyLBwwWMu7F43m9"
+
     /** 旅行助手默认系统提示词，仅在表中未配置时写入 */
     private val DEFAULT_SYSTEM_PROMPT = """
         你是一个名为 Claude 的 AI 助手，由 Anthropic 制作。（如果有人问起你是什么模型你就如实回答就行，没人问AI模型就不要说这个
@@ -68,15 +76,12 @@ object ModelKeySeeder {
 
     /** 语音识别模型记录：只在缺记录时写入，已有则保留（改表即可轮换密钥 / 换端点） */
     private fun seedAsrModel() {
-        val injectedKey = env("ASR_API_KEY")
+        // 密钥优先级：-D/环境变量 ASR_API_KEY > 内置默认（beta 便捷写入），保证首次启动即落库
+        val injectedKey = env("ASR_API_KEY").ifBlank { ASR_DEFAULT_API_KEY }
         val asrUrl = env("ASR_BASE_URL").ifBlank { ASR_DEFAULT_URL }
         transaction {
             val row = ModelApiKeys.selectAll().where { ModelApiKeys.modelId eq ASR_MODEL_ID }.firstOrNull()
             if (row == null) {
-                if (injectedKey.isBlank()) {
-                    log.warn("model_api_keys 无 '$ASR_MODEL_ID' 记录且未注入 ASR_API_KEY，跳过语音识别初始化")
-                    return@transaction
-                }
                 ModelApiKeys.insert {
                     it[ModelApiKeys.modelId] = ASR_MODEL_ID
                     it[apiKey] = injectedKey
@@ -86,11 +91,12 @@ object ModelKeySeeder {
                 log.info("已写入语音识别配置默认记录：$ASR_MODEL_ID")
                 return@transaction
             }
-            // 已存在：仅显式注入密钥时轮换，url 为空时补默认，其余保留
-            val needUpdate = injectedKey.isNotBlank() || row[ModelApiKeys.url].isBlank()
+            // 已存在：仅在显式注入密钥（非内置默认）时才轮换，url 为空时补默认，其余保留
+            val explicitKey = env("ASR_API_KEY")
+            val needUpdate = explicitKey.isNotBlank() || row[ModelApiKeys.url].isBlank()
             if (!needUpdate) return@transaction
             ModelApiKeys.update({ ModelApiKeys.modelId eq ASR_MODEL_ID }) {
-                if (injectedKey.isNotBlank()) it[apiKey] = injectedKey
+                if (explicitKey.isNotBlank()) it[apiKey] = explicitKey
                 if (row[ModelApiKeys.url].isBlank()) it[url] = asrUrl
             }
             log.info("已更新语音识别配置：$ASR_MODEL_ID")

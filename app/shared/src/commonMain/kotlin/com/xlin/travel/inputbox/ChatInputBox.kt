@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,7 +45,10 @@ import com.xlin.travel.color.ModeTextColor
 import com.xlin.travel.color.RemoveButtonBackground
 import com.xlin.travel.color.WhiteBtnBackground
 import com.xlin.travel.color.WhiteBtnIcon
+import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.image_picker.rememberImagePicker
+import com.xlin.travel.inputbox.voice.VoiceContent
+import com.xlin.travel.inputbox.voice.VoiceInputState
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.add_file
@@ -63,11 +67,13 @@ fun ChatInputBox(
     onSend: (String) -> Unit = {},
     isStreaming: Boolean = false,
     onStop: () -> Unit = {},
-    onMicClick: () -> Unit = {},
+    repository: ChatRepository? = null,
     modifier: Modifier = Modifier,
 ) {
     // 系统图片选择器：选中结果（位图 + 本地路径）写入 state（取消为 null）
     val pickImage = rememberImagePicker(onResult = { bitmap, path -> state.onImagePicked(bitmap, path) })
+    // 语音模式状态（波形 / 阶段 / 倒计时），仅在语音卡片组合时使用
+    val voice = remember { VoiceInputState() }
 
     Column(
         modifier = modifier
@@ -77,10 +83,16 @@ fun ChatInputBox(
             .background(InputCardBackground)
             .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 10.dp),
     ) {
-        // 上：图片预览（真实图片）
+        // 上：图片预览（真实图片）；语音模式进入时已清空图片，通常不显示
         state.pickedImage?.let { image ->
             ImagePreview(image = image, onRemove = { state.onImageRemoved() })
             Spacer(Modifier.height(10.dp))
+        }
+
+        // 语音模式：复用同一卡片，中部换波形、底部换关闭/状态/完成
+        if (state.voiceMode && repository != null) {
+            VoiceContent(state = state, voice = voice, repository = repository, onSend = onSend)
+            return@Column
         }
 
         // 中：输入行
@@ -95,7 +107,8 @@ fun ChatInputBox(
             onAddImage = pickImage,
             onSend = { if (state.showSend) { onSend(state.text); state.onSent() } },
             onStop = onStop,
-            onMicClick = onMicClick,
+            // 麦克风：有仓库（已登录）则进入语音模式；否则（游客）按发送引导登录
+            onMic = { if (repository != null) state.startVoice() else onSend(state.text) },
         )
     }
 }
@@ -171,7 +184,7 @@ private fun Toolbar(
     onAddImage: () -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
-    onMicClick: () -> Unit,
+    onMic: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -213,7 +226,7 @@ private fun Toolbar(
                     when {
                         isStreaming -> onStop()
                         state.showSend -> onSend()
-                        else -> onMicClick()
+                        else -> onMic()
                     }
                 },
             contentAlignment = Alignment.Center,
