@@ -49,11 +49,14 @@ object IosImageProcessor {
     @OptIn(ExperimentalForeignApi::class)
     private fun hasAlpha(image: UIImage): Boolean {
         val cg = image.CGImage ?: return false
-        // iOS 26 SDK 下 kCGImageAlphaNone / NoneSkipLast / NoneSkipFirst 不再经 ObjC 暴露（Unresolved reference），
-        // 改用 CGImageAlphaInfo 枚举的原始数值比较。CGImageGetAlphaInfo 返回的已是 alpha 位（0~7），无需掩码；
-        // 且无符号类型没有 and 中缀函数，故直接 toInt 后按整数比较。
-        val alpha = CGImageGetAlphaInfo(cg).toInt()
-        return alpha != ALPHA_NONE && alpha != ALPHA_NONE_SKIP_FIRST && alpha != ALPHA_NONE_SKIP_LAST
+        // iOS 26 SDK 绑定下 kCGImageAlphaNone 等常量名不再暴露；且 CGImageGetAlphaInfo 的返回类型
+        // 不再是标准整型（CI 实测：toInt() 仅匹配到 String 重载，说明已被 String 化/非数值化）。
+        // 因此不依赖具体类型：统一 toString 后解析枚举原始值（None=0, NoneSkipFirst=5,
+        // NoneSkipLast=6 为不透明；PremultipliedLast=1, PremultipliedFirst=2, Last=3, First=4, Only=7）；
+        // 解析失败按不透明处理（照片转 JPEG 是安全默认）。
+        val alpha = CGImageGetAlphaInfo(cg).toString().trim().toIntOrNull()
+        return alpha != null &&
+            alpha != ALPHA_NONE && alpha != ALPHA_NONE_SKIP_FIRST && alpha != ALPHA_NONE_SKIP_LAST
     }
 }
 
