@@ -91,7 +91,7 @@ fun UserMessageBubble(
 
 /**
  * AI message：左侧展示，思考区为可折叠的「深度思考」卡片（ReasoningSection），
- * 正文按 Markdown 渲染。正文输出结束后（[showActions] 为 true）在下方从左到右排开四个动作按钮。
+ * 正文按 Markdown 渲染。正文输出结束后（[showActions] 为 true）在下方从左到右排开五个动作按钮（含朗读）。
  *
  * [isThinking] 为 true 表示这条消息正处于思考阶段（流式中且正文还没开始），
  * 思考区标题显示跳动的「思考中…」并默认展开；思考结束后自动收起为「已深度思考」。
@@ -102,9 +102,11 @@ fun AssistantMessageBlock(
     showActions: Boolean,
     canRegenerate: Boolean,
     isThinking: Boolean,
+    isReading: Boolean,
     onLike: () -> Unit,
     onDislike: () -> Unit,
     onRegenerate: () -> Unit,
+    onRead: () -> Unit,
     onCopy: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -125,9 +127,11 @@ fun AssistantMessageBlock(
                 MessageActionRow(
                     message = message,
                     canRegenerate = canRegenerate,
+                    isReading = isReading,
                     onLike = onLike,
                     onDislike = onDislike,
                     onRegenerate = onRegenerate,
+                    onRead = onRead,
                     onCopy = onCopy,
                 )
             }

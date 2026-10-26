@@ -75,6 +75,8 @@ kotlin {
             implementation(libs.ktor.clientCore)
             implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.serializationKotlinxJsonMp)
+            // TTS 语音合成走 DashScope WebSocket（run-task 协议），引擎由各平台 actual 提供
+            implementation(libs.ktor.clientWebsockets)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

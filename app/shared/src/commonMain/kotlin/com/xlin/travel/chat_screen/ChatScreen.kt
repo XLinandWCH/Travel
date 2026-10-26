@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xlin.travel.color.AccentOrange
 import com.xlin.travel.inputbox.ChatInputState
+import com.xlin.travel.tts.TtsController
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -50,6 +52,7 @@ import kotlinx.coroutines.launch
 fun ChatScreen(
     state: ChatState,
     inputState: ChatInputState,
+    tts: TtsController,
     modifier: Modifier = Modifier,
 ) {
     if (state.messages.isEmpty()) {
@@ -95,12 +98,26 @@ fun ChatScreen(
         prevInput = inputState.text
     }
 
-    // 切换会话时收起可能残留的反馈面板、菜单、确认弹窗与待发送的编辑
+    // 切换会话时收起可能残留的反馈面板、菜单、确认弹窗与待发送的编辑，并复位朗读
     LaunchedEffect(state.conversationId) {
         sheet.dismiss()
         actionTarget = null
         pendingDelete = null
         state.cancelEdit()
+        tts.resetForConversation()
+    }
+
+    // 自动朗读：只在「本轮流式刚结束」的边沿触发（打开历史会话不算新一轮生成）；
+    // 开关关闭时 autoRead 内部直接返回。新一轮流式开始时本效应被取消，
+    // 连带取消正在合成 / 播放的朗读任务，图标在 read 的 finally 里复位。
+    var wasStreaming by remember { mutableStateOf(state.isStreaming) }
+    LaunchedEffect(state.isStreaming) {
+        val finishedRound = wasStreaming && !state.isStreaming
+        wasStreaming = state.isStreaming
+        if (!finishedRound) return@LaunchedEffect
+        val latest = state.messages.lastOrNull { it.role == MessageRole.Assistant }
+        runCatching { tts.autoRead(latest) }
+            .onFailure { if (it !is CancellationException) toast.show(it.message ?: "朗读失败") }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -151,6 +168,7 @@ fun ChatScreen(
                         canRegenerate = index == lastIndex && !state.isStreaming,
                         // 思考阶段：正在流式的最后一条且正文还没开始输出
                         isThinking = state.isStreaming && index == lastIndex && message.content.isEmpty(),
+                        isReading = tts.isReading(message),
                         onLike = {
                             state.markFeedback(message, Feedback.Like)
                             toast.show("感谢你的反馈！")
@@ -160,6 +178,12 @@ fun ChatScreen(
                             sheet.show()
                         },
                         onRegenerate = { scope.launch { state.regenerate() } },
+                        onRead = {
+                            scope.launch {
+                                runCatching { tts.toggleRead(message) }
+                                    .onFailure { if (it !is CancellationException) toast.show(it.message ?: "朗读失败") }
+                            }
+                        },
                         onCopy = {
                             // 只复制正文，思考内容不复制
                             writeClipboard(message.content)

@@ -40,6 +40,17 @@ object ModelKeySeeder {
     /** voice_models.type 必填取值：语音识别 */
     private const val VOICE_TYPE_ASR = "ASR"
 
+    /** voice_models.type 必填取值：语音合成 */
+    private const val VOICE_TYPE_TTS = "TTS"
+
+    /**
+     * 语音合成（Qwen-Audio-TTS-Flash）配置：同样落在 voice_models，类型列 TTS。
+     * 与 ASR 共用同一把百炼 / DashScope 密钥，缺记录时直接复制 ASR 行的 api_key；
+     * url 存 WebSocket 推理入口，客户端按 run-task 协议直连合成。
+     */
+    private const val TTS_MODEL_ID = "qwen-audio-3.0-tts-flash"
+    private const val TTS_DEFAULT_URL = "wss://cn-beijing.maas.qianwenaiapi.com/api-ws/v1/inference"
+
     /**
      * beta 期便捷写入：用户不会在启动命令里注入 ASR_API_KEY，这里给一个默认密钥，
      * 启动时由 seedAsrModel() 以 INSERT-if-absent 方式写入 voice_models（绝不 DROP / 重建表、
@@ -78,6 +89,7 @@ object ModelKeySeeder {
             .onFailure { log.info("跳过 model_api_keys 迁移（旧表可能不存在或已迁移）：${it.message}") }
         seedChatModel()
         seedAsrModel()
+        seedTtsModel()
     }
 
     /**
@@ -139,6 +151,37 @@ object ModelKeySeeder {
                 if (row[VoiceModels.url].isBlank()) it[url] = asrUrl
             }
             log.info("已更新语音模型配置：$ASR_MODEL_ID")
+        }
+    }
+
+    /**
+     * 语音合成记录：写入 voice_models（type=TTS）；INSERT-if-absent，绝不覆盖已有记录。
+     * 密钥优先级：-D/环境变量 TTS_API_KEY > 库内 ASR 行的 api_key > 显式注入的 ASR_API_KEY > 内置默认，
+     * 与 Qwen-Audio-TTS 和 Fun-ASR 共用一把密钥的约定一致。
+     */
+    private fun seedTtsModel() {
+        transaction {
+            val existing = VoiceModels.selectAll().where { VoiceModels.modelId eq TTS_MODEL_ID }.firstOrNull()
+            if (existing != null) {
+                // 已存在：仅在显式注入 TTS_API_KEY 时轮换，其余一律保留
+                val explicitKey = env("TTS_API_KEY")
+                if (explicitKey.isNotBlank()) {
+                    VoiceModels.update({ VoiceModels.modelId eq TTS_MODEL_ID }) { it[apiKey] = explicitKey }
+                    log.info("已轮换语音合成密钥：$TTS_MODEL_ID")
+                }
+                return@transaction
+            }
+            // 缺记录：复用 ASR 行的密钥（与需求文档约定共用 api_key）
+            val asrKey = VoiceModels.selectAll().where { VoiceModels.modelId eq ASR_MODEL_ID }.firstOrNull()
+                ?.get(VoiceModels.apiKey)
+                ?: env("ASR_API_KEY").ifBlank { ASR_DEFAULT_API_KEY }
+            VoiceModels.insert {
+                it[VoiceModels.modelId] = TTS_MODEL_ID
+                it[apiKey] = asrKey
+                it[url] = env("TTS_BASE_URL").ifBlank { TTS_DEFAULT_URL }
+                it[type] = VOICE_TYPE_TTS
+            }
+            log.info("已写入语音合成默认记录：$TTS_MODEL_ID（type=$VOICE_TYPE_TTS）")
         }
     }
 

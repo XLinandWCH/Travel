@@ -9,6 +9,7 @@ import platform.posix.fopen
 import platform.posix.fread
 import platform.posix.fseek
 import platform.posix.ftell
+import platform.posix.fwrite
 import platform.posix.rewind
 
 /**
@@ -27,6 +28,22 @@ internal fun readFileBytes(path: String): ByteArray {
         val buffer = ByteArray(size.toInt())
         val read = fread(buffer.refTo(0), 1uL.convert(), size.convert(), file).toLong()
         return if (read == size) buffer else buffer.copyOf(read.coerceIn(0L, size).toInt())
+    } finally {
+        fclose(file)
+    }
+}
+
+/**
+ * iOS 26 同样不能用 NSData.writeToFile 落盘，语音合成的 mp3 统一走 POSIX stdio 写字节。
+ * 写入成功返回 true；打开 / 写入失败返回 false（调用方据此放弃播放）。
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal fun writeFileBytes(path: String, bytes: ByteArray): Boolean {
+    if (bytes.isEmpty()) return false
+    val file = fopen(path, "wb") ?: return false
+    try {
+        val written = fwrite(bytes.refTo(0), 1uL.convert(), bytes.size.convert(), file).toLong()
+        return written == bytes.size.toLong()
     } finally {
         fclose(file)
     }

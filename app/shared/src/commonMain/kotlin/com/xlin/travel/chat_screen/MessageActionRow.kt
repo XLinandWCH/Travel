@@ -22,19 +22,24 @@ import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.copy
 import travel.app.shared.generated.resources.dislike
 import travel.app.shared.generated.resources.like
+import travel.app.shared.generated.resources.reading
 import travel.app.shared.generated.resources.regenerate
+import travel.app.shared.generated.resources.start_reading
 
 /**
- * AI 正文下方的动作按钮条：赞同、不赞同、重新生成、复制。
+ * AI 正文下方的动作按钮条：赞同、不赞同、重新生成、朗读、复制。
  * 从左往右排列，按钮之间间隔 [Gap]，图标颜色随主题（深色白 / 浅色黑）。
+ * 朗读按钮在重新生成与复制之间：空闲显 start_reading，合成 / 播放中显 reading，再点一次停止。
  */
 @Composable
 fun MessageActionRow(
     message: ChatMessage,
     canRegenerate: Boolean,
+    isReading: Boolean,
     onLike: () -> Unit,
     onDislike: () -> Unit,
     onRegenerate: () -> Unit,
+    onRead: () -> Unit,
     onCopy: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -60,6 +65,13 @@ fun MessageActionRow(
             tint = ActionIconColor,
             enabled = canRegenerate,
             onClick = onRegenerate,
+        )
+        ActionButton(
+            icon = if (isReading) Res.drawable.reading else Res.drawable.start_reading,
+            description = if (isReading) "停止朗读" else "朗读正文",
+            // 朗读中用主强调色提示，与反馈选中态同款；平时跟其它按钮同色
+            tint = if (isReading) AccentOrange else ActionIconColor,
+            onClick = onRead,
         )
         ActionButton(
             icon = Res.drawable.copy,

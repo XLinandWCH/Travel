@@ -21,6 +21,14 @@ object SettingKeys {
      * 退出登录 / 注销时随其它设置一并清空。
      */
     const val AsrConfigCache = "asr_config_cache"
+
+    /**
+     * 服务端下发的语音合成（Qwen-Audio-TTS-Flash）配置缓存，断网兜底，随其它设置一并清空。
+     */
+    const val TtsConfigCache = "tts_config_cache"
+
+    /** 聊天顶栏的「自动朗读最新回复」开关："1" 开 / 其余关，跨启动记住 */
+    const val TtsAutoRead = "tts_auto_read"
 }
 
 /** 读取设置项，不存在时返回 null */
