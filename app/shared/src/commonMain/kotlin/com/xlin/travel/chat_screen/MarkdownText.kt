@@ -37,7 +37,7 @@ import com.xlin.travel.color.TextWhite
 
 /**
  * AI 正文的 Markdown 渲染：支持标题、粗体 / 斜体 / 行内代码 / 删除线 / 链接文字、
- * 无序与有序列表、引用、水平线、围栏代码块（长行可横向滚动）。
+ * 有序与无序（含缩进子项）列表、引用、水平线、围栏代码块（长行可横向滚动）、数学公式（行内 Unicode 近似，独立公式二维排版）。
  *
  * 内容或主题变化时重新解析一次，流式输出过程中每帧只解析新增文本。
  */
@@ -47,7 +47,11 @@ fun MarkdownText(
     modifier: Modifier = Modifier,
 ) {
     val isDark = AppTheme.isDark
-    val blocks = remember(markdown, isDark) { parseMarkdown(markdown) }
+    // 解析异常（极端 / 半截的数学公式等）兼底：退化为不解析的纯文本，绝不让聊天页崩溃退出
+    val blocks = remember(markdown, isDark) {
+        runCatching { parseMarkdown(markdown) }
+            .getOrElse { listOf(MarkdownBlock.Paragraph(AnnotatedString(markdown))) }
+    }
 
     Column(
         modifier = modifier,
@@ -60,6 +64,7 @@ fun MarkdownText(
                 is MarkdownBlock.ListBlock -> ListText(block)
                 is MarkdownBlock.Quote -> QuoteText(block.text)
                 is MarkdownBlock.Code -> CodeBlock(block.code)
+                is MarkdownBlock.Math -> MathBlockView(block.formula)
                 is MarkdownBlock.Table -> TableText(block)
                 MarkdownBlock.Divider -> Divider()
             }
@@ -100,19 +105,22 @@ private fun BodyText(text: AnnotatedString) {
 @Composable
 private fun ListText(block: MarkdownBlock.ListBlock) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        block.items.forEachIndexed { index, item ->
+        block.items.forEach { item ->
             Row(
+                modifier = Modifier.padding(start = (item.indent * 16).dp),
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                // 有序项保留源编号；无序子项用空心圆点 ◦，顶层用实心 •
+                val marker = item.number?.let { "$it." } ?: if (item.indent > 0) "◦" else "•"
                 Text(
-                    text = if (block.ordered) "${index + 1}." else "•",
+                    text = marker,
                     color = AssistantTextColor,
                     fontSize = 16.sp,
                     lineHeight = BodyLineHeight,
                 )
                 Text(
-                    text = item,
+                    text = item.text,
                     color = AssistantTextColor,
                     fontSize = 16.sp,
                     lineHeight = BodyLineHeight,

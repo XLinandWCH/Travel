@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -74,6 +75,8 @@ fun ChatInputBox(
     val pickImage = rememberImagePicker(onResult = { bitmap, path -> state.onImagePicked(bitmap, path) })
     // 语音模式状态（波形 / 阶段 / 倒计时），仅在语音卡片组合时使用
     val voice = remember { VoiceInputState() }
+    // 发送后主动失焦，收起输入法键盘（工具栏按钮发送不会触发 IME 动作，需手动关闭）
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = modifier
@@ -105,7 +108,13 @@ fun ChatInputBox(
             state = state,
             isStreaming = isStreaming,
             onAddImage = pickImage,
-            onSend = { if (state.showSend) { onSend(state.text); state.onSent() } },
+            onSend = {
+                if (state.showSend) {
+                    onSend(state.text)
+                    state.onSent()
+                    focusManager.clearFocus(force = true)
+                }
+            },
             onStop = onStop,
             // 麦克风：有仓库（已登录）则进入语音模式；否则（游客）按发送引导登录
             onMic = { if (repository != null) state.startVoice() else onSend(state.text) },
@@ -116,6 +125,7 @@ fun ChatInputBox(
 /** 中部输入行：文本输入（使用系统默认光标） */
 @Composable
 private fun InputRow(state: ChatInputState, onSend: (String) -> Unit) {
+    val focusManager = LocalFocusManager.current
     Row(
         modifier = Modifier.heightIn(min = 36.dp),
         verticalAlignment = Alignment.Top,
@@ -130,7 +140,14 @@ private fun InputRow(state: ChatInputState, onSend: (String) -> Unit) {
             cursorBrush = SolidColor(AccentOrange),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(
-                onSend = { if (state.hasText) { onSend(state.text); state.onSent() } },
+                onSend = {
+                    if (state.hasText) {
+                        onSend(state.text)
+                        state.onSent()
+                        // Compose Multiplatform 的 KeyboardActions 无 autoClose，手动失焦收起键盘
+                        focusManager.clearFocus(force = true)
+                    }
+                },
             ),
             decorationBox = { inner ->
                 Box(contentAlignment = Alignment.CenterStart) {

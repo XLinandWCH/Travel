@@ -1,14 +1,12 @@
 package com.xlin.travel.setting
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -30,6 +28,7 @@ import com.xlin.travel.sheet.SheetSubmitButton
 import com.xlin.travel.sheet.TravelBottomSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 帮助中心子页面（与「账号控制」「主题颜色」一样是独立页面）：
@@ -65,8 +64,8 @@ fun HelpCenterScreen(
                     draft = ""
                     feedbackOpen = false
                     // 面板是独立窗口层，会遮住页面顶部的提示，因此等它收起后再弹
-                    delay(SheetDismissMillis)
-                    toast.show("反馈已提交，工单号 ${result.ticketId}")
+                    delay(SheetDismissMillis.milliseconds)
+                    toast.show("意见已提交，工单号 ${result.ticketId}")
                 }
                 is MessageMutationResult.Failed -> toast.show(result.message)
                 is MessageMutationResult.Done -> toast.show(result.message)
@@ -75,62 +74,70 @@ fun HelpCenterScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ChatBackground)
-            .safeContentPadding(),
+            .background(ChatBackground),
     ) {
-        PageTopBar(title = "帮助中心", onBack = onBack)
-
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
+                .fillMaxSize()
+                .safeContentPadding(),
         ) {
-            HelpFaqs.items.forEachIndexed { index, item ->
-                if (index > 0) FaqDivider()
-                FaqRow(
-                    item = item,
-                    expanded = expanded == item.question,
-                    onToggle = { expanded = if (expanded == item.question) null else item.question },
-                    onCopy = { text ->
-                        writeClipboard(text)
-                        toast.show("邮箱已复制")
-                    },
+            PageTopBar(title = "帮助中心", onBack = onBack)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+            ) {
+                HelpFaqs.items.forEachIndexed { index, item ->
+                    if (index > 0) FaqDivider()
+                    FaqRow(
+                        item = item,
+                        expanded = expanded == item.question,
+                        onToggle = { expanded = if (expanded == item.question) null else item.question },
+                        onCopy = { text ->
+                            writeClipboard(text)
+                            toast.show("复制成功")
+                        },
+                    )
+                }
+            }
+
+            SheetSubmitButton(enabled = true, text = "意见反馈", onClick = { feedbackOpen = true })
+        }
+
+        // 意见反馈：真正的底部面板（Material3 ModalBottomSheet）
+        TravelBottomSheet(
+            visible = feedbackOpen,
+            onDismiss = { feedbackOpen = false },
+            title = "意见反馈",
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                MultilineInputField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    placeholder = HelpFaqs.FeedbackPlaceholder,
+                    minHeight = 160.dp,
+                    maxHeight = 300.dp,
                 )
             }
-        }
-
-        SheetSubmitButton(enabled = true, text = "意见反馈", onClick = { feedbackOpen = true })
-    }
-
-    // 意见反馈：真正的底部面板（Material3 ModalBottomSheet）
-    TravelBottomSheet(
-        visible = feedbackOpen,
-        onDismiss = { feedbackOpen = false },
-        title = "意见反馈",
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-            MultilineInputField(
-                value = draft,
-                onValueChange = { draft = it },
-                placeholder = HelpFaqs.FeedbackPlaceholder,
-                minHeight = 160.dp,
-                maxHeight = 300.dp,
+            SheetSubmitButton(
+                enabled = draft.isNotBlank() && !submitting,
+                text = if (submitting) "提交中…" else "提交反馈",
+                onClick = ::submitFeedback,
             )
         }
-        SheetSubmitButton(
-            enabled = draft.isNotBlank() && !submitting,
-            text = if (submitting) "提交中…" else "提交反馈",
-            onClick = ::submitFeedback,
-        )
-    }
 
-    TopToast(toast, modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
+        // 顶部居中提示：铺满整页 Box 并最后绘制（始终盖在页面内容之上），
+        // 内部胶囊自带 56dp 顶部间距已避开状态栏，不再用 windowInsetsTopHeight（会锁死容器高度）
+        TopToast(toast, modifier = Modifier.fillMaxSize())
+    }
 }
 
 /** 底部面板的收起动画时长 */
-private const val SheetDismissMillis = 300L
+private const val SheetDismissMillis = 600L
+

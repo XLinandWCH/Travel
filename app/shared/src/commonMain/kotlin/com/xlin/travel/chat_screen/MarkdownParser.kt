@@ -1,22 +1,22 @@
 package com.xlin.travel.chat_screen
 
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import com.xlin.travel.color.InlineCodeBackground
-import com.xlin.travel.color.MarkdownLinkColor
 
 /** AI 正文解析后的块级元素，渲染层按类型选择字号与衬底 */
 sealed class MarkdownBlock {
     data class Heading(val level: Int, val text: AnnotatedString) : MarkdownBlock()
     data class Paragraph(val text: AnnotatedString) : MarkdownBlock()
-    data class ListBlock(val ordered: Boolean, val items: List<AnnotatedString>) : MarkdownBlock()
+
+    /**
+     * 列表：把连续的有序 / 无序条目合成一块，保留每条在原文中的编号（避免「1. 2. 3.」被重排回 1），
+     * 并为子条目记录缩进层级。
+     */
+    data class ListBlock(val items: List<ListItem>) : MarkdownBlock()
     data class Quote(val text: AnnotatedString) : MarkdownBlock()
     data class Code(val language: String, val code: String) : MarkdownBlock()
+
+    /** 独立成块的数学公式（$$..$$ 或 \[..\]），保存裸 LaTeX，交给 MathTypeset 做二维排版 */
+    data class Math(val formula: String) : MarkdownBlock()
 
     /** 表格：首行为表头，[rows] 为数据行（列数统一按表头补齐 / 截断） */
     data class Table(
@@ -27,15 +27,17 @@ sealed class MarkdownBlock {
     data object Divider : MarkdownBlock()
 }
 
+/**
+ * 列表条目：[number] 非空为有序项（保留源编号），为空则是圆点项；[indent] 为缩进层级（0 顶层）。
+ */
+data class ListItem(val number: Int?, val indent: Int, val text: AnnotatedString)
+
 private val HeadingRegex = Regex("^(#{1,6})\\s+(.*)$")
-private val BulletRegex = Regex("^\\s*[-*+]\\s+(.*)$")
-private val OrderedRegex = Regex("^\\s*\\d+[.)]\\s+(.*)$")
+private val BulletRegex = Regex("^(\\s*)[-*+]\\s+(.*)$")
+private val OrderedRegex = Regex("^(\\s*)(\\d+)[.)]\\s+(.*)$")
 private val QuoteRegex = Regex("^\\s*>\\s?(.*)$")
 private val DividerRegex = Regex("^\\s*([-*_])(\\s*\\1){2,}\\s*$")
 private val TableDividerCellRegex = Regex("^:?-{2,}:?$")
-
-/** 需要用反斜杠转义的标点 */
-private val Escapeable = "`*_~[]()<>#|!-+:".toSet()
 
 /**
  * 块级解析：代码围栏 → 分隔线 → 标题 → 引用 → 列表 → 表格 → 段落。
@@ -64,6 +66,7 @@ internal fun parseMarkdown(source: String): List<MarkdownBlock> {
         val bulleted = BulletRegex.matches(line)
         val numbered = OrderedRegex.matches(line)
         val tableRow = trimmed.startsWith("|")
+        val mathBlock = trimmed.startsWith("$$") || trimmed.startsWith("\\[")
 
         when {
             line.isBlank() -> flushParagraph()
@@ -111,16 +114,51 @@ internal fun parseMarkdown(source: String): List<MarkdownBlock> {
 
             bulleted || numbered -> {
                 flushParagraph()
-                val ordered = numbered
-                val marker = if (ordered) OrderedRegex else BulletRegex
-                val items = mutableListOf<AnnotatedString>()
+                val items = mutableListOf<ListItem>()
                 var next = index
-                while (next < lines.size && marker.matches(lines[next])) {
-                    items.add(inlineSpan(marker.matchEntire(lines[next])!!.groupValues[1]))
+                var lastNumbered = false
+                while (next < lines.size) {
+                    val l = lines[next]
+                    val om = OrderedRegex.matchEntire(l)
+                    val bm = BulletRegex.matchEntire(l)
+                    if (om == null && bm == null) break
+                    if (om != null) {
+                        // 保留源编号，不再按出现顺序重排（修复「1. 2. 断一行后又回到 1.」）
+                        val depth = om.groupValues[1].length / 2
+                        items.add(ListItem(om.groupValues[2].toIntOrNull(), depth, inlineSpan(om.groupValues[3])))
+                        lastNumbered = true
+                    } else if (bm != null) {
+                        // 源缩进优先；无缩进但紧跟有序项时视为子项（缩进一级），呈现为「•」并内缩
+                        val lead = bm.groupValues[1].length
+                        val depth = if (lead > 0) lead / 2 else if (lastNumbered) 1 else 0
+                        items.add(ListItem(null, depth, inlineSpan(bm.groupValues[2])))
+                        lastNumbered = false
+                    }
                     next++
                 }
-                blocks.add(MarkdownBlock.ListBlock(ordered, items))
+                blocks.add(MarkdownBlock.ListBlock(items))
                 index = next - 1
+            }
+
+            mathBlock -> {
+                flushParagraph()
+                val closed = MathRender.stripDelimiters(line)
+                if (closed != null) {
+                    blocks.add(MarkdownBlock.Math(closed))
+                } else {
+                    val close = if (trimmed.startsWith("$$")) "$$" else "\\]"
+                    val first = (if (trimmed.startsWith("$$")) trimmed.removePrefix("$$") else trimmed.removePrefix("\\[")).trim()
+                    val body = StringBuilder()
+                    if (first.isNotEmpty() && !first.endsWith(close)) body.appendLine(first)
+                    var next = index + 1
+                    while (next < lines.size && !lines[next].trim().contains(close)) {
+                        body.appendLine(lines[next])
+                        next++
+                    }
+                    blocks.add(MarkdownBlock.Math(body.toString().trim()))
+                    // 未闭合（仍在流式输出）时把剩余行都当作公式，并结束扫描
+                    index = if (next < lines.size) next else lines.size - 1
+                }
             }
 
             tableRow -> {
@@ -158,87 +196,4 @@ private fun buildTable(rows: List<List<String>>): MarkdownBlock.Table {
     val header = normalized.first().map { inlineSpan(it) }
     val body = if (normalized.size > 1) normalized.drop(1).map { row -> row.map { inlineSpan(it) } } else emptyList()
     return MarkdownBlock.Table(header, body)
-}
-
-/** 行内语法：`代码`、**粗体**、*斜体*、~~删除线~~、[文字](链接)、\\@ 转义，可嵌套 */
-internal fun inlineSpan(raw: String): AnnotatedString = buildAnnotatedString {
-    appendInline(raw)
-}
-
-private fun AnnotatedString.Builder.appendInline(source: String) {
-    var i = 0
-    while (i < source.length) {
-        val char = source[i]
-
-        // 反斜杠转义：\@ \| 等处直接输出下一个字符（法律文档里邮箱常写成 \@）
-        if (char == '\\' && i + 1 < source.length && source[i + 1] in Escapeable) {
-            append(source[i + 1])
-            i += 2
-            continue
-        }
-
-        // 行内代码
-        if (char == '`') {
-            val end = source.indexOf('`', i + 1)
-            if (end > i) {
-                pushStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = InlineCodeBackground))
-                append(source.substring(i + 1, end))
-                pop()
-                i = end + 1
-                continue
-            }
-        }
-
-        // 粗体
-        if (source.startsWith("**", i)) {
-            val end = source.indexOf("**", i + 2)
-            if (end > i + 1) {
-                pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                appendInline(source.substring(i + 2, end))
-                pop()
-                i = end + 2
-                continue
-            }
-        }
-
-        // 删除线
-        if (source.startsWith("~~", i)) {
-            val end = source.indexOf("~~", i + 2)
-            if (end > i + 1) {
-                pushStyle(SpanStyle(textDecoration = TextDecoration.LineThrough))
-                appendInline(source.substring(i + 2, end))
-                pop()
-                i = end + 2
-                continue
-            }
-        }
-
-        // 斜体（* 与 _）
-        if (char == '*' || char == '_') {
-            val end = source.indexOf(char, i + 1)
-            if (end > i) {
-                pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
-                appendInline(source.substring(i + 1, end))
-                pop()
-                i = end + 1
-                continue
-            }
-        }
-
-        // 链接：只渲染文字并着色，跳转交给系统浏览器（当前无 WebView）
-        if (char == '[') {
-            val close = source.indexOf("](", i)
-            val urlEnd = if (close > i) source.indexOf(')', close + 2) else -1
-            if (close > i && urlEnd > close) {
-                pushStyle(SpanStyle(color = MarkdownLinkColor, textDecoration = TextDecoration.Underline))
-                append(source.substring(i + 1, close))
-                pop()
-                i = urlEnd + 1
-                continue
-            }
-        }
-
-        append(char)
-        i++
-    }
 }
