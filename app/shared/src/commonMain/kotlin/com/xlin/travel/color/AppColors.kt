@@ -16,29 +16,40 @@ import androidx.compose.ui.graphics.Color
  * - [设置] 设置界面UI初稿.html
  * - [消息] 聊天消息既有配色
  * 浅色主题没有独立初稿，按“白字变黑字、深底变浅底、白按钮变黑灰按钮”的规则取反。
+ *
+ * 全表不使用纯白 #FFFFFF 作表面色或正文色：纯白在手机屏上亮到刺眼。
+ * 浅色主题的“白底”统一用冷中性柔白 [SoftWhiteSurface]（偏灰蓝、不带黄味），深色主题的
+ * “白字 / 白图标”统一用近白中性白 [OffWhiteText]；只在半透明叠加（遮罩、hover 叠色）时
+ * 才直接用白 / 黑 alpha。
  */
+
+/** 浅色主题的卡片 / 弹层表面：冷中性柔白，代替纯白，避免高亮刺眼 */
+private val SoftWhiteSurface = Color(0xFFFAFAFC)
+
+/** 深色主题的文字 / 图标：接近纯白的中性白，代替纯白，长文阅读更舒适 */
+private val OffWhiteText = Color(0xFFF2F3F5)
 
 // ==================== 背景与容器 ====================
 val ChatBackground: Color
-    get() = themeColor(Color(0xFF1A1A1A), Color(0xD7F5F5F5))    // 全局页面背景（聊天 / 设置 / 搜索等子页面共用）
+    get() = themeColor(Color(0xFF1A1A1A), Color(0xD7EFEFF2))    // 全局页面背景（聊天 / 设置 / 搜索等子页面共用）
 val SidebarBackground: Color
-    get() = themeColor(Color(0xFF111111), Color(0xFFEAEAEA))    // 抽屉侧边栏背景 [抽屉]
+    get() = themeColor(Color(0xFF111111), Color(0xFFE8E9EC))    // 抽屉侧边栏背景 [抽屉]
 val InputCardBackground: Color
-    get() = themeColor(Color(0xFF2D2D2D), Color(0xFFFFFFFF))    // 输入框卡片主体 [输入框]
+    get() = themeColor(Color(0xFF2D2D2D), SoftWhiteSurface)      // 输入框卡片主体 [输入框]
 val UserBubbleBackground: Color
     get() = themeColor(Color(0xFF2D2D2D), Color(0xFFE4E4E4))    // 用户消息气泡
 val SettingCardBackground: Color
-    get() = themeColor(Color(0xFF1E1E1E), Color(0xFFFFFFFF))    // 设置分组卡片 --card [设置]
+    get() = themeColor(Color(0xFF1E1E1E), SoftWhiteSurface)      // 设置分组卡片 --card [设置]
 val IconButtonBackground: Color
     get() = themeColor(Color(0xFF1E1E1E), Color(0xFFE4E4E4))    // 圆形 / 方形图标按钮背景 [抽屉]
 val SearchModalBackground: Color
-    get() = themeColor(Color(0xFF1E1E1E), Color(0xFFFFFFFF))    // 搜索弹窗面板 [抽屉]
+    get() = themeColor(Color(0xFF1E1E1E), SoftWhiteSurface)      // 搜索弹窗面板 [抽屉]
 val AvatarBackground: Color
     get() = themeColor(Color(0xFF333333), Color(0xFFD9D9D9))    // 用户头像圆底 [抽屉]
 val WhiteBtnBackground: Color
     get() = themeColor(Color(0xFFF5F5F5), Color(0xFF2D2D2D))    // 动作按钮：深主题白底 / 浅主题黑灰底 [输入框]
 val RemoveButtonBackground: Color
-    get() = themeColor(Color(0xCC1E1E1E), Color(0xCCFFFFFF))    // 图片预览删除按钮（80% 卡片色）[输入框]
+    get() = themeColor(Color(0xCC1E1E1E), SoftWhiteSurface.copy(alpha = 0.8f))    // 图片预览删除按钮（80% 卡片色）[输入框]
 
 // ==================== 交互状态 ====================
 val NewChatButton = Color(0xFFFF4500)          // New chat 主按钮橙红，两套主题一致 [抽屉]
@@ -61,11 +72,11 @@ val TextSelectionBackground = Color(0x40FF5722)
 val TextSelectionHandle = Color(0xCCFF5722)
 // 「回到底部」按钮非输出态图标：白 70% 不透明度；浅色主题下同档黑，避免白底看不见 [message]
 val ScrollButtonIdleIcon: Color
-    get() = themeColor(Color(0xB3FFFFFF), Color(0xB31A1A1A))    // 白色 70% / 黑 70%
+    get() = themeColor(OffWhiteText.copy(alpha = 0.7f), Color(0xB31A1A1A))    // 柔白 70% / 黑 70%
 
 // ==================== 文本与图标 ====================
 val TextWhite: Color
-    get() = themeColor(Color(0xFFFFFFFF), Color(0xFF1A1A1A))    // 高亮文本 / 标题（浅色主题下为黑）[抽屉]
+    get() = themeColor(OffWhiteText, Color(0xFF1A1A1A))         // 高亮文本 / 标题（浅色主题下为黑）[抽屉]
 val TextGray300: Color
     get() = themeColor(Color(0xFFD1D5DB), Color(0xFF374151))    // 历史项默认文本 [抽屉]
 val TextGray400: Color
@@ -85,7 +96,7 @@ val InputPlaceholderColor: Color
 val ModeTextColor: Color
     get() = themeColor(Color(0xFFBBBBBB), Color(0xFF555555))    // 模式选择文字 / 下三角 [输入框]
 val AssistantTextColor: Color
-    get() = themeColor(Color(0xFFFFFFFF), Color(0xFF1A1A1A))    // AI 回答正文 [message]
+    get() = themeColor(OffWhiteText, Color(0xFF1A1A1A))         // AI 回答正文 [message]
 val ReasoningTextColor: Color
     get() = themeColor(Color(0xFF9E9E9E), Color(0xFF616161))    // AI 思考内容灰色（与设置数值同值）[message]
 val BtnAddIcon: Color
@@ -105,13 +116,13 @@ val SettingDivider: Color
 
 // ==================== 消息动作按钮 / 提示 / 反馈面板 ====================
 val ActionIconColor: Color
-    get() = themeColor(Color(0xFFFFFFFF), Color(0xFF1A1A1A))    // 正文下方动作图标：深色白 / 浅色黑 [message]
+    get() = themeColor(OffWhiteText, Color(0xFF1A1A1A))         // 正文下方动作图标：深色柔白 / 浅色黑 [message]
 val FeedbackAccent: Color = Color(0xFF2F6BFF)                   // 反馈面板选中态蓝 [反馈]
 val ToastBackground: Color
     get() = themeColor(Color(0xE62A2B32), Color(0xE6333333))    // 顶部提示胶囊底 [反馈]
-val ToastText: Color = Color(0xFFFFFFFF)                        // 顶部提示文字，两套主题都是白 [反馈]
+val ToastText: Color = OffWhiteText                             // 顶部提示文字，两套主题都是柔白 [反馈]
 val SheetBackground: Color
-    get() = themeColor(Color(0xFF141418), Color(0xFFFFFFFF))    // 底部动作面板底 [反馈]
+    get() = themeColor(Color(0xFF141418), SoftWhiteSurface)     // 底部动作面板底 [反馈]
 val SheetHandle: Color
     get() = themeColor(Color(0xFF3A3A42), Color(0xFFC7C7C7))    // 面板顶部拖拽条 [反馈]
 val SheetDivider: Color

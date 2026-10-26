@@ -21,10 +21,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.xlin.travel.color.MenuButtonBackground
+import com.xlin.travel.color.TextWhite
 import com.xlin.travel.color.TopBarEdgeFadeBrush
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.inputbox.ChatInputBox
@@ -129,6 +131,8 @@ private fun MainTopBar(
             Image(
                 painter = painterResource(Res.drawable.menu),
                 contentDescription = "打开菜单",
+                // menu.xml 自身是白色填充，这里必须跟随主题着色，否则浅色主题下白图标落在浅底上看不见
+                colorFilter = ColorFilter.tint(TextWhite),
                 modifier = Modifier.size(22.dp),
             )
             UnreadBadgeDot(
