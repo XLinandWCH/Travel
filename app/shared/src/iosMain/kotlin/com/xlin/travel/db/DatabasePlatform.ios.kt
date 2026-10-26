@@ -21,8 +21,9 @@ import platform.posix.timeval
  * 驱动使用 androidx.sqlite 的 BundledSQLiteDriver。
  */
 @Composable
-actual fun rememberChatDatabase(): ChatDatabase = remember {
-    ChatDatabase(BundledSQLiteDriver(), databasePath())
+actual fun rememberChatRepository(): ChatRepository {
+    val database = remember { ChatDatabase(BundledSQLiteDriver(), databasePath()) }
+    return remember(database) { SqliteChatRepository(database) }
 }
 
 /**

@@ -4,7 +4,9 @@ import com.xlin.travel.db.DatabaseFactory
 import com.xlin.travel.db.ModelKeySeeder
 import com.xlin.travel.routes.authRoutes
 import com.xlin.travel.routes.feedbackRoutes
+import com.xlin.travel.routes.llmProxyRoutes
 import com.xlin.travel.routes.modelConfigRoutes
+import com.xlin.travel.routes.webConsoleRoutes
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -39,10 +41,12 @@ fun Application.module() {
             encodeDefaults = true
         })
     }
-    // 开发阶段放开跨域，正式客户端（Ktor）不需要，可按需收紧
+    // 开发阶段放开跨域，正式客户端（Ktor）不需要，可按需收紧；
+    // Authorization 供网页版 LLM 代理携带，必须允许跨域预检通过
     install(CORS) {
         anyHost()
         allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
     }
     routing {
         get("/") {
@@ -52,5 +56,9 @@ fun Application.module() {
         authRoutes()
         modelConfigRoutes()
         feedbackRoutes()
+        // 网页版大模型反向代理（浏览器直连模型服务会被 CORS 拦截）
+        llmProxyRoutes()
+        // 网页版静态托管（/web，产物目录由 TRAVEL_WEB_DIST 指定）
+        webConsoleRoutes()
     }
 }

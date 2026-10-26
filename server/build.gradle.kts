@@ -18,6 +18,9 @@ dependencies {
     implementation(libs.ktor.serverContentNegotiation)
     implementation(libs.ktor.serializationKotlinxJson)
     implementation(libs.ktor.serverCors)
+    // 网页版 LLM 反向代理的上游客户端
+    implementation(libs.ktor.clientCore)
+    implementation(libs.ktor.clientCio)
     implementation(libs.kotlinx.serializationJson)
     // Exposed + MySQL（本机 SSH 隧道 127.0.0.1:3306）
     implementation(libs.exposed.core)

@@ -9,6 +9,11 @@ plugins {
 }
 
 kotlin {
+    // Web 版：Kotlin/JS 浏览器目标（与 android/ios/jvm 共享 commonMain UI）
+    js {
+        browser()
+    }
+
     jvm {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17
@@ -46,13 +51,27 @@ kotlin {
        }
     }
 
+    // 非 Web 平台共享的 SQLite 实现（ChatDatabase / DAO / SqliteChatRepository）：
+    // 浏览器端没有可同步调用的 SQLite，这部分代码不能进 js 目标的 commonMain 编译，
+    // 用中间源集挂到 android / ios / jvm 三个 leaf 之下（expect/actual 仍由 leaf 提供）。
+    // 注：Gradle 会报「Explicit .dependsOn edges」警告，但该写法在本项目 js/android/jvm 编译均验证通过；
+    // applyDefaultHierarchyTemplate 的 group 方案在 Kotlin 2.4.20 + android() 库 DSL 下无法把
+    // dbSqliteMain 纳入 compileAndroidMain 的源集，故保留手写方式。
     sourceSets {
+        val dbSqliteMain by creating {
+            dependsOn(commonMain.get())
+        }
+        androidMain { dependsOn(dbSqliteMain) }
+        iosMain { dependsOn(dbSqliteMain) }
+        jvmMain { dependsOn(dbSqliteMain) }
+
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.androidx.activity.compose)
             implementation(libs.koog.http.client.ktor)
             implementation(libs.ktor.clientCio)
+            implementation(libs.androidx.sqlite.bundled)
 
         }
         commonMain.dependencies {
@@ -68,8 +87,8 @@ kotlin {
             implementation(libs.koog.agents)
             implementation(libs.koog.agents.additions)
             implementation(libs.koog.http.client.ktor)
+            // 数据库驱动接口跨平台共享；具体 BundledSQLiteDriver 由各平台源集引入（Web 无该产物）
             implementation(libs.androidx.sqlite)
-            implementation(libs.androidx.sqlite.bundled)
             implementation(libs.koog.agents.features.memory)
             // 登录 / 注册接口客户端（引擎由各平台 actual 提供）
             implementation(libs.ktor.clientCore)
@@ -90,11 +109,18 @@ kotlin {
             implementation(libs.koog.agents.additions)
             implementation(libs.koog.http.client.ktor)
             implementation(libs.ktor.clientDarwin)
+            implementation(libs.androidx.sqlite.bundled)
         }
 
         jvmMain.dependencies {
             // JVM
             implementation(libs.ktor.clientCio)
+            implementation(libs.androidx.sqlite.bundled)
+        }
+
+        // Web（Kotlin/JS）：ktor 浏览器引擎；无本地 SQLite / 录音 / TTS，对应 actual 为内存库与桩实现
+        jsMain.dependencies {
+            implementation(libs.ktor.clientJs)
         }
         jvmTest.dependencies {
             implementation(libs.koog.agents)

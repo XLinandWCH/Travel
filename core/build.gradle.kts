@@ -6,6 +6,11 @@ plugins {
 }
 
 kotlin {
+    // Web 版：Kotlin/JS 目标（鸿蒙等设备浏览器兼容最好；wasmJs 需要 WasmGC，暂不启用）
+    js {
+        browser()
+    }
+
     iosArm64()
     iosSimulatorArm64()
     
