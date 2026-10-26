@@ -19,7 +19,7 @@ object Users : Table("users") {
     val email = varchar("email", 128).uniqueIndex()
     val passwordHash = varchar("password_hash", 100)          // BCrypt 哈希，固定 60 位，留余量
     val passwordChangedAt = datetime("password_changed_at").nullable()  // 上次改密时间，NULL 表示从未改过（注册不算改密）
-    val avatar = text("avatar").nullable()                    // 头像 base64（PNG，≤512px），NULL 表示未上传，用于跨设备同步
+    val avatar = text("avatar").nullable()                    // 头像 base64（PNG，≤512px），NULL 表示未上传，用于跨设备同步；实际列由 DatabaseFactory 迁移升级为 MEDIUMTEXT（TEXT 仅 64KB 存不下）
     val usageDays = integer("usage_days").default(0)          // 累计使用天数
     val userType = varchar("type", 16).nullable()             // 角色："admin" 管理员；其余留空(null)。由管理员在数据库手动设置
     val msgLastRead = datetime("msg_last_read").nullable()    // 消息中心上次查看时间，用于圆点徽标（未读）判定；NULL 表示从未查看

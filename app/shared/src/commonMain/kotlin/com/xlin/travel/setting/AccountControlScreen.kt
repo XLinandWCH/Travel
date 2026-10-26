@@ -76,14 +76,19 @@ fun AccountControlScreen(
     var showUsernameDialog by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    // 头像上传云端的反馈提示（失败时可见，避免“本地成功、云端静默失败”无法察觉）
+    var avatarHint by remember { mutableStateOf<String?>(null) }
 
     // 头像：选中后本地立即生效并持久化到 app_setting，同时尽力上传服务端一份用于跨设备同步
     val pickAvatar = rememberAvatarPicker(onResult = { data ->
         if (data != null) {
             scope.launch {
                 session.setAvatar(data.base64, repository)
-                // 上传失败不影响本地（离线 / 服务端异常时仅本地保存），静默兜底
-                runCatching { AuthApi.uploadAvatar(session.token, data.base64) }
+                // 上传失败不影响本地（离线 / 服务端异常时仅本地保存），但要把原因显示出来
+                avatarHint = when (val result = AuthApi.uploadAvatar(session.token, data.base64)) {
+                    is com.xlin.travel.login.MutationApiResult.Success -> null
+                    is com.xlin.travel.login.MutationApiResult.Failed -> "头像仅保存到本地，同步云端失败：${result.message}"
+                }
             }
         }
     })
@@ -104,6 +109,14 @@ fun AccountControlScreen(
         ) {
             SectionTitle("头像")
             AvatarCard(session = session, onClick = pickAvatar)
+            avatarHint?.let {
+                Text(
+                    it,
+                    color = FormErrorText,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+                )
+            }
 
             SectionTitle("账号安全")
             SettingsCard {

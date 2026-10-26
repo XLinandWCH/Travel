@@ -72,7 +72,10 @@ object DatabaseFactory {
         //    （MySQL 无 ADD COLUMN / ADD CONSTRAINT IF NOT EXISTS，已存在时报错即被 runCatching 忽略）
         listOf(
             "ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL",
-            "ALTER TABLE users ADD COLUMN avatar TEXT NULL",
+            // 头像 base64（PNG ≤512px）常达几十~几百 KB，远超 MySQL TEXT(64KB) 上限；
+            // 用 MEDIUMTEXT(16MB)。旧库若已建成 TEXT，靠下面的 MODIFY 原地升级（列已存在时 ADD 会被 runCatching 忽略）。
+            "ALTER TABLE users ADD COLUMN avatar MEDIUMTEXT NULL",
+            "ALTER TABLE users MODIFY COLUMN avatar MEDIUMTEXT NULL",
             "ALTER TABLE users ADD COLUMN `type` VARCHAR(16) NULL",
             "ALTER TABLE users ADD COLUMN msg_last_read DATETIME NULL",
             "ALTER TABLE feedback_tickets ADD COLUMN reply TEXT NULL",
