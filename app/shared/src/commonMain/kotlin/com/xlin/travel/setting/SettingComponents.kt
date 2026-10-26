@@ -96,6 +96,7 @@ internal fun SettingRow(
     value: String? = null,
     selected: Boolean = false,
     showChevron: Boolean = false,
+    badge: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -136,6 +137,10 @@ internal fun SettingRow(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
             )
+        }
+        if (badge) {
+            UnreadBadgeDot(visible = true)
+            Spacer(Modifier.width(6.dp))
         }
         if (showChevron) {
             Spacer(Modifier.width(4.dp))

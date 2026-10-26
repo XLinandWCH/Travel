@@ -22,6 +22,7 @@ object Users : Table("users") {
     val avatar = text("avatar").nullable()                    // 头像 base64（PNG，≤512px），NULL 表示未上传，用于跨设备同步
     val usageDays = integer("usage_days").default(0)          // 累计使用天数
     val userType = varchar("type", 16).nullable()             // 角色："admin" 管理员；其余留空(null)。由管理员在数据库手动设置
+    val msgLastRead = datetime("msg_last_read").nullable()    // 消息中心上次查看时间，用于圆点徽标（未读）判定；NULL 表示从未查看
     val registeredAt = datetime("registered_at").clientDefault { LocalDateTime.now() }
 
     override val primaryKey = PrimaryKey(id)
@@ -95,13 +96,30 @@ object VoiceModels : Table("voice_models") {
 object FeedbackTickets : Table("feedback_tickets") {
     val ticketId = varchar("ticket_id", 32)                   // 工单号（#7位），主键唯一
     val username = varchar("username", 32)                    // 外键→users.username（由 DatabaseFactory 的 ALTER 添加）
-    val content = text("content")                             // 用户反馈内容
-    val reply = text("reply").nullable()                      // 管理员回复内容，未回复为 null
-    val repliedBy = varchar("replied_by", 32).nullable()      // 回复管理员用户名
-    val repliedAt = datetime("replied_at").nullable()         // 回复时间
+    val content = text("content")                             // 用户反馈内容（工单首条消息）
+    val reply = text("reply").nullable()                      // 最近一条管理员回复（列表卡片预览用），未回复为 null
+    val repliedBy = varchar("replied_by", 32).nullable()      // 最近回复的管理员用户名
+    val repliedAt = datetime("replied_at").nullable()         // 最近回复时间
+    val status = varchar("status", 16).default("submitted")   // 工单状态：submitted(提交) / in_progress(处理中) / resolved(已解决)
+    val rating = integer("rating").nullable()                 // 用户评分 1..5，NULL 表示未评价
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
 
     override val primaryKey = PrimaryKey(ticketId)
+}
+
+/**
+ * 工单回复线程（类似邮件会话）：同一工单内的往来消息，按时间正序拼接在反馈正文之后。
+ * [senderRole] 为 'admin'（管理员回复）或 'user'（用户追问）。列表卡片仍用 feedback_tickets.reply 展示最近回复预览。
+ */
+object FeedbackMessages : Table("feedback_messages") {
+    val id = long("id").autoIncrement()
+    val ticketId = varchar("ticket_id", 32)                   // 外键→feedback_tickets.ticket_id
+    val sender = varchar("sender", 32)                        // 发送者用户名
+    val senderRole = varchar("sender_role", 8)               // 'admin' / 'user'
+    val content = text("content")                             // 消息正文
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(id)
 }
 
 /**

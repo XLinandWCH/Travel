@@ -29,6 +29,18 @@ private data class ReplyFeedbackRequest(val token: String, val ticketId: String,
 @Serializable
 private data class BroadcastRequest(val token: String, val title: String, val content: String)
 
+@Serializable
+private data class TicketDetailRequest(val token: String, val ticketId: String)
+
+@Serializable
+private data class UserReplyRequest(val token: String, val ticketId: String, val content: String)
+
+@Serializable
+private data class TicketStatusRequest(val token: String, val ticketId: String, val status: String)
+
+@Serializable
+private data class ResolveRequest(val token: String, val ticketId: String, val resolved: Boolean, val rating: Int = 0)
+
 // ---------- 响应体（与服务端 models 同名但客户端独立声明） ----------
 
 /** 单条反馈：管理员视角带 username，普通用户拉到的只会是自己的 */
@@ -40,7 +52,35 @@ data class FeedbackDto(
     val createdAt: String,
     val reply: String? = null,
     val repliedAt: String? = null,
+    val status: String = "submitted",
+    val rating: Int? = null,
 )
+
+/** 工单内一条往来消息（邮件会话中的一封） */
+@Serializable
+data class FeedbackMessageDto(
+    val sender: String,
+    val senderRole: String,       // 'admin' / 'user'
+    val content: String,
+    val createdAt: String,
+)
+
+/** 工单详情：原始反馈 + 回复线程 + 状态 / 评分 */
+@Serializable
+data class FeedbackDetailResponse(
+    val ticketId: String,
+    val username: String,
+    val content: String,
+    val createdAt: String,
+    val status: String,
+    val rating: Int? = null,
+    val mine: Boolean,
+    val messages: List<FeedbackMessageDto> = emptyList(),
+)
+
+/** 未读徽标数量 */
+@Serializable
+data class UnreadResponse(val count: Int)
 
 /** 单条管理员公告 */
 @Serializable
@@ -72,6 +112,12 @@ private data class MsgApiError(val message: String)
 sealed interface MessageListResult {
     data class Success(val data: MessageListResponse) : MessageListResult
     data class Failed(val message: String) : MessageListResult
+}
+
+/** 工单详情拉取结果 */
+sealed interface MessageDetailResult {
+    data class Success(val data: FeedbackDetailResponse) : MessageDetailResult
+    data class Failed(val message: String) : MessageDetailResult
 }
 
 /** 写操作（提交 / 回复 / 公告）结果：提交成功带回工单号，其余只有提示语 */
@@ -115,6 +161,59 @@ object MessageApi {
     /** 管理员回复指定工单 */
     suspend fun reply(token: String, ticketId: String, reply: String): MessageMutationResult =
         mutate("$SERVER_BASE_URL/api/feedback/admin/reply", ReplyFeedbackRequest(token, ticketId, reply))
+
+    /** 普通用户在工单内追问 */
+    suspend fun userReply(token: String, ticketId: String, content: String): MessageMutationResult =
+        mutate("$SERVER_BASE_URL/api/feedback/reply", UserReplyRequest(token, ticketId, content))
+
+    /** 管理员设置工单状态 */
+    suspend fun adminStatus(token: String, ticketId: String, status: String): MessageMutationResult =
+        mutate("$SERVER_BASE_URL/api/feedback/admin/status", TicketStatusRequest(token, ticketId, status))
+
+    /** 用户确认解决并评分 */
+    suspend fun resolve(token: String, ticketId: String, resolved: Boolean, rating: Int): MessageMutationResult =
+        mutate("$SERVER_BASE_URL/api/feedback/resolve", ResolveRequest(token, ticketId, resolved, rating))
+
+    /** 拉取指定工单详情（含回复线程） */
+    suspend fun detail(token: String, ticketId: String): MessageDetailResult {
+        return try {
+            val response = client.post("$SERVER_BASE_URL/api/feedback/detail") {
+                contentType(ContentType.Application.Json)
+                setBody(TicketDetailRequest(token, ticketId))
+            }
+            if (response.status == HttpStatusCode.OK) {
+                MessageDetailResult.Success(response.body())
+            } else {
+                MessageDetailResult.Failed(errorText(response))
+            }
+        } catch (e: Exception) {
+            MessageDetailResult.Failed("网络连接失败，请检查服务器是否可用")
+        }
+    }
+
+    /** 未读徽标数量（失败时返回 0，不阻断主流程） */
+    suspend fun unread(token: String): Int {
+        return try {
+            val response = client.post("$SERVER_BASE_URL/api/feedback/unread") {
+                contentType(ContentType.Application.Json)
+                setBody(MessageTokenRequest(token))
+            }
+            if (response.status == HttpStatusCode.OK) response.body<UnreadResponse>().count else 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    /** 标记消息中心已读（失败静默） */
+    suspend fun markRead(token: String) {
+        try {
+            client.post("$SERVER_BASE_URL/api/feedback/read") {
+                contentType(ContentType.Application.Json)
+                setBody(MessageTokenRequest(token))
+            }
+        } catch (_: Exception) {
+        }
+    }
 
     /** 管理员发布公告 */
     suspend fun broadcast(token: String, title: String, content: String): MessageMutationResult =

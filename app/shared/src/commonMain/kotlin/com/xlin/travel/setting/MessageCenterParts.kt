@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xlin.travel.color.AccentOrange
@@ -73,19 +74,20 @@ fun MessageTabRow(
     }
 }
 
-/** 反馈卡片：工单号（橙）+ 时间 + 内容；管理员视角额外带用户名与回复入口；
- *  已有回复（或管理员视角选中回复中）展示回复气泡 */
+/** 反馈列表项（精简）：一行「工单号 + 时间」，下一行首次反馈正文（单行，超出用 …）；
+ *  管理员视角额外带「来自：xxx」；整项可点进入工单详情。其它（状态 / 回复预览 / 抽屉回复）已移至详情页 */
 @Composable
 fun FeedbackCard(
     item: FeedbackDto,
     showUsername: Boolean,
-    onReply: (() -> Unit)?,
+    onClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(SettingCardBackground)
+            .clickable(onClick = onClick)
             .padding(16.dp),
     ) {
         // 工单号 + 时间
@@ -107,56 +109,15 @@ fun FeedbackCard(
             Text(text = "来自：${item.username}", color = TextGray500, fontSize = 12.sp)
         }
         Spacer(Modifier.height(8.dp))
-        Text(text = item.content, color = TextGray300, fontSize = 14.sp, lineHeight = 21.sp)
-
-        // 管理员回复（若有）
-        item.reply?.let { answer ->
-            Spacer(Modifier.height(12.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(AccentOrange.copy(alpha = 0.12f))
-                    .padding(12.dp),
-            ) {
-                Column {
-                    Text(
-                        text = "管理员回复" + (item.repliedAt?.let { " · ${formatMsgTime(it)}" } ?: ""),
-                        color = AccentOrange,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(text = answer, color = TextWhite, fontSize = 14.sp, lineHeight = 21.sp)
-                }
-            }
-        }
-
-        // 管理员专属：回复入口（已回复则显示“再次回复”）
-        if (onReply != null) {
-            Spacer(Modifier.height(12.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(SettingDivider),
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onReply)
-                    .padding(top = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = if (item.reply == null) "回复" else "再次回复",
-                    color = AccentOrange,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-        }
+        // 用户第一次反馈的问题：单行，超出省略
+        Text(
+            text = item.content,
+            color = TextGray300,
+            fontSize = 14.sp,
+            lineHeight = 21.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

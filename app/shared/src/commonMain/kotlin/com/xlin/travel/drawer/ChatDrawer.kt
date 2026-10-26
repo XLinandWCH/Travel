@@ -75,6 +75,7 @@ fun ChatDrawer(
     onOpenSettings: () -> Unit,
     onDeleteConversation: (String) -> Unit,
     onRenameConversation: (String, String) -> Unit,
+    hasUnreadMessage: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // 长按弹出的菜单归属哪一项；null 表示无菜单展开
@@ -168,7 +169,7 @@ fun ChatDrawer(
 
             // 底部：用户 + 设置（整行即一个按钮）
             HorizontalDivider(color = SidebarDivider)
-            UserSettingsButton(session = session, onClick = onOpenSettings)
+            UserSettingsButton(session = session, hasUnreadMessage = hasUnreadMessage, onClick = onOpenSettings)
         }
     }
 
@@ -285,7 +286,7 @@ private fun HistoryRow(
  * 展示登录用户头像（无图回退用户名首字母）与用户名。
  */
 @Composable
-private fun UserSettingsButton(session: UserSession, onClick: () -> Unit) {
+private fun UserSettingsButton(session: UserSession, hasUnreadMessage: Boolean, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     Row(
@@ -332,6 +333,10 @@ private fun UserSettingsButton(session: UserSession, onClick: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Image(painter = painterResource(Res.drawable.setting), contentDescription = "设置", modifier = Modifier.size(18.dp))
+            com.xlin.travel.setting.UnreadBadgeDot(
+                visible = hasUnreadMessage,
+                modifier = Modifier.align(Alignment.TopEnd),
+            )
         }
     }
 }

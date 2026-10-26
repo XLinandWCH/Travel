@@ -66,6 +66,7 @@ fun SettingsScreen(
     onOpenHelpCenter: () -> Unit,
     onOpenDoc: (LegalDoc) -> Unit,
     onOpenAccountControl: () -> Unit,
+    hasUnreadMessage: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // 背景铺满整屏（画到系统栏之下），列表内容自己避开系统栏
@@ -116,6 +117,7 @@ fun SettingsScreen(
                     icon = Res.drawable.message,
                     label = "消息中心",
                     showChevron = true,
+                    badge = hasUnreadMessage,
                     onClick = onOpenMessageCenter,
                 )
                 SettingRowDivider()

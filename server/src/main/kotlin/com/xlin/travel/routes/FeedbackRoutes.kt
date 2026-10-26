@@ -6,8 +6,13 @@ import com.xlin.travel.models.BroadcastRequest
 import com.xlin.travel.models.MessageOkResponse
 import com.xlin.travel.models.MessageTokenRequest
 import com.xlin.travel.models.ReplyFeedbackRequest
+import com.xlin.travel.models.ResolveRequest
 import com.xlin.travel.models.SubmitFeedbackRequest
+import com.xlin.travel.models.TicketDetailRequest
+import com.xlin.travel.models.TicketStatusRequest
+import com.xlin.travel.models.UserReplyRequest
 import com.xlin.travel.services.FeedbackService
+import com.xlin.travel.services.TicketThreadService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -50,6 +55,44 @@ fun Route.feedbackRoutes() {
             val request = call.receiveOrNull<BroadcastRequest>() ?: return@post badRequest(call)
             respondFeedback(call, FeedbackService.broadcast(request.token, request))
         }
+
+        // ---------- 工单线程（详情 / 回复 / 状态 / 解决 / 未读） ----------
+
+        post("/detail") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<TicketDetailRequest>() ?: return@post badRequest(call)
+            respondFeedback(call, TicketThreadService.detail(request.token, request.ticketId))
+        }
+
+        post("/reply") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<UserReplyRequest>() ?: return@post badRequest(call)
+            respondFeedback(call, TicketThreadService.userReply(request.token, request.ticketId, request.content))
+        }
+
+        post("/admin/status") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<TicketStatusRequest>() ?: return@post badRequest(call)
+            respondFeedback(call, TicketThreadService.adminStatus(request.token, request.ticketId, request.status))
+        }
+
+        post("/resolve") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<ResolveRequest>() ?: return@post badRequest(call)
+            respondFeedback(call, TicketThreadService.resolve(request.token, request.ticketId, request.resolved, request.rating))
+        }
+
+        post("/unread") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<MessageTokenRequest>() ?: return@post badRequest(call)
+            respondFeedback(call, TicketThreadService.unread(request.token))
+        }
+
+        post("/read") {
+            if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
+            val request = call.receiveOrNull<MessageTokenRequest>() ?: return@post badRequest(call)
+            respondFeedback(call, TicketThreadService.markRead(request.token))
+        }
     }
 }
 
@@ -58,6 +101,8 @@ private suspend fun respondFeedback(call: ApplicationCall, result: FeedbackServi
     when (result) {
         is FeedbackService.FeedbackResult.List -> call.respond(result.data)
         is FeedbackService.FeedbackResult.Submitted -> call.respond(result.data)
+        is FeedbackService.FeedbackResult.Detail -> call.respond(result.data)
+        is FeedbackService.FeedbackResult.Count -> call.respond(result.data)
         is FeedbackService.FeedbackResult.Done ->
             call.respond(MessageOkResponse(result.message))
         is FeedbackService.FeedbackResult.Failed ->

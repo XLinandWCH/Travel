@@ -38,9 +38,11 @@ import com.xlin.travel.search.SearchScreen
 import com.xlin.travel.setting.AccountControlScreen
 import com.xlin.travel.setting.ComingSoonScreen
 import com.xlin.travel.setting.DocumentScreen
+import com.xlin.travel.setting.FeedbackDetailScreen
 import com.xlin.travel.setting.HelpCenterScreen
 import com.xlin.travel.setting.HistoryManageScreen
 import com.xlin.travel.setting.LegalDoc
+import com.xlin.travel.setting.MessageBadgeState
 import com.xlin.travel.setting.MessageCenterScreen
 import com.xlin.travel.setting.SettingsScreen
 import com.xlin.travel.setting.ThemeColorScreen
@@ -57,6 +59,7 @@ private enum class AppScreen {
     ThemeColor,
     History,
     MessageCenter,
+    FeedbackDetail,
     ComingSoon,
     HelpCenter,
     Document,
@@ -79,7 +82,10 @@ fun App() {
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         val session = remember { UserSession() }
+        val badge = remember { MessageBadgeState() }
         var screen by remember { mutableStateOf(AppScreen.Guest) }
+        // 从消息中心点击某条反馈时记住工单号，供详情页拉取线程
+        var detailTicketId by remember { mutableStateOf("") }
         // 启动时先不渲染任何业务页面，等数据库异步恢复完登录态再决定去向，
         // 避免已登录用户看到未登入界面一闪而过
         var appReady by remember { mutableStateOf(false) }
@@ -98,6 +104,14 @@ fun App() {
             session.load(repository)
             screen = if (session.loggedIn) AppScreen.Chat else AppScreen.Guest
             appReady = true
+            if (session.loggedIn) badge.refresh(session.token)
+        }
+
+        // 回到聊天 / 设置页时刷新未读徽标（轻量拉取，驱动菜单 / 抽屉 / 设置行的红点）
+        LaunchedEffect(screen, session.loggedIn) {
+            if (session.loggedIn && (screen == AppScreen.Chat || screen == AppScreen.Settings)) {
+                badge.refresh(session.token)
+            }
         }
 
         // 跟随系统：把系统深色状态同步给 AppTheme（System 偏好时生效）
@@ -115,8 +129,10 @@ fun App() {
         AppBackHandler(enabled = screen != AppScreen.Chat && screen != AppScreen.Guest) {
             screen = when (screen) {
                 AppScreen.ThemeColor, AppScreen.History, AppScreen.ComingSoon,
-                AppScreen.HelpCenter, AppScreen.Document, AppScreen.MessageCenter,
+                AppScreen.HelpCenter, AppScreen.Document,
                 AppScreen.AccountControl -> AppScreen.Settings
+                AppScreen.MessageCenter -> AppScreen.Settings
+                AppScreen.FeedbackDetail -> AppScreen.MessageCenter
                 AppScreen.Login -> AppScreen.Guest
                 else -> AppScreen.Chat
             }
@@ -145,6 +161,7 @@ fun App() {
                         ChatDrawer(
                             session = session,
                             history = history,
+                            hasUnreadMessage = badge.hasUnread,
                             onNewChat = {
                                 chatState.startNewChat()
                                 history.newChat()
@@ -181,6 +198,7 @@ fun App() {
                         inputState = inputState,
                         chatState = chatState,
                         repository = repository,
+                        hasUnreadMessage = badge.hasUnread,
                         onMenuClick = {
                             scope.launch {
                                 history.refresh()
@@ -204,6 +222,7 @@ fun App() {
                     onLogout = {
                         scope.launch {
                             session.signOut(repository)
+                            badge.reset()
                             screen = AppScreen.Guest
                         }
                     },
@@ -216,6 +235,7 @@ fun App() {
                         screen = AppScreen.Document
                     },
                     onOpenAccountControl = { screen = AppScreen.AccountControl },
+                    hasUnreadMessage = badge.hasUnread,
                 )
 
                 AppScreen.AccountControl -> AccountControlScreen(
@@ -225,6 +245,7 @@ fun App() {
                     onAccountDeleted = {
                         // 会话与本地数据已在弹窗内清空：重置当前聊天并刷新历史，回到最初的未登入界面
                         chatState.startNewChat()
+                        badge.reset()
                         scope.launch { history.refresh() }
                         screen = AppScreen.Guest
                     },
@@ -258,6 +279,17 @@ fun App() {
                 AppScreen.MessageCenter -> MessageCenterScreen(
                     session = session,
                     onBack = { screen = AppScreen.Settings },
+                    onOpenTicket = { id ->
+                        detailTicketId = id
+                        screen = AppScreen.FeedbackDetail
+                    },
+                    badge = badge,
+                )
+
+                AppScreen.FeedbackDetail -> FeedbackDetailScreen(
+                    session = session,
+                    ticketId = detailTicketId,
+                    onBack = { screen = AppScreen.MessageCenter },
                 )
 
                 AppScreen.HelpCenter -> HelpCenterScreen(

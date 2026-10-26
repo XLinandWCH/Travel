@@ -65,7 +65,7 @@ object DatabaseFactory {
         //    历史统一表 model_api_keys 不再创建（旧库中已存在则原样保留、不引用、不 DROP）。
         //    SchemaUtils.create 是“缺表才建、存在即跳过”，绝不会 DROP / 重建已有表与数据。
         transaction {
-            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets)
+            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets, FeedbackMessages)
         }
 
         // 4. 增量迁移：为已存在的旧表补上新列 / 外键
@@ -74,10 +74,14 @@ object DatabaseFactory {
             "ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL",
             "ALTER TABLE users ADD COLUMN avatar TEXT NULL",
             "ALTER TABLE users ADD COLUMN `type` VARCHAR(16) NULL",
+            "ALTER TABLE users ADD COLUMN msg_last_read DATETIME NULL",
             "ALTER TABLE feedback_tickets ADD COLUMN reply TEXT NULL",
             "ALTER TABLE feedback_tickets ADD COLUMN replied_by VARCHAR(32) NULL",
             "ALTER TABLE feedback_tickets ADD COLUMN replied_at DATETIME NULL",
+            "ALTER TABLE feedback_tickets ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'submitted'",
+            "ALTER TABLE feedback_tickets ADD COLUMN rating INT NULL",
             "ALTER TABLE feedback_tickets ADD CONSTRAINT fk_fb_user FOREIGN KEY (username) REFERENCES users(username)",
+            "ALTER TABLE feedback_messages ADD CONSTRAINT fk_fbmsg_ticket FOREIGN KEY (ticket_id) REFERENCES feedback_tickets(ticket_id)",
         ).forEach { ddl ->
             runCatching {
                 dataSource.connection.use { conn ->

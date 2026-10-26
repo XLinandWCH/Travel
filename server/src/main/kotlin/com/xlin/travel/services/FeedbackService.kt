@@ -1,6 +1,7 @@
 package com.xlin.travel.services
 
 import com.xlin.travel.db.BroadcastMessages
+import com.xlin.travel.db.FeedbackMessages
 import com.xlin.travel.db.FeedbackTickets
 import com.xlin.travel.db.Users
 import com.xlin.travel.models.BroadcastDto
@@ -35,6 +36,8 @@ object FeedbackService {
     sealed interface FeedbackResult {
         data class List(val data: MessageListResponse) : FeedbackResult
         data class Submitted(val data: SubmitFeedbackResponse) : FeedbackResult
+        data class Detail(val data: com.xlin.travel.models.FeedbackDetailResponse) : FeedbackResult
+        data class Count(val data: com.xlin.travel.models.UnreadResponse) : FeedbackResult
         data class Done(val message: String) : FeedbackResult
         data class Failed(val status: Int, val message: String) : FeedbackResult
     }
@@ -119,6 +122,15 @@ object FeedbackService {
                     it[FeedbackTickets.reply] = reply
                     it[FeedbackTickets.repliedBy] = admin[Users.username]
                     it[FeedbackTickets.repliedAt] = LocalDateTime.now()
+                    // 管理员回复后，提交中的工单自动进入处理中
+                    it[FeedbackTickets.status] = FeedbackStatus.IN_PROGRESS
+                }
+                // 同一条回复写入工单线程（邮件会话），历史回复不覆盖
+                FeedbackMessages.insert {
+                    it[FeedbackMessages.ticketId] = ticketId
+                    it[sender] = admin[Users.username]
+                    it[senderRole] = FeedbackStatus.ROLE_ADMIN
+                    it[content] = reply
                 }
                 FeedbackResult.Done("已回复工单 $ticketId")
             }
@@ -187,5 +199,7 @@ object FeedbackService {
         createdAt = this[FeedbackTickets.createdAt].toString(),
         reply = this[FeedbackTickets.reply],
         repliedAt = this[FeedbackTickets.repliedAt]?.toString(),
+        status = this[FeedbackTickets.status],
+        rating = this[FeedbackTickets.rating],
     )
 }

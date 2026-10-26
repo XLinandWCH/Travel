@@ -29,6 +29,7 @@ import com.xlin.travel.color.TopBarEdgeFadeBrush
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.inputbox.ChatInputBox
 import com.xlin.travel.inputbox.ChatInputState
+import com.xlin.travel.setting.UnreadBadgeDot
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.menu
@@ -47,6 +48,7 @@ internal fun MainChatContent(
     repository: ChatRepository,
     onMenuClick: () -> Unit,
     onSend: (String) -> Unit,
+    hasUnreadMessage: Boolean = false,
 ) {
     val selectionRegistry = rememberSelectionRegistry()
     val focusManager = LocalFocusManager.current
@@ -83,6 +85,7 @@ internal fun MainChatContent(
                 // 顶部区域半透明，避免整条 fillMaxWidth 的实色条大面积遮挡聊天内容
                 MainTopBar(
                     onMenuClick = onMenuClick,
+                    hasUnreadMessage = hasUnreadMessage,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(TopBarEdgeFadeBrush),
@@ -104,11 +107,12 @@ internal fun MainChatContent(
     }
 }
 
-/** 主内容顶栏：左侧菜单按钮，用于打开抽屉 */
+/** 主内容顶栏：左侧菜单按钮（右上角可叠加未读圆点徽标），用于打开抽屉 */
 @Composable
 private fun MainTopBar(
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
+    hasUnreadMessage: Boolean = false,
 ) {
     Row(
         modifier = modifier.padding(12.dp),
@@ -126,6 +130,10 @@ private fun MainTopBar(
                 painter = painterResource(Res.drawable.menu),
                 contentDescription = "打开菜单",
                 modifier = Modifier.size(22.dp),
+            )
+            UnreadBadgeDot(
+                visible = hasUnreadMessage,
+                modifier = Modifier.align(Alignment.TopEnd),
             )
         }
     }

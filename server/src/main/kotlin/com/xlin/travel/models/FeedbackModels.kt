@@ -20,6 +20,26 @@ data class MessageTokenRequest(val token: String)
 @Serializable
 data class ReplyFeedbackRequest(val token: String, val ticketId: String, val reply: String)
 
+/** 普通用户在工单内追问（邮件式会话） */
+@Serializable
+data class UserReplyRequest(val token: String, val ticketId: String, val content: String)
+
+/** 管理员设置工单状态：status 为 submitted / in_progress / resolved */
+@Serializable
+data class TicketStatusRequest(val token: String, val ticketId: String, val status: String)
+
+/** 用户确认解决并评分：resolved=true 标已解决、false 退回处理中；rating 1..5，0 表示不评分 */
+@Serializable
+data class ResolveRequest(val token: String, val ticketId: String, val resolved: Boolean, val rating: Int = 0)
+
+/** 拉取指定工单详情：仅需 token + ticketId */
+@Serializable
+data class TicketDetailRequest(val token: String, val ticketId: String)
+
+/** 未读徽标查询：返回相关新消息数量 */
+@Serializable
+data class UnreadResponse(val count: Int)
+
 /** 管理员发布公告：title 标题 + content 正文 */
 @Serializable
 data class BroadcastRequest(val token: String, val title: String, val content: String)
@@ -37,6 +57,30 @@ data class FeedbackDto(
     val createdAt: String,
     val reply: String? = null,
     val repliedAt: String? = null,
+    val status: String = "submitted",
+    val rating: Int? = null,
+)
+
+/** 工单内一条往来消息（邮件会话中的一封） */
+@Serializable
+data class FeedbackMessageDto(
+    val sender: String,
+    val senderRole: String,       // 'admin' / 'user'
+    val content: String,
+    val createdAt: String,
+)
+
+/** 工单详情：原始反馈 + 回复线程 + 状态 / 评分 */
+@Serializable
+data class FeedbackDetailResponse(
+    val ticketId: String,
+    val username: String,
+    val content: String,
+    val createdAt: String,
+    val status: String,
+    val rating: Int? = null,
+    val mine: Boolean,            // 该工单是否属于当前查看者（普通用户自己的反馈）
+    val messages: List<FeedbackMessageDto> = emptyList(),
 )
 
 /** 单条管理员公告 */
