@@ -11,9 +11,9 @@ import java.util.UUID
  * 驱动使用 androidx.sqlite 自带的 BundledSQLiteDriver（无需额外依赖系统 SQLite 版本）。
  */
 @Composable
-actual fun rememberChatDatabase(): ChatDatabase {
+actual fun rememberChatRepository(): ChatRepository {
     val context = LocalContext.current.applicationContext
-    return remember(context) {
+    val database = remember(context) {
         val dbFile = context.getDatabasePath(ChatDatabaseName)
         dbFile.parentFile?.mkdirs()
         ChatDatabase(
@@ -21,6 +21,7 @@ actual fun rememberChatDatabase(): ChatDatabase {
             path = dbFile.absolutePath,
         )
     }
+    return remember(database) { SqliteChatRepository(database) }
 }
 
 internal actual fun currentEpochMillis(): Long = System.currentTimeMillis()

@@ -1,6 +1,9 @@
 package com.xlin.travel.db
 
-/** 一条会话记录，对应 conversation 表 */
+import kotlinx.serialization.Serializable
+
+/** 一条会话记录，对应 conversation 表；@Serializable 供 Web 端 localStorage 持久化 */
+@Serializable
 data class ConversationRecord(
     val id: String,
     val title: String,
@@ -10,7 +13,8 @@ data class ConversationRecord(
     val updatedAt: Long,
 )
 
-/** 一条消息记录，对应 message 表 */
+/** 一条消息记录，对应 message 表；@Serializable 供 Web 端 localStorage 持久化 */
+@Serializable
 data class MessageRecord(
     val id: String,
     val conversationId: String,

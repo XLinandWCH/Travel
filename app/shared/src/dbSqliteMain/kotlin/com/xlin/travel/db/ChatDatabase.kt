@@ -14,6 +14,9 @@ import kotlinx.coroutines.withContext
  *
  * 整个应用共用一个连接，通过 [Mutex] 串行化访问；所有数据库操作都切到
  * [Dispatchers.Default]，避免阻塞 Compose 的主线程。
+ *
+ * 属于 dbSqliteMain 中间源集：只参与 Android / iOS / JVM 编译，
+ * Web（Kotlin/JS）没有可同步调用的 SQLite，改用 WebChatRepository。
  */
 class ChatDatabase internal constructor(
     private val driver: SQLiteDriver,

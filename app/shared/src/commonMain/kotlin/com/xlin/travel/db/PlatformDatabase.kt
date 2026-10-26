@@ -3,15 +3,14 @@ package com.xlin.travel.db
 import androidx.compose.runtime.Composable
 
 /**
- * 创建当前平台的数据库实例：
- * - Android：应用私有 databases 目录
- * - iOS：Documents/travel 目录
- * - JVM：用户目录下的 .travel 目录
- *
- * Android / iOS 的驱动与路径适配分别在 androidMain / iosMain 中实现。
+ * 创建当前平台的会话历史仓库：
+ * - Android / iOS / JVM：SqliteChatRepository，本地 SQLite 文件
+ *   （数据库实现与 DAO 在 dbSqliteMain 中间源集，Web 目标不参与编译）
+ * - Web（Kotlin/JS）：WebChatRepository，内存 + localStorage
+ *   （浏览器没有可同步调用的 SQLite）
  */
 @Composable
-expect fun rememberChatDatabase(): ChatDatabase
+expect fun rememberChatRepository(): ChatRepository
 
 /** 当前毫秒时间戳 */
 internal expect fun currentEpochMillis(): Long

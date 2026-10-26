@@ -24,9 +24,8 @@ import com.xlin.travel.chat_screen.MainChatContent
 import com.xlin.travel.color.AppTheme
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.ThemePreference
-import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.SettingKeys
-import com.xlin.travel.db.rememberChatDatabase
+import com.xlin.travel.db.rememberChatRepository
 import com.xlin.travel.drawer.ChatDrawer
 import com.xlin.travel.drawer.ChatHistoryState
 import com.xlin.travel.guest.GuestScreen
@@ -69,8 +68,7 @@ private enum class AppScreen {
 @Composable
 fun App() {
     MaterialTheme {
-        val database = rememberChatDatabase()
-        val repository = remember(database) { ChatRepository(database) }
+        val repository = rememberChatRepository()
         val inputState = remember { ChatInputState() }
         val history = remember(repository) { ChatHistoryState(repository) }
         val chatState = remember(repository) {
