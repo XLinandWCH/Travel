@@ -50,16 +50,17 @@ object IosImageProcessor {
     private fun hasAlpha(image: UIImage): Boolean {
         val cg = image.CGImage ?: return false
         // iOS 26 SDK 下 kCGImageAlphaNone / NoneSkipLast / NoneSkipFirst 不再经 ObjC 暴露（Unresolved reference），
-        // 改用 CGImageAlphaInfo 枚举的原始数值比较；低 3 位即 alpha 信息（kCGBitmapAlphaInfoMask = 0x7）
-        val alpha = CGImageGetAlphaInfo(cg).toULong() and ALPHA_INFO_MASK
+        // 改用 CGImageAlphaInfo 枚举的原始数值比较。CGImageGetAlphaInfo 返回的已是 alpha 位（0~7），无需掩码；
+        // 且无符号类型没有 and 中缀函数，故直接 toInt 后按整数比较。
+        val alpha = CGImageGetAlphaInfo(cg).toInt()
         return alpha != ALPHA_NONE && alpha != ALPHA_NONE_SKIP_FIRST && alpha != ALPHA_NONE_SKIP_LAST
     }
 }
 
-private const val ALPHA_INFO_MASK = 0x7UL
-private const val ALPHA_NONE = 0UL
-private const val ALPHA_NONE_SKIP_FIRST = 5UL
-private const val ALPHA_NONE_SKIP_LAST = 6UL
+// CGImageAlphaInfo 原始值：None=0, PremultipliedLast=1, PremultipliedFirst=2, Last=3, First=4, NoneSkipFirst=5, NoneSkipLast=6
+private const val ALPHA_NONE = 0
+private const val ALPHA_NONE_SKIP_FIRST = 5
+private const val ALPHA_NONE_SKIP_LAST = 6
 
 /** 等比缩放到最长边不超过 maxDim，本身已够小则原样返回（同 AvatarStorage.ios 的绘图缩放模式） */
 @OptIn(ExperimentalForeignApi::class)
