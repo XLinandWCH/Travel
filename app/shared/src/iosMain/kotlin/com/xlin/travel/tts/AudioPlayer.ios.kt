@@ -16,6 +16,8 @@ import platform.Foundation.NSUUID
  *
  * 播放前把 AVAudioSession 切到 Playback 类别：静音拨键下也能从扬声器出声，
  * 且与录音（Record 类别）互斥的场景由上层「朗读先停录音」顺序保证。
+ * 注：iOS 26 SDK 移除了 setActive:error: 的 ObjC 暴露（K/N 报 Unresolved reference），
+ * 这里不再手动激活——setCategory 成功后 AVAudioPlayer.play 会自动激活 session。
  * 注意：ObjC 对象由 ARC 管理，停止 / 释放只需置空引用；removeItemAtPath 需传 null error。
  */
 @OptIn(ExperimentalForeignApi::class)
@@ -30,7 +32,6 @@ actual class AudioPlayer actual constructor() {
         runCatching {
             val session = AVAudioSession.sharedInstance()
             session.setCategory(AVAudioSessionCategoryPlayback, null)
-            session.setActive(true, null)
         }
         val path = NSTemporaryDirectory() + "tts_${NSUUID().UUIDString}.mp3"
         if (!writeFileBytes(path, bytes)) return
