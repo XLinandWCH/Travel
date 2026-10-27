@@ -104,12 +104,18 @@ class ChatState(
      * 用户消息与 AI 占位消息在请求前落库，流式结束后更新 AI 消息内容。
      *
      * [imagePath] / [image] 非空时，只把真实图片路径拼进「发送给模型的提示词」，
-     * 供 media_analysis 工具调用；上屏与落库的用户消息都只保留原始文本，
-     * 绝不会把系统提示语混进用户自己发送的内容里。
+     * 供 media_analysis 工具调用；[documentPath] / [documentMime] 非空时同理把文档路径交给工具。
+     * 上屏与落库的用户消息都只保留原始文本，绝不会把系统提示语混进用户自己发送的内容里。
      */
-    suspend fun send(text: String, imagePath: String? = null, image: ImageBitmap? = null) {
+    suspend fun send(
+        text: String,
+        imagePath: String? = null,
+        image: ImageBitmap? = null,
+        documentPath: String? = null,
+        documentMime: String? = null,
+    ) {
         val content = text.trim()
-        if ((content.isEmpty() && imagePath.isNullOrBlank()) || isStreaming) return
+        if ((content.isEmpty() && imagePath.isNullOrBlank() && documentPath.isNullOrBlank()) || isStreaming) return
 
         isStreaming = true
         activeJob = coroutineContext[Job]
@@ -121,8 +127,8 @@ class ChatState(
                 truncateFrom(edit)
             }
 
-            // 仅作为本轮发送给模型的输入：把真实图片路径交给工具，用户看不到这段话
-            val llmPrompt = content.withImageHint(imagePath)
+            // 仅作为本轮发送给模型的输入：把真实图片 / 文档路径交给工具，用户看不到这段话
+            val llmPrompt = content.withAttachmentHints(imagePath, documentPath, documentMime)
             // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
             // 失败不在这里抛出，由 AssistantRound 统一在 AI 气泡里展示错误
             runCatching { ModelConfigStore.ensure(repository) }
@@ -140,6 +146,8 @@ class ChatState(
                     content = content,
                     imagePath = imagePath,
                     imageBitmap = image,
+                    documentPath = documentPath,
+                    documentMime = documentMime,
                 )
             )
             val reply = ChatMessage(nextId++, MessageRole.Assistant)
@@ -166,7 +174,9 @@ class ChatState(
         val userMessage = _messages.subList(0, index).lastOrNull { it.role == MessageRole.User }
             ?: return
         // 重新发送时同样只把路径拼进给模型的提示词，用户消息本身仍是原始文本
-        val prompt = userMessage.content.withImageHint(userMessage.imagePath)
+        val prompt = userMessage.content.withAttachmentHints(
+            userMessage.imagePath, userMessage.documentPath, userMessage.documentMime,
+        )
 
         isStreaming = true
         activeJob = coroutineContext[Job]
@@ -278,16 +288,30 @@ private fun String.toConversationTitle(): String =
     lineSequence().firstOrNull()?.trim().orEmpty().take(30).ifBlank { "新对话" }
 
 /**
- * 只在「发送给模型」时把图片本地路径拼到用户原始文本之后，供 media_analysis 工具读取。
+ * 只在「发送给模型」时把图片 / 文档的本地路径拼到用户原始文本之后，供 media_analysis 工具读取。
  * 这段提示永远不上屏、不落库，因此不会出现在用户自己发送的消息里。
  */
-private fun String.withImageHint(imagePath: String?): String {
-    if (imagePath.isNullOrBlank()) return this
+private fun String.withAttachmentHints(
+    imagePath: String?,
+    documentPath: String?,
+    documentMime: String?,
+): String {
+    if (imagePath.isNullOrBlank() && documentPath.isNullOrBlank()) return this
     return buildString {
-        append(this@withImageHint)
+        append(this@withAttachmentHints)
         if (isNotEmpty()) append("\n\n")
-        append("[系统提示] 用户在本条消息附带了一张图片，本地绝对路径：")
-        append(imagePath)
-        append("。如需识别图片内容，请调用 media_analysis 工具，并把 imagePath 参数原样填写为上述路径。")
+        if (!imagePath.isNullOrBlank()) {
+            append("[系统提示] 用户在本条消息附带了一张图片，本地绝对路径：")
+            append(imagePath)
+            append("。如需识别图片内容，请调用 media_analysis 工具，并把 imagePath 参数原样填写为上述路径。")
+        }
+        if (!documentPath.isNullOrBlank()) {
+            if (imagePath != null) append("\n")
+            append("[系统提示] 用户在本条消息附带了一个文档文件，本地绝对路径：")
+            append(documentPath)
+            append("，MIME：")
+            append(documentMime ?: "application/octet-stream")
+            append("。如需识别文档内容，请调用 media_analysis 工具，把 documentPath 参数原样填写为上述路径，documentMime 填写为上述 MIME。")
+        }
     }
 }

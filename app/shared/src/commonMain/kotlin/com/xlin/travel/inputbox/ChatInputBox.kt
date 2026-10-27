@@ -1,5 +1,11 @@
 package com.xlin.travel.inputbox
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,26 +18,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -43,24 +46,27 @@ import com.xlin.travel.color.InputCardBackground
 import com.xlin.travel.color.InputPlaceholderColor
 import com.xlin.travel.color.InputTextColor
 import com.xlin.travel.color.ModeTextColor
-import com.xlin.travel.color.RemoveButtonBackground
 import com.xlin.travel.color.WhiteBtnBackground
 import com.xlin.travel.color.WhiteBtnIcon
 import com.xlin.travel.db.ChatRepository
+import com.xlin.travel.image_picker.DocumentFormats
+import com.xlin.travel.image_picker.rememberCameraCapture
+import com.xlin.travel.image_picker.rememberFilePicker
 import com.xlin.travel.image_picker.rememberImagePicker
 import com.xlin.travel.inputbox.voice.VoiceContent
 import com.xlin.travel.inputbox.voice.VoiceInputState
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.add_file
-import travel.app.shared.generated.resources.close_path
 import travel.app.shared.generated.resources.microphone
 import travel.app.shared.generated.resources.send
 import travel.app.shared.generated.resources.stop
 
 /**
- * AI 聊天输入框卡片，对应 UI设计/输入框设计初稿.html
- * 结构：上部图片预览 + 中部输入行 + 下部工具栏
+ * AI 聊天输入框卡片，对应 UI设计/输入框设计初稿.html 与 UI设计/输入框文件参考UI初稿.html
+ * 结构：上部附件预览（图片 / 文件）+ 中部输入行 + 下部工具栏；
+ * 点“+”在工具栏下方展开「拍照 / 相册 / 本地文件」动作面板。
  */
 @Composable
 fun ChatInputBox(
@@ -71,12 +77,41 @@ fun ChatInputBox(
     repository: ChatRepository? = null,
     modifier: Modifier = Modifier,
 ) {
-    // 系统图片选择器：选中结果（位图 + 本地路径）写入 state（取消为 null）
-    val pickImage = rememberImagePicker(onResult = { bitmap, path -> state.onImagePicked(bitmap, path) })
+    // 相册：系统图片选择器，选中结果（位图 + 本地路径）写入 state（取消为 null）
+    val pickImage = rememberImagePicker(onResult = { bitmap, path ->
+        state.onImagePicked(bitmap, path)
+        if (bitmap != null) state.collapseAttachments()
+    })
+    // 拍照：拉起系统相机，拍出的照片在各平台 actual 中一步转 JPEG 后写入 state
+    val captureCamera = rememberCameraCapture(onResult = { bitmap, path ->
+        state.onImagePicked(bitmap, path)
+        if (bitmap != null) state.collapseAttachments()
+    })
+    // 本地文件：选中文档后按白名单校验，不支持的格式给出提示
+    val pickFile = rememberFilePicker(onResult = { file ->
+        if (file != null) {
+            if (DocumentFormats.isSupported(file.name)) {
+                val ext = DocumentFormats.extensionOf(file.name)
+                state.onDocumentPicked(file.path, file.name, DocumentFormats.mimeFor(ext))
+            } else {
+                val shown = DocumentFormats.extensionOf(file.name).ifBlank { "该" }
+                state.notifyAttachmentHint("不支持的$shown 文件格式，仅支持 ${DocumentFormats.supportedLabel}")
+            }
+            state.collapseAttachments()
+        }
+    })
     // 语音模式状态（波形 / 阶段 / 倒计时），仅在语音卡片组合时使用
     val voice = remember { VoiceInputState() }
     // 发送后主动失焦，收起输入法键盘（工具栏按钮发送不会触发 IME 动作，需手动关闭）
     val focusManager = LocalFocusManager.current
+
+    // 附件提示出现后自动消失（与 TopToast 同理，按 tick 重新计时）
+    LaunchedEffect(state.attachmentHintTick) {
+        if (state.attachmentHintTick > 0) {
+            delay(AttachmentHintVisibleMillis)
+            state.clearAttachmentHint()
+        }
+    }
 
     Column(
         modifier = modifier
@@ -91,6 +126,11 @@ fun ChatInputBox(
             ImagePreview(image = image, onRemove = { state.onImageRemoved() })
             Spacer(Modifier.height(10.dp))
         }
+        // 上：已选文档条幅（本地文件），与图片预览可共存
+        state.pickedDocumentName?.let { name ->
+            FileChip(name = name, onRemove = { state.onDocumentRemoved() })
+            Spacer(Modifier.height(10.dp))
+        }
 
         // 语音模式：复用同一卡片，中部换波形、底部换关闭/状态/完成
         if (state.voiceMode && repository != null) {
@@ -103,11 +143,11 @@ fun ChatInputBox(
 
         Spacer(Modifier.height(8.dp))
 
-        // 下：工具栏
+        // 下：工具栏（“+”切换动作面板展开 / 收起）
         Toolbar(
             state = state,
             isStreaming = isStreaming,
-            onAddImage = pickImage,
+            onToggleAttachments = { state.toggleAttachments() },
             onSend = {
                 if (state.showSend) {
                     onSend(state.text)
@@ -119,8 +159,33 @@ fun ChatInputBox(
             // 麦克风：有仓库（已登录）则进入语音模式；否则（游客）按发送引导登录
             onMic = { if (repository != null) state.startVoice() else onSend(state.text) },
         )
+
+        // 附件提示：紧跟工具栏下方（本地文件选择后即时反馈）
+        state.attachmentHint?.let { hint ->
+            Spacer(Modifier.height(6.dp))
+            AttachmentHintBanner(message = hint)
+        }
+
+        // “+”展开的拍照 / 相册 / 本地文件动作面板（在工具栏下方）
+        AnimatedVisibility(
+            visible = state.showAttachments,
+            enter = expandVertically(animationSpec = tween(180)) + fadeIn(),
+            exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(),
+        ) {
+            Column {
+                Spacer(Modifier.height(10.dp))
+                AttachmentActionsRow(
+                    onCamera = captureCamera,
+                    onGallery = pickImage,
+                    onFile = pickFile,
+                )
+            }
+        }
     }
 }
+
+/** 附件提示停留时长（毫秒） */
+private const val AttachmentHintVisibleMillis = 2600L
 
 /** 中部输入行：文本输入（使用系统默认光标） */
 @Composable
@@ -161,44 +226,12 @@ private fun InputRow(state: ChatInputState, onSend: (String) -> Unit) {
     }
 }
 
-/** 上部图片预览：展示真实图片 + 右上角移除按钮（使用 close_path.xml） */
-@Composable
-private fun ImagePreview(image: ImageBitmap, onRemove: () -> Unit) {
-    Box {
-        Image(
-            bitmap = image,
-            contentDescription = "已选择的图片",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(12.dp)),
-        )
-        // 右上角删除按钮
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 6.dp, y = (-6).dp)
-                .size(22.dp)
-                .clip(CircleShape)
-                .background(RemoveButtonBackground)
-                .clickable(onClick = onRemove),
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painter = painterResource(Res.drawable.close_path),
-                contentDescription = "移除图片",
-                modifier = Modifier.size(12.dp),
-            )
-        }
-    }
-}
-
 /** 下部工具栏：左侧“+”与模式选择，右侧动作按钮 */
 @Composable
 private fun Toolbar(
     state: ChatInputState,
     isStreaming: Boolean,
-    onAddImage: () -> Unit,
+    onToggleAttachments: () -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
     onMic: () -> Unit,
@@ -209,18 +242,18 @@ private fun Toolbar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // “+”按钮 → 拉起系统图片选择器
+            // “+”按钮 → 展开 / 收起「拍照 / 相册 / 本地文件」动作面板
             Box(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .border(1.dp, BtnAddBorder, RoundedCornerShape(10.dp))
-                    .clickable(onClick = onAddImage),
+                    .clickable(onClick = onToggleAttachments),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
                     painter = painterResource(Res.drawable.add_file),
-                    contentDescription = "添加图片",
+                    contentDescription = "添加附件",
                     modifier = Modifier.size(18.dp),
                 )
             }

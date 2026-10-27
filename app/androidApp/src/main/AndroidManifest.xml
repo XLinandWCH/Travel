@@ -30,6 +30,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 拍照：ACTION_IMAGE_CAPTURE 需要一个 content:// 输出目标，用 FileProvider 共享 cacheDir。
+             authority 必须是 applicationId + ".fileprovider"，与代码里 ${context.packageName}.fileprovider 一致 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

@@ -215,10 +215,12 @@ fun App() {
                             }
                         },
                         onSend = { text ->
-                            // 同步读取已选图片的路径与缩略图，避免 onSent() 清空后再去协程里读到 null
+                            // 同步读取已选图片/文档的路径与缩略图，避免 onSent() 清空后再去协程里读到 null
                             val imagePath = inputState.pickedImagePath
                             val image = inputState.pickedImage
-                            scope.launch { chatState.send(text, imagePath, image) }
+                            val documentPath = inputState.pickedDocumentPath
+                            val documentMime = inputState.pickedDocumentMime
+                            scope.launch { chatState.send(text, imagePath, image, documentPath, documentMime) }
                         },
                     )
                 }

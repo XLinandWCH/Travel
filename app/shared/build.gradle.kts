@@ -69,6 +69,8 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.androidx.activity.compose)
+            // 拍照走 ACTION_IMAGE_CAPTURE + FileProvider（androidx.core.content.FileProvider）
+            implementation(libs.androidx.core.ktx)
             implementation(libs.koog.http.client.ktor)
             implementation(libs.ktor.clientCio)
             implementation(libs.androidx.sqlite.bundled)

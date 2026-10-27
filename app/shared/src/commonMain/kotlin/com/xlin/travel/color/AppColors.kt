@@ -111,6 +111,24 @@ val SearchModalBorder: Color
     get() = themeColor(Color(0xFF333333), Color(0xFFC7C7C7))    // 搜索弹窗边框 [抽屉]
 val BtnAddBorder: Color
     get() = themeColor(Color(0xFF555555), Color(0xFFA3A3A3))    // “+”按钮边框 [输入框]
+
+// ==================== 附件动作面板（“+”展开：拍照 / 相册 / 本地文件）====================
+// 呼应 UI设计/输入框文件参考UI初稿.html 的 action-item：黑白为主， tiles 比卡片略作明暗对比，
+// 图标与文字统一走黑 / 柔白，按压态轻微加深，不使用彩色。
+val AttachmentTileBackground: Color
+    get() = themeColor(Color(0xFF3A3A3A), Color(0xFFF1F1F3))    // 动作瓷砖底：深主题比卡片略亮 / 浅主题柔白偏灰 [输入框]
+val AttachmentTilePressed: Color
+    get() = themeColor(Color(0xFF474747), Color(0xFFE4E4E7))    // 动作瓷砖按压 / hover [输入框]
+val AttachmentTileText: Color
+    get() = themeColor(OffWhiteText, Color(0xFF333333))         // 动作瓷砖文字：深柔白 / 浅近黑 [输入框]
+val AttachmentTileIcon: Color
+    get() = themeColor(OffWhiteText, Color(0xFF3A3A3A))         // 动作瓷砖图标：深柔白 / 浅深灰 [输入框]
+val FileChipBackground: Color
+    get() = themeColor(Color(0xFF3A3A3A), Color(0xFFF1F1F3))    // 已选文件条幅底（与动作瓷砖同档）[输入框]
+val FileChipText: Color
+    get() = themeColor(OffWhiteText, Color(0xFF333333))         // 已选文件名文字 [输入框]
+val AttachmentHintText: Color
+    get() = themeColor(Color(0xFFFF8A65), Color(0xFFD93025))    // 附件不支持格式等提示：深柔橙 / 浅标准红 [输入框]
 val SettingDivider: Color
     get() = themeColor(Color(0x0DFFFFFF), Color(0x14000000))    // 卡片内分隔线：深叠白 5% / 浅叠黑 8% [设置]
 
