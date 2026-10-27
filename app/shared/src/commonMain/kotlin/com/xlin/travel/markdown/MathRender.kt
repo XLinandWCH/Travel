@@ -1,4 +1,4 @@
-package com.xlin.travel.chat_screen
+package com.xlin.travel.markdown
 
 /**
  * 数学公式的两种渲染入口共用一层薄壳：

@@ -19,7 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.xlin.travel.chat_screen.MarkdownText
+import com.xlin.travel.markdown.MarkdownText
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.TextGray500
 import com.xlin.travel.navigation.PageTopBar

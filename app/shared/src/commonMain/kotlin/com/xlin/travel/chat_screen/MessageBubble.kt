@@ -29,6 +29,7 @@ import com.xlin.travel.color.FileChipText
 import com.xlin.travel.color.UserBubbleBackground
 import com.xlin.travel.color.UserMessageText
 import com.xlin.travel.image_picker.FileIcons
+import com.xlin.travel.markdown.MarkdownText
 import org.jetbrains.compose.resources.painterResource
 
 /**

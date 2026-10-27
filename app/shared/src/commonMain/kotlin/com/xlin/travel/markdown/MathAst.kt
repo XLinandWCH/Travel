@@ -1,4 +1,4 @@
-package com.xlin.travel.chat_screen
+package com.xlin.travel.markdown
 
 /**
  * LaTeX 数学公式的结构化解析：把裸公式（去掉 $ 定界符后）解析成节点树，

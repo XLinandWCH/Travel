@@ -1,4 +1,4 @@
-package com.xlin.travel.chat_screen
+package com.xlin.travel.markdown
 
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle

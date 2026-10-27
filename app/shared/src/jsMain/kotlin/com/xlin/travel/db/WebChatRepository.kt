@@ -68,6 +68,24 @@ class WebChatRepository : ChatRepository {
         return matchedConversations.sortedByDescending { it.updatedAt }
     }
 
+    /** 与 SQLite 端一致：按消息正文命中，带会话标题，按时间倒序分页 */
+    override suspend fun searchMessageHits(keyword: String, limit: Int, offset: Int): List<MessageSearchHit> =
+        messages
+            .filter { it.content.contains(keyword, ignoreCase = true) }
+            .sortedByDescending { it.createdAt }
+            .drop(offset)
+            .take(limit)
+            .map { msg ->
+                MessageSearchHit(
+                    messageId = msg.id,
+                    conversationId = msg.conversationId,
+                    conversationTitle = conversations.firstOrNull { it.id == msg.conversationId }?.title.orEmpty(),
+                    role = msg.role,
+                    content = msg.content,
+                    createdAt = msg.createdAt,
+                )
+            }
+
     override suspend fun messages(conversationId: String, untilSeq: Long?): List<MessageRecord> =
         messages
             .filter {
@@ -105,6 +123,8 @@ class WebChatRepository : ChatRepository {
         reasoning: String,
         status: String,
         imagePath: String?,
+        documentPath: String?,
+        documentName: String?,
     ): MessageRecord {
         val now = currentEpochMillis()
         val record = MessageRecord(
@@ -114,6 +134,8 @@ class WebChatRepository : ChatRepository {
             content = content,
             reasoning = reasoning,
             imagePath = imagePath,
+            documentPath = documentPath,
+            documentName = documentName,
             seq = (lastMessageSeq(conversationId)) + 1,
             status = status,
             createdAt = now,
