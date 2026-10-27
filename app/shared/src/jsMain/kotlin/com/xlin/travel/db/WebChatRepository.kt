@@ -122,6 +122,8 @@ class WebChatRepository : ChatRepository {
         reasoning: String,
         status: String,
         imagePath: String?,
+        documentPath: String?,
+        documentName: String?,
     ): MessageRecord {
         val now = currentEpochMillis()
         val record = MessageRecord(
@@ -131,6 +133,8 @@ class WebChatRepository : ChatRepository {
             content = content,
             reasoning = reasoning,
             imagePath = imagePath,
+            documentPath = documentPath,
+            documentName = documentName,
             seq = (lastMessageSeq(conversationId)) + 1,
             status = status,
             createdAt = now,

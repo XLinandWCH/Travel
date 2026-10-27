@@ -29,6 +29,8 @@ internal object ChatSchema {
             content TEXT NOT NULL DEFAULT '',
             reasoning TEXT NOT NULL DEFAULT '',
             image_path TEXT,
+            document_path TEXT,
+            document_name TEXT,
             seq INTEGER NOT NULL,
             status TEXT NOT NULL DEFAULT 'done',
             prompt_tokens INTEGER,

@@ -34,16 +34,12 @@ class ChatInputState {
     var showAttachments: Boolean by mutableStateOf(false)
         internal set
 
-    /** 「本地文件」选中的文档落盘后的本地绝对路径，供 media_analysis 的 documentPath 使用；无则 null */
+    /** 「本地文件」选中的文档落盘后的本地绝对路径，供设备端抽取正文并落库展示；无则 null */
     var pickedDocumentPath: String? by mutableStateOf(null)
         internal set
 
-    /** 已选文档的展示文件名（用于文件条幅与重新生成时的提示） */
+    /** 已选文档的展示文件名（决定文件条幅/气泡的类型图标，并在发送时据此抽取正文） */
     var pickedDocumentName: String? by mutableStateOf(null)
-        internal set
-
-    /** 已选文档的 MIME，交给 media_analysis 的 documentMime */
-    var pickedDocumentMime: String? by mutableStateOf(null)
         internal set
 
     /** 附件相关的瞬时提示（如「不支持的文件格式」），null 表示不显示 */
@@ -107,11 +103,10 @@ class ChatInputState {
         pickedImagePath = null
     }
 
-    /** 「本地文件」通过格式校验后写入文档附件（路径 + 文件名 + MIME） */
-    fun onDocumentPicked(path: String, name: String, mime: String) {
+    /** 「本地文件」通过格式校验后写入文档附件（路径 + 文件名） */
+    fun onDocumentPicked(path: String, name: String) {
         pickedDocumentPath = path
         pickedDocumentName = name
-        pickedDocumentMime = mime
     }
 
     fun onDocumentRemoved() {
@@ -121,7 +116,6 @@ class ChatInputState {
     private fun clearDocument() {
         pickedDocumentPath = null
         pickedDocumentName = null
-        pickedDocumentMime = null
     }
 
     /** 弹出一条附件瞬时提示（如不支持的文件格式） */

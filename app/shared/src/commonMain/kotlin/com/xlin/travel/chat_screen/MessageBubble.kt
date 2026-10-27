@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -20,10 +21,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xlin.travel.color.FileChipBackground
+import com.xlin.travel.color.FileChipText
 import com.xlin.travel.color.UserBubbleBackground
 import com.xlin.travel.color.UserMessageText
+import com.xlin.travel.image_picker.FileIcons
+import org.jetbrains.compose.resources.painterResource
 
 /**
  * 用户消息：靠右对齐。
@@ -59,6 +65,32 @@ fun UserMessageBubble(
                             .size(64.dp)
                             .clip(RoundedCornerShape(12.dp)),
                     )
+                }
+
+                // 发送的文件：与图片同样落在提示词上方——类型彩色图标（不调配色）+ 文件名（过长省略）
+                message.documentName?.let { name ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(FileChipBackground)
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                    ) {
+                        Image(
+                            painter = painterResource(FileIcons.iconForName(name)),
+                            contentDescription = "用户发送的文件",
+                            modifier = Modifier.size(28.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = name,
+                            color = FileChipText,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 200.dp),
+                        )
+                    }
                 }
 
                 // 提示词气泡：无文字时（仅发图）不渲染空气泡

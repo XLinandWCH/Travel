@@ -50,6 +50,7 @@ import com.xlin.travel.color.WhiteBtnBackground
 import com.xlin.travel.color.WhiteBtnIcon
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.image_picker.DocumentFormats
+import com.xlin.travel.image_picker.DocumentKind
 import com.xlin.travel.image_picker.rememberCameraCapture
 import com.xlin.travel.image_picker.rememberFilePicker
 import com.xlin.travel.image_picker.rememberImagePicker
@@ -87,15 +88,20 @@ fun ChatInputBox(
         state.onImagePicked(bitmap, path)
         if (bitmap != null) state.collapseAttachments()
     })
-    // 本地文件：选中文档后按白名单校验，不支持的格式给出提示
+    // 本地文件：选中文档后按格式分类——白名单外直接拒绝；仅展示格式附上但提示暂不能分析；
+    // 文本/docx 正常附上（发送时由 ChatState 在本机抽取正文并内联给模型）
     val pickFile = rememberFilePicker(onResult = { file ->
         if (file != null) {
-            if (DocumentFormats.isSupported(file.name)) {
-                val ext = DocumentFormats.extensionOf(file.name)
-                state.onDocumentPicked(file.path, file.name, DocumentFormats.mimeFor(ext))
-            } else {
-                val shown = DocumentFormats.extensionOf(file.name).ifBlank { "该" }
-                state.notifyAttachmentHint("不支持的$shown 文件格式，仅支持 ${DocumentFormats.supportedLabel}")
+            when (DocumentFormats.kind(file.name)) {
+                DocumentKind.Unsupported -> {
+                    val shown = DocumentFormats.extensionOf(file.name).ifBlank { "该" }
+                    state.notifyAttachmentHint("不支持的$shown 文件格式，仅支持 ${DocumentFormats.supportedLabel}")
+                }
+                DocumentKind.DisplayOnly -> {
+                    state.onDocumentPicked(file.path, file.name)
+                    state.notifyAttachmentHint("《${file.name}》暂不支持内容分析，仅作为附件发送")
+                }
+                else -> state.onDocumentPicked(file.path, file.name)
             }
             state.collapseAttachments()
         }

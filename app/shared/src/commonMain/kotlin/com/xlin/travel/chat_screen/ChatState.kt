@@ -12,7 +12,9 @@ import com.xlin.travel.db.MessageRecord
 import com.xlin.travel.db.MessageRoles
 import com.xlin.travel.db.MessageStatuses
 import com.xlin.travel.db.randomUuid
+import com.xlin.travel.image_picker.DocumentFormats
 import com.xlin.travel.image_picker.decodeImageFromPath
+import com.xlin.travel.image_picker.extractDocumentText
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlin.coroutines.coroutineContext
@@ -104,15 +106,16 @@ class ChatState(
      * 用户消息与 AI 占位消息在请求前落库，流式结束后更新 AI 消息内容。
      *
      * [imagePath] / [image] 非空时，只把真实图片路径拼进「发送给模型的提示词」，
-     * 供 media_analysis 工具调用；[documentPath] / [documentMime] 非空时同理把文档路径交给工具。
-     * 上屏与落库的用户消息都只保留原始文本，绝不会把系统提示语混进用户自己发送的内容里。
+     * 供 media_analysis 工具调用；[documentPath] / [documentName] 非空时，在本机抽取文档正文
+     * 并以纯文本内联进提示词（OpenAI 兼容端点不接受文档二进制，只吃 text/image_url）。
+     * 上屏与落库的用户消息都只保留原始文本，绝不会把系统提示语或抽取正文混进用户自己发送的内容里。
      */
     suspend fun send(
         text: String,
         imagePath: String? = null,
         image: ImageBitmap? = null,
         documentPath: String? = null,
-        documentMime: String? = null,
+        documentName: String? = null,
     ) {
         val content = text.trim()
         if ((content.isEmpty() && imagePath.isNullOrBlank() && documentPath.isNullOrBlank()) || isStreaming) return
@@ -127,8 +130,8 @@ class ChatState(
                 truncateFrom(edit)
             }
 
-            // 仅作为本轮发送给模型的输入：把真实图片 / 文档路径交给工具，用户看不到这段话
-            val llmPrompt = content.withAttachmentHints(imagePath, documentPath, documentMime)
+            // 仅作为本轮发送给模型的输入：图片路径交给工具，文档在本机抽取正文内联，用户看不到这段话
+            val llmPrompt = content.withAttachmentHints(imagePath, documentPath, documentName)
             // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
             // 失败不在这里抛出，由 AssistantRound 统一在 AI 气泡里展示错误
             runCatching { ModelConfigStore.ensure(repository) }
@@ -147,14 +150,17 @@ class ChatState(
                     imagePath = imagePath,
                     imageBitmap = image,
                     documentPath = documentPath,
-                    documentMime = documentMime,
+                    documentName = documentName,
                 )
             )
             val reply = ChatMessage(nextId++, MessageRole.Assistant)
             _messages.add(reply)
 
             runCatching {
-                repository.appendMessage(activeConversation, MessageRoles.User, content, imagePath = imagePath)
+                repository.appendMessage(
+                    activeConversation, MessageRoles.User, content,
+                    imagePath = imagePath, documentPath = documentPath, documentName = documentName,
+                )
             }
             reply.recordId = round.run(llmPrompt, activeConversation, cutoff, reply)
         } finally {
@@ -175,7 +181,7 @@ class ChatState(
             ?: return
         // 重新发送时同样只把路径拼进给模型的提示词，用户消息本身仍是原始文本
         val prompt = userMessage.content.withAttachmentHints(
-            userMessage.imagePath, userMessage.documentPath, userMessage.documentMime,
+            userMessage.imagePath, userMessage.documentPath, userMessage.documentName,
         )
 
         isStreaming = true
@@ -277,6 +283,8 @@ class ChatState(
             reasoning = reasoning,
             imagePath = imagePath,
             imageBitmap = imagePath?.let { decodeImageFromPath(it) },
+            documentPath = documentPath,
+            documentName = documentName,
         )
         message.recordId = id
         return message
@@ -288,13 +296,14 @@ private fun String.toConversationTitle(): String =
     lineSequence().firstOrNull()?.trim().orEmpty().take(30).ifBlank { "新对话" }
 
 /**
- * 只在「发送给模型」时把图片 / 文档的本地路径拼到用户原始文本之后，供 media_analysis 工具读取。
+ * 只在「发送给模型」时拼接到用户原始文本之后：图片把本地路径交给 media_analysis 工具，
+ * 文档则在本机抽取正文、以纯文本内联（端点只吃 text/image_url，不能直接投文档二进制）。
  * 这段提示永远不上屏、不落库，因此不会出现在用户自己发送的消息里。
  */
 private fun String.withAttachmentHints(
     imagePath: String?,
     documentPath: String?,
-    documentMime: String?,
+    documentName: String?,
 ): String {
     if (imagePath.isNullOrBlank() && documentPath.isNullOrBlank()) return this
     return buildString {
@@ -307,11 +316,19 @@ private fun String.withAttachmentHints(
         }
         if (!documentPath.isNullOrBlank()) {
             if (imagePath != null) append("\n")
-            append("[系统提示] 用户在本条消息附带了一个文档文件，本地绝对路径：")
-            append(documentPath)
-            append("，MIME：")
-            append(documentMime ?: "application/octet-stream")
-            append("。如需识别文档内容，请调用 media_analysis 工具，把 documentPath 参数原样填写为上述路径，documentMime 填写为上述 MIME。")
+            val name = documentName?.takeIf { it.isNotBlank() } ?: "文档"
+            val body = extractDocumentText(documentPath, DocumentFormats.extensionOf(name))
+            if (!body.isNullOrBlank()) {
+                append("[系统提示] 用户在本条消息附带了文档《")
+                append(name)
+                append("》，以下为设备端解析出的纯文本正文，请直接依据其内容回答：\n<<<document\n")
+                append(body)
+                append("\ndocument>>>")
+            } else {
+                append("[系统提示] 用户在本条消息附带了文档《")
+                append(name)
+                append("》，但该格式暂无法在设备端解析正文；若需分析内容，请提示用户改粘贴文本。")
+            }
         }
     }
 }

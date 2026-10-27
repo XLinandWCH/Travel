@@ -22,6 +22,10 @@ data class MessageRecord(
     val content: String,
     val reasoning: String = "",
     val imagePath: String? = null,
+    /** 「本地文件」附带的文档本地绝对路径（发送时据此重新抽取正文），与 imagePath 一样可空 */
+    val documentPath: String? = null,
+    /** 附带文档的展示文件名（决定消息气泡的类型图标与名称） */
+    val documentName: String? = null,
     val seq: Long,
     val status: String = MessageStatuses.Done,
     val promptTokens: Int? = null,

@@ -48,7 +48,7 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
         return record
     }
 
-    /** 追加一条消息，同时更新会话最后活跃时间；[imagePath] 为用户附图的本地绝对路径 */
+    /** 追加一条消息，同时更新会话最后活跃时间；附带图片/文档时一并写入其路径与名称 */
     override suspend fun appendMessage(
         conversationId: String,
         role: String,
@@ -56,6 +56,8 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
         reasoning: String,
         status: String,
         imagePath: String?,
+        documentPath: String?,
+        documentName: String?,
     ): MessageRecord = database.withTransaction { connection ->
         val now = currentEpochMillis()
         val record = MessageRecord(
@@ -65,6 +67,8 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
             content = content,
             reasoning = reasoning,
             imagePath = imagePath,
+            documentPath = documentPath,
+            documentName = documentName,
             seq = connection.nextMessageSeq(conversationId),
             status = status,
             createdAt = now,

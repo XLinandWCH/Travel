@@ -33,12 +33,12 @@ class ChatMessage(
     /** 附带图片的缩略图位图，仅在当前会话内存中随消息上屏展示；不落库 */
     val imageBitmap: ImageBitmap? = null,
     /**
-     * 「本地文件」附带的文档本地绝对路径，仅用于把路径交给 media_analysis 的 documentPath；
-     * 不落库（文档不像图片有稳定缩略图可展示），当前会话内「重新生成」可复用。
+     * 「本地文件」附带的文档本地绝对路径；发送时据此在本机抽取正文内联给模型，
+     * 「重新生成」时重新抽取。与 imagePath 一样会落库，以便历史会话重现文件气泡。
      */
     val documentPath: String? = null,
-    /** 附带文档的 MIME，交给 media_analysis 的 documentMime；不落库 */
-    val documentMime: String? = null,
+    /** 附带文档的展示文件名（决定消息气泡的类型图标与名称）；落库 */
+    val documentName: String? = null,
 ) {
     /** 正文内容 */
     var content: String by mutableStateOf(content)

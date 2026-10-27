@@ -54,7 +54,7 @@ class ChatDatabase internal constructor(
         try {
             opened.execSQL("PRAGMA foreign_keys = ON")
             ChatSchema.statements.forEach { opened.execSQL(it) }
-            migrateAddMessageImagePath(opened)
+            migrateMessageColumns(opened)
             return opened
         } catch (t: Throwable) {
             opened.close()
@@ -63,18 +63,16 @@ class ChatDatabase internal constructor(
     }
 
     /**
-     * 安全增量迁移：给已存在的旧库 message 表补上 image_path 列。
-     * 全新安装时 CREATE TABLE 已带该列，这里检测到已存在就跳过，不会报错。
+     * 安全增量迁移：给已存在的旧库 message 表补上 image_path / document_path / document_name 列。
+     * 全新安装时 CREATE TABLE 已带这些列；这里一次读取现有列名，缺哪列补哪列，已存在则跳过，不会报错。
      */
-    private fun migrateAddMessageImagePath(connection: SQLiteConnection) {
-        val hasColumn = connection.withStatement("PRAGMA table_info(message)") { statement ->
-            var found = false
-            while (statement.step()) {
-                if (statement.getText(1) == "image_path") found = true
-            }
-            found
+    private fun migrateMessageColumns(connection: SQLiteConnection) {
+        val existing = connection.withStatement("PRAGMA table_info(message)") { statement ->
+            buildSet { while (statement.step()) add(statement.getText(1)) }
         }
-        if (!hasColumn) connection.execSQL("ALTER TABLE message ADD COLUMN image_path TEXT")
+        if ("image_path" !in existing) connection.execSQL("ALTER TABLE message ADD COLUMN image_path TEXT")
+        if ("document_path" !in existing) connection.execSQL("ALTER TABLE message ADD COLUMN document_path TEXT")
+        if ("document_name" !in existing) connection.execSQL("ALTER TABLE message ADD COLUMN document_name TEXT")
     }
 }
 

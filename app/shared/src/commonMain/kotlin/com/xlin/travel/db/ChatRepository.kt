@@ -33,7 +33,10 @@ interface ChatRepository {
         systemPrompt: String? = null,
     ): ConversationRecord
 
-    /** 追加一条消息，同时更新会话最后活跃时间；[imagePath] 为用户附图的本地绝对路径 */
+    /**
+     * 追加一条消息，同时更新会话最后活跃时间；[imagePath] 为用户附图的本地绝对路径，
+     * [documentPath] / [documentName] 为“本地文件”附件的本地路径与展示文件名（均可空）。
+     */
     suspend fun appendMessage(
         conversationId: String,
         role: String,
@@ -41,6 +44,8 @@ interface ChatRepository {
         reasoning: String = "",
         status: String = MessageStatuses.Done,
         imagePath: String? = null,
+        documentPath: String? = null,
+        documentName: String? = null,
     ): MessageRecord
 
     /** 流式结束后更新 AI 消息内容与状态 */

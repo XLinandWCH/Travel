@@ -219,8 +219,8 @@ fun App() {
                             val imagePath = inputState.pickedImagePath
                             val image = inputState.pickedImage
                             val documentPath = inputState.pickedDocumentPath
-                            val documentMime = inputState.pickedDocumentMime
-                            scope.launch { chatState.send(text, imagePath, image, documentPath, documentMime) }
+                            val documentName = inputState.pickedDocumentName
+                            scope.launch { chatState.send(text, imagePath, image, documentPath, documentName) }
                         },
                     )
                 }
