@@ -176,6 +176,14 @@ val MarkdownLinkColor: Color
 val QuoteBarColor: Color
     get() = themeColor(Color(0xFF3A3B43), Color(0xFFC9C9CF))    // 引用左侧竖条 [markdown]
 
+// ==================== 工具调用卡片 ====================
+// 工具调用从思考文本中拆出，用与强调橙区分的蓝色系做成独立卡片行。
+val ToolCallAccent: Color = Color(0xFF3B82F6)                  // 工具图标 / 强调蓝（呼应反馈蓝系）
+val ToolCallChipBackground: Color
+    get() = themeColor(Color(0x1F3B82F6), Color(0x143B82F6))    // 工具卡片底：蓝色 12% / 8% [message]
+val ToolCallTextColor: Color
+    get() = themeColor(Color(0xFF9FC2FF), Color(0xFF2F6BFF))    // 工具卡片文字：深浅蓝 / 浅标准蓝 [message]
+
 // ==================== 阴影与遮罩 ====================
 val InputCardShadow: Color
     get() = themeColor(Color(0x4D000000), Color(0x26000000))    // 卡片阴影（浅色主题下减淡）[输入框]

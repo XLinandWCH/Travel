@@ -69,21 +69,24 @@ internal class AssistantRound(
                     is ChatStreamEvent.Reasoning -> {
                         if (thinkingStart == null) thinkingStart = TimeSource.Monotonic.markNow()
                         reply.reasoning += event.text
+                        reply.appendTimelineReasoning(event.text)
                     }
                     is ChatStreamEvent.Content -> {
                         finalizeThinking()
                         reply.content += event.text
                     }
+                    // 工具调用不再挤进思考文本，而是作为独立时间线项呈现（仅显名称）；
+                    // 工具进行中正文仍为空，isThinking 保持为真，整段思考区不中断
                     is ChatStreamEvent.ToolCallStarted -> {
                         if (thinkingStart == null) thinkingStart = TimeSource.Monotonic.markNow()
-                        reply.reasoning += "\n🔧 正在调用工具 ${event.toolName}，参数：${event.args}\n"
+                        reply.appendTimelineToolCall(toolDisplayName(event.toolName))
                     }
                     is ChatStreamEvent.ToolCallFinished ->
-                        reply.reasoning += "✅ 工具 ${event.toolName} 返回：${event.result}\n"
+                        reply.finishTimelineToolCall(failed = false)
                     is ChatStreamEvent.ToolValidationFailed ->
-                        reply.reasoning += "⚠️ 工具 ${event.toolName} 参数校验失败：${event.message}\n"
+                        reply.finishTimelineToolCall(failed = true)
                     is ChatStreamEvent.ToolCallFailed ->
-                        reply.reasoning += "❌ 工具 ${event.toolName} 执行失败：${event.message}\n"
+                        reply.finishTimelineToolCall(failed = true)
                     ChatStreamEvent.Completed -> finalizeThinking()
                 }
             }
@@ -120,4 +123,11 @@ internal class AssistantRound(
             )
         }
     }
+}
+
+/** 工具名→用户可读的展示名（只展这几个字，不拼参数 / 结果）；未知工具回退为通用文案 */
+private fun toolDisplayName(toolName: String): String = when (toolName) {
+    "media_analysis" -> "调用识图工具"
+    "document_read" -> "调用阅读工具"
+    else -> "调用工具"
 }

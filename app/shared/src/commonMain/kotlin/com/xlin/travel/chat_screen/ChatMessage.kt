@@ -19,6 +19,18 @@ enum class Feedback {
 }
 
 /**
+ * 思考时间线里的一项，用于把「连续思考文本」与「工具调用」按发生顺序交错呈现。
+ * 工具项只展示名称（如「调用识图工具」），不展示入参与返回结果。
+ */
+sealed class ThinkingItem {
+    /** 一段思考文本（流式增量会并入同一项） */
+    data class Text(val value: String) : ThinkingItem()
+
+    /** 一次工具调用：[label] 为展示名，[running] 进行中，[failed] 校验 / 执行失败 */
+    data class ToolCall(val label: String, val running: Boolean, val failed: Boolean) : ThinkingItem()
+}
+
+/**
  * 单条聊天消息。
  * AI 消息把「思考内容」与「正文内容」分开保存，便于界面用不同颜色渲染。
  */
@@ -65,4 +77,37 @@ class ChatMessage(
 
     /** 是否已有任何可展示的内容 */
     val hasAnyContent: Boolean get() = content.isNotEmpty() || reasoning.isNotEmpty()
+
+    /**
+     * 本轮思考时间线（仅内存，不落库）：思考文本与工具调用按到达顺序交错，
+     * 供 [ReasoningSection] 渲染「调用识图工具」这类工具卡片；历史恢复时为空、退化为纯文本思考。
+     */
+    var timeline: List<ThinkingItem> by mutableStateOf(emptyList())
+        internal set
+
+    private val timelineItems = mutableListOf<ThinkingItem>()
+
+    /** 追加思考文本增量：并入最后一个文本项，否则新建一项 */
+    internal fun appendTimelineReasoning(text: String) {
+        val last = timelineItems.lastOrNull()
+        if (last is ThinkingItem.Text) timelineItems[timelineItems.lastIndex] = last.copy(value = last.value + text)
+        else timelineItems.add(ThinkingItem.Text(text))
+        timeline = timelineItems.toList()
+    }
+
+    /** 记录一次工具调用开始：追加一个「进行中」的工具项 */
+    internal fun appendTimelineToolCall(label: String) {
+        timelineItems.add(ThinkingItem.ToolCall(label, running = true, failed = false))
+        timeline = timelineItems.toList()
+    }
+
+    /** 结束最近一个进行中的工具调用：标记成功或失败 */
+    internal fun finishTimelineToolCall(failed: Boolean) {
+        val index = timelineItems.indexOfLast { it is ThinkingItem.ToolCall && it.running }
+        if (index >= 0) {
+            val call = timelineItems[index] as ThinkingItem.ToolCall
+            timelineItems[index] = call.copy(running = false, failed = failed)
+            timeline = timelineItems.toList()
+        }
+    }
 }

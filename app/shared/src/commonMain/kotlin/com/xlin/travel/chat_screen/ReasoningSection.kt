@@ -60,8 +60,8 @@ fun ReasoningSection(
     isThinking: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    // 没有思考内容且不在思考中：整块不渲染
-    if (!isThinking && message.reasoning.isEmpty()) return
+    // 没有思考内容、没有工具调用且不在思考中：整块不渲染
+    if (!isThinking && message.reasoning.isEmpty() && message.timeline.isEmpty()) return
 
     // null = 跟随默认（思考中展开、思考结束收起）；用户点击后记录手动状态
     var userExpanded by remember(message.id) { mutableStateOf<Boolean?>(null) }
@@ -123,13 +123,33 @@ fun ReasoningSection(
                     }
                     .padding(start = 12.dp, top = 2.dp, bottom = 6.dp),
             ) {
-                SelectionBox {
-                    Text(
-                        text = message.reasoning.trimEnd(),
-                        color = ReasoningTextColor,
-                        fontSize = 14.sp,
-                        lineHeight = 21.sp,
-                    )
+                // 时间线为空（历史恢复）时退化为单段纯文本；本轮实时输出则按「思考 / 工具」交错渲染
+                if (message.timeline.isEmpty()) {
+                    SelectionBox {
+                        Text(
+                            text = message.reasoning.trimEnd(),
+                            color = ReasoningTextColor,
+                            fontSize = 14.sp,
+                            lineHeight = 21.sp,
+                        )
+                    }
+                } else {
+                    message.timeline.forEach { item ->
+                        when (item) {
+                            is ThinkingItem.Text ->
+                                if (item.value.isNotBlank()) {
+                                    SelectionBox {
+                                        Text(
+                                            text = item.value.trimEnd(),
+                                            color = ReasoningTextColor,
+                                            fontSize = 14.sp,
+                                            lineHeight = 21.sp,
+                                        )
+                                    }
+                                }
+                            is ThinkingItem.ToolCall -> ToolCallRow(item)
+                        }
+                    }
                 }
             }
         }

@@ -11,6 +11,7 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
+import com.xlin.travel.agent.tool.DocumentReadTool
 import com.xlin.travel.agent.tool.MediaAnalysisTool
 
 /**
@@ -56,6 +57,7 @@ suspend fun chatStreaming(
 ): String {
     val myTools = ToolRegistry {
         tool(MediaAnalysisTool)
+        tool(DocumentReadTool)
     }
 
     val agent = AIAgent(
