@@ -2,6 +2,7 @@ package com.xlin.travel.setting
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xlin.travel.color.AccentOrange
+import com.xlin.travel.color.FormErrorText
 import com.xlin.travel.color.SettingCardBackground
 import com.xlin.travel.color.SettingDivider
 import com.xlin.travel.color.SettingValueText
@@ -121,38 +125,76 @@ fun FeedbackCard(
     }
 }
 
-/** 公告卡片：管理员图标 + 标题（白）+ 时间 + 正文 */
+/**
+ * 公告卡片：管理员图标 + 标题（白）+ 时间 + 正文（最多一行，超出用 …，避免一大坠挤在列表里）。
+ * 整项可点进入公告详情页；[canDelete] 为真（管理员）时长按弹出「删除」上下文菜单。
+ */
 @Composable
 fun BroadcastCard(
     item: BroadcastDto,
     adminIcon: androidx.compose.ui.graphics.painter.Painter,
+    canDelete: Boolean,
+    menuExpanded: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onDelete: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(SettingCardBackground)
-            .padding(16.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.foundation.Image(
-                painter = adminIcon,
-                contentDescription = "管理员",
-                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(AccentOrange),
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(8.dp))
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(SettingCardBackground)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = if (canDelete) onLongClick else null,
+                )
+                .padding(16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.foundation.Image(
+                    painter = adminIcon,
+                    contentDescription = "管理员",
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(AccentOrange),
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = item.title,
+                    color = TextWhite,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(text = formatMsgTime(item.createdAt), color = TextGray500, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            // 正文只展示一行，超出用省略号；完整内容进详情页看
             Text(
-                text = item.title,
-                color = TextWhite,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f),
+                text = item.content,
+                color = TextGray300,
+                fontSize = 14.sp,
+                lineHeight = 21.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Text(text = formatMsgTime(item.createdAt), color = TextGray500, fontSize = 12.sp)
         }
-        Spacer(Modifier.height(8.dp))
-        Text(text = item.content, color = TextGray300, fontSize = 14.sp, lineHeight = 21.sp)
+        // 管理员长按菜单：与用户消息 / 抽屉历史项同形态（DropdownMenu），仅「删除」一项
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = onDismissMenu,
+            containerColor = SettingCardBackground,
+            modifier = Modifier.width(140.dp),
+        ) {
+            DropdownMenuItem(
+                text = { Text("删除", color = FormErrorText, fontSize = 15.sp) },
+                onClick = onDelete,
+            )
+        }
     }
 }
 

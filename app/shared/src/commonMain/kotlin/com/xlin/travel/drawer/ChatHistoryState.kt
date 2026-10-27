@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.ConversationRecord
+import com.xlin.travel.db.MessageSearchHit
 
 /** 一条历史对话 */
 data class ChatHistoryItem(val id: String, val title: String)
@@ -30,8 +31,16 @@ class ChatHistoryState(private val repository: ChatRepository) {
     /** 搜索关键词 */
     var searchQuery: String by mutableStateOf("")
 
-    /** 搜索结果（标题或消息内容匹配） */
-    var searchResults: List<ChatHistoryItem> by mutableStateOf(emptyList())
+    /** 搜索结果：命中的消息片段（含具体正文，而非仅标题） */
+    var searchResults: List<MessageSearchHit> by mutableStateOf(emptyList())
+        private set
+
+    /** 是否还有下一页可加载（下滑触底时继续查询） */
+    var searchHasMore: Boolean by mutableStateOf(false)
+        private set
+
+    /** 正在加载下一页，避免触底事件重复触发 */
+    var searchLoadingMore: Boolean by mutableStateOf(false)
         private set
 
     /** 从数据库重新加载历史列表 */
@@ -50,7 +59,7 @@ class ChatHistoryState(private val repository: ChatRepository) {
         runCatching { repository.deleteConversation(id) }
         if (activeId == id) activeId = null
         _items.removeAll { it.id == id }
-        searchResults = searchResults.filterNot { it.id == id }
+        searchResults = searchResults.filterNot { it.conversationId == id }
     }
 
     /** 重命名一条会话：写库 + 就地更新列表与搜索结果里的标题，避免整表刷新闪烁 */
@@ -60,32 +69,59 @@ class ChatHistoryState(private val repository: ChatRepository) {
         runCatching { repository.renameConversation(id, title) }
         val index = _items.indexOfFirst { it.id == id }
         if (index >= 0) _items[index] = _items[index].copy(title = title)
-        searchResults = searchResults.map { if (it.id == id) it.copy(title = title) else it }
+        searchResults = searchResults.map {
+            if (it.conversationId == id) it.copy(conversationTitle = title) else it
+        }
     }
 
     /** 新建对话：只清空选中项，数据库记录会在首次发送消息时创建 */
     fun newChat() {
         activeId = null
         searchResults = emptyList()
+        searchHasMore = false
     }
 
-    /** 在当前历史中按关键词搜索 */
+    /** 重新搜索：只取最近 [SearchPageSize] 条命中消息，并重置分页进度 */
     suspend fun search() {
         val keyword = searchQuery.trim()
         if (keyword.isEmpty()) {
             searchResults = emptyList()
+            searchHasMore = false
             return
         }
-        searchResults = runCatching { repository.searchConversations(keyword) }
+        searchResults = runCatching { repository.searchMessageHits(keyword, SearchPageSize, 0) }
             .getOrDefault(emptyList())
-            .map { it.toHistoryItem() }
+        searchHasMore = searchResults.size == SearchPageSize
+    }
+
+    /** 下滑触底后加载下一页；追加到现有结果末尾，没有更多时置空标记 */
+    suspend fun loadMoreSearchResults() {
+        val keyword = searchQuery.trim()
+        if (keyword.isEmpty() || !searchHasMore || searchLoadingMore) return
+        searchLoadingMore = true
+        val next = runCatching {
+            repository.searchMessageHits(keyword, SearchPageSize, searchResults.size)
+        }.getOrDefault(emptyList())
+        searchLoadingMore = false
+        if (next.isEmpty()) {
+            searchHasMore = false
+            return
+        }
+        searchResults = searchResults + next
+        searchHasMore = next.size == SearchPageSize
     }
 
     /** 清空搜索关键词（离开搜索页时调用） */
     fun clearSearch() {
         searchQuery = ""
         searchResults = emptyList()
+        searchHasMore = false
     }
 
     private fun ConversationRecord.toHistoryItem() = ChatHistoryItem(id = id, title = title)
+
+    private companion object {
+        /** 搜索单页条数：首次只显示最近 10 条，触底再追加 */
+        const val SearchPageSize = 10
+    }
 }

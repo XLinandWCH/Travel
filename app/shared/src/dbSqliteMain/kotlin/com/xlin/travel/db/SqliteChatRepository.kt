@@ -17,6 +17,10 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
     override suspend fun searchConversations(keyword: String): List<ConversationRecord> =
         database.withConnection { it.searchConversations(keyword) }
 
+    /** 按消息内容搜索命中片段，按时间倒序，[limit]/[offset] 分页 */
+    override suspend fun searchMessageHits(keyword: String, limit: Int, offset: Int): List<MessageSearchHit> =
+        database.withConnection { it.searchMessageHits(keyword, limit, offset) }
+
     /** 某个会话的消息；[untilSeq] 为空时返回全部消息 */
     override suspend fun messages(conversationId: String, untilSeq: Long?): List<MessageRecord> =
         database.withConnection { it.selectMessages(conversationId, untilSeq) }

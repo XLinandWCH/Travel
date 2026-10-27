@@ -35,8 +35,12 @@ import com.xlin.travel.login.UserSession
 import com.xlin.travel.navigation.AppBackHandler
 import com.xlin.travel.search.SearchScreen
 import com.xlin.travel.setting.AccountControlScreen
+import com.xlin.travel.setting.BroadcastComposeScreen
+import com.xlin.travel.setting.BroadcastDetailScreen
+import com.xlin.travel.setting.BroadcastDto
 import com.xlin.travel.setting.ComingSoonScreen
 import com.xlin.travel.setting.DocumentScreen
+import com.xlin.travel.setting.FeedbackComposeScreen
 import com.xlin.travel.setting.FeedbackDetailScreen
 import com.xlin.travel.setting.HelpCenterScreen
 import com.xlin.travel.setting.HistoryManageScreen
@@ -59,6 +63,9 @@ private enum class AppScreen {
     History,
     MessageCenter,
     FeedbackDetail,
+    FeedbackCompose,
+    BroadcastCompose,
+    BroadcastDetail,
     ComingSoon,
     HelpCenter,
     Document,
@@ -84,6 +91,8 @@ fun App() {
         var screen by remember { mutableStateOf(AppScreen.Guest) }
         // 从消息中心点击某条反馈时记住工单号，供详情页拉取线程
         var detailTicketId by remember { mutableStateOf("") }
+        // 从消息中心点击某条公告时记住它，供公告详情页展示（列表已带回完整内容，无需再拉取）
+        var selectedBroadcast by remember { mutableStateOf<BroadcastDto?>(null) }
         // 启动时先不渲染任何业务页面，等数据库异步恢复完登录态再决定去向，
         // 避免已登录用户看到未登入界面一闪而过
         var appReady by remember { mutableStateOf(false) }
@@ -131,6 +140,8 @@ fun App() {
                 AppScreen.AccountControl -> AppScreen.Settings
                 AppScreen.MessageCenter -> AppScreen.Settings
                 AppScreen.FeedbackDetail -> AppScreen.MessageCenter
+                AppScreen.FeedbackCompose, AppScreen.BroadcastCompose,
+                AppScreen.BroadcastDetail -> AppScreen.MessageCenter
                 AppScreen.Login -> AppScreen.Guest
                 else -> AppScreen.Chat
             }
@@ -281,8 +292,61 @@ fun App() {
                         detailTicketId = id
                         screen = AppScreen.FeedbackDetail
                     },
+                    onComposeFeedback = { screen = AppScreen.FeedbackCompose },
+                    onComposeBroadcast = { screen = AppScreen.BroadcastCompose },
+                    onOpenBroadcast = { item ->
+                        selectedBroadcast = item
+                        screen = AppScreen.BroadcastDetail
+                    },
                     badge = badge,
                 )
+
+                AppScreen.FeedbackCompose -> FeedbackComposeScreen(
+                    session = session,
+                    onBack = { screen = AppScreen.MessageCenter },
+                    onCreated = { ticket ->
+                        // 提交成功带回工单号则进入该工单详情；异常空值回列表兼容
+                        if (ticket.isNotBlank()) {
+                            detailTicketId = ticket
+                            screen = AppScreen.FeedbackDetail
+                        } else {
+                            screen = AppScreen.MessageCenter
+                        }
+                    },
+                )
+
+                AppScreen.BroadcastCompose -> BroadcastComposeScreen(
+                    session = session,
+                    onBack = { screen = AppScreen.MessageCenter },
+                    onPublished = { screen = AppScreen.MessageCenter },
+                )
+
+                AppScreen.BroadcastDetail -> {
+                    val target = selectedBroadcast
+                    if (target != null) {
+                        BroadcastDetailScreen(
+                            item = target,
+                            onBack = { screen = AppScreen.MessageCenter },
+                        )
+                    } else {
+                        // 无选中公告（例如进程恢复）：渲染消息中心兼容，避免在组合期修改状态
+                        MessageCenterScreen(
+                            session = session,
+                            onBack = { screen = AppScreen.Settings },
+                            onOpenTicket = { id ->
+                                detailTicketId = id
+                                screen = AppScreen.FeedbackDetail
+                            },
+                            onComposeFeedback = { screen = AppScreen.FeedbackCompose },
+                            onComposeBroadcast = { screen = AppScreen.BroadcastCompose },
+                            onOpenBroadcast = { item ->
+                                selectedBroadcast = item
+                                screen = AppScreen.BroadcastDetail
+                            },
+                            badge = badge,
+                        )
+                    }
+                }
 
                 AppScreen.FeedbackDetail -> FeedbackDetailScreen(
                     session = session,
@@ -321,10 +385,10 @@ fun App() {
                         history.clearSearch()
                         screen = AppScreen.Chat
                     },
-                    onSelectItem = { item ->
+                    onSelectItem = { hit ->
                         scope.launch {
-                            chatState.openConversation(item.id)
-                            history.select(item.id)
+                            chatState.openConversation(hit.conversationId)
+                            history.select(hit.conversationId)
                         }
                         history.clearSearch()
                         screen = AppScreen.Chat

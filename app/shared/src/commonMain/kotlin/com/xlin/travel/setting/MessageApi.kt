@@ -30,6 +30,9 @@ private data class ReplyFeedbackRequest(val token: String, val ticketId: String,
 private data class BroadcastRequest(val token: String, val title: String, val content: String)
 
 @Serializable
+private data class BroadcastDeleteRequest(val token: String, val id: Long)
+
+@Serializable
 private data class TicketDetailRequest(val token: String, val ticketId: String)
 
 @Serializable
@@ -218,6 +221,10 @@ object MessageApi {
     /** 管理员发布公告 */
     suspend fun broadcast(token: String, title: String, content: String): MessageMutationResult =
         mutate("$SERVER_BASE_URL/api/feedback/admin/broadcast", BroadcastRequest(token, title, content))
+
+    /** 管理员删除指定公告（按 id） */
+    suspend fun deleteBroadcast(token: String, id: Long): MessageMutationResult =
+        mutate("$SERVER_BASE_URL/api/feedback/admin/broadcast/delete", BroadcastDeleteRequest(token, id))
 
     private suspend fun fetchList(url: String, body: Any): MessageListResult {
         return try {

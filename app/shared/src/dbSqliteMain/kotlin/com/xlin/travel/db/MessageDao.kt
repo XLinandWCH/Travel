@@ -105,6 +105,44 @@ internal fun SQLiteConnection.deleteMessagesFrom(conversationId: String, fromSeq
     }
 }
 
+/** 转义 LIKE 通配符，避免用户输入的 % / _ 被当作模式匹配 */
+internal fun escapeLikePattern(keyword: String): String =
+    keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+/** 按消息内容搜索命中片段，带会话标题；按时间倒序，[limit]/[offset] 分页 */
+internal fun SQLiteConnection.searchMessageHits(
+    keyword: String,
+    limit: Int,
+    offset: Int,
+): List<MessageSearchHit> {
+    val sql = """
+        SELECT m.id, m.conversation_id, c.title, m.role, m.content, m.created_at
+        FROM message m JOIN conversation c ON c.id = m.conversation_id
+        WHERE m.content LIKE ? ESCAPE '\'
+        ORDER BY m.created_at DESC
+        LIMIT ? OFFSET ?
+    """.trimIndent()
+    return withStatement(sql) { statement ->
+        statement.bindText(1, "%${escapeLikePattern(keyword)}%")
+        statement.bindLong(2, limit.toLong())
+        statement.bindLong(3, offset.toLong())
+        buildList {
+            while (statement.step()) {
+                add(
+                    MessageSearchHit(
+                        messageId = statement.getText(0),
+                        conversationId = statement.getText(1),
+                        conversationTitle = statement.getText(2),
+                        role = statement.getText(3),
+                        content = statement.getText(4),
+                        createdAt = statement.getLong(5),
+                    )
+                )
+            }
+        }
+    }
+}
+
 private fun SQLiteStatement.readMessage() = MessageRecord(
     id = getText(0),
     conversationId = getText(1),

@@ -68,6 +68,23 @@ class WebChatRepository : ChatRepository {
         return matchedConversations.sortedByDescending { it.updatedAt }
     }
 
+    override suspend fun searchMessageHits(keyword: String, limit: Int, offset: Int): List<MessageSearchHit> =
+        messages
+            .filter { it.content.contains(keyword, ignoreCase = true) }
+            .sortedByDescending { it.createdAt }
+            .drop(offset)
+            .take(limit)
+            .map { msg ->
+                MessageSearchHit(
+                    messageId = msg.id,
+                    conversationId = msg.conversationId,
+                    conversationTitle = conversations.firstOrNull { it.id == msg.conversationId }?.title.orEmpty(),
+                    role = msg.role,
+                    content = msg.content,
+                    createdAt = msg.createdAt,
+                )
+            }
+
     override suspend fun messages(conversationId: String, untilSeq: Long?): List<MessageRecord> =
         messages
             .filter {

@@ -14,6 +14,12 @@ interface ChatRepository {
     /** 按标题 / 消息内容搜索会话 */
     suspend fun searchConversations(keyword: String): List<ConversationRecord>
 
+    /**
+     * 按消息内容搜索，返回命中的消息片段（而非会话标题），按消息时间倒序。
+     * [limit] 为单页条数、[offset] 为跳过条数，供搜索页下滑分页加载。
+     */
+    suspend fun searchMessageHits(keyword: String, limit: Int, offset: Int): List<MessageSearchHit>
+
     /** 某个会话的消息；[untilSeq] 为空时返回全部消息 */
     suspend fun messages(conversationId: String, untilSeq: Long? = null): List<MessageRecord>
 

@@ -3,6 +3,8 @@ package com.xlin.travel.search
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,28 +19,33 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.InputTextColor
 import com.xlin.travel.color.SearchModalBackground
-import com.xlin.travel.color.TextGray300
+import com.xlin.travel.color.SidebarItemActive
 import com.xlin.travel.color.TextGray400
 import com.xlin.travel.color.TextGray500
 import com.xlin.travel.color.TextWhite
-import com.xlin.travel.drawer.ChatHistoryItem
+import com.xlin.travel.db.MessageSearchHit
 import com.xlin.travel.drawer.ChatHistoryState
 import com.xlin.travel.navigation.PageTopBar
 import kotlinx.coroutines.delay
@@ -47,13 +54,14 @@ import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.search
 
 /**
- * 搜索历史页面：独立页面提供搜索输入与历史记录结果。
+ * 搜索页：结果直接展示命中的消息正文片段（单行 + 强调色标出关键字），
+ * 首屏只查最近 10 条，下滑触底后分页追加。
  */
 @Composable
 fun SearchScreen(
     history: ChatHistoryState,
     onBack: () -> Unit,
-    onSelectItem: (ChatHistoryItem) -> Unit,
+    onSelectItem: (MessageSearchHit) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -63,7 +71,7 @@ fun SearchScreen(
             .safeContentPadding()
             .imePadding(),
     ) {
-        PageTopBar(title = "搜索历史", onBack = onBack)
+        PageTopBar(title = "搜索消息", onBack = onBack)
         SearchInputRow(history)
         SearchResults(history, onSelectItem = onSelectItem)
     }
@@ -121,18 +129,18 @@ private fun SearchInputRow(history: ChatHistoryState) {
     }
 }
 
-/** 搜索结果区 */
+/** 搜索结果区：下滑触底自动加载下一页 */
 @Composable
 private fun SearchResults(
     history: ChatHistoryState,
-    onSelectItem: (ChatHistoryItem) -> Unit,
+    onSelectItem: (MessageSearchHit) -> Unit,
 ) {
     val keyword = history.searchQuery.trim()
     val results = history.searchResults
 
     val hint = when {
-        keyword.isEmpty() -> "输入关键词搜索历史对话"
-        results.isEmpty() -> "没有找到匹配的对话"
+        keyword.isEmpty() -> "输入关键词搜索聊天记录"
+        results.isEmpty() -> "没有找到匹配的消息"
         else -> null
     }
     if (hint != null) {
@@ -147,25 +155,79 @@ private fun SearchResults(
         return
     }
 
+    val listState = rememberLazyListState()
+    // 触底检测：最后一个可见项接近列表末尾时加载下一页
+    LaunchedEffect(listState, results.size, history.searchHasMore) {
+        val info = listState.layoutInfo
+        val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: -1
+        if (
+            history.searchHasMore &&
+            !history.searchLoadingMore &&
+            info.totalItemsCount > 0 &&
+            lastVisible >= info.totalItemsCount - 2
+        ) {
+            history.loadMoreSearchResults()
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        items(results, key = { it.id }) { item ->
-            Text(
-                text = item.title,
-                color = TextGray300,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable { onSelectItem(item) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-            )
+        items(results, key = { it.messageId }) { hit ->
+            SearchHitRow(keyword, hit, onSelectItem)
         }
+        if (history.searchHasMore) {
+            item(key = "search_footer") {
+                Text(
+                    text = if (history.searchLoadingMore) "加载中…" else "继续下滑查看更多",
+                    color = TextGray500,
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+/** 单条命中结果：首行会话标题，次行关键字所在的正文片段（只占一行，超出省略） */
+@Composable
+private fun SearchHitRow(
+    keyword: String,
+    hit: MessageSearchHit,
+    onSelectItem: (MessageSearchHit) -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (pressed) SidebarItemActive else Color.Transparent)
+            .clickable(interactionSource = interactionSource, indication = null) {
+                onSelectItem(hit)
+            }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = hit.conversationTitle,
+            color = TextGray500,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.size(3.dp))
+        Text(
+            text = buildSearchSnippet(hit.content, keyword),
+            fontSize = 14.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

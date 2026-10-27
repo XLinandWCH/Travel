@@ -43,3 +43,17 @@ object MessageStatuses {
     const val Done = "done"
     const val Error = "error"
 }
+
+/**
+ * 搜索命中的一条消息片段：直接展示消息正文而非会话标题。
+ * 携带所属会话信息，点击后可跳转并定位到该会话。
+ */
+@Serializable
+data class MessageSearchHit(
+    val messageId: String,
+    val conversationId: String,
+    val conversationTitle: String,
+    val role: String,
+    val content: String,
+    val createdAt: Long,
+)

@@ -30,13 +30,13 @@ internal fun SQLiteConnection.selectConversations(): List<ConversationRecord> =
 
 /** 搜索标题或消息内容中包含关键词的会话 */
 internal fun SQLiteConnection.searchConversations(keyword: String): List<ConversationRecord> {
-    val pattern = "%$keyword%"
+    val pattern = "%${escapeLikePattern(keyword)}%"
     val sql = """
         SELECT $Columns FROM conversation c
-        WHERE c.title LIKE ?
+        WHERE c.title LIKE ? ESCAPE '\'
            OR EXISTS (
                SELECT 1 FROM message m
-               WHERE m.conversation_id = c.id AND m.content LIKE ?
+               WHERE m.conversation_id = c.id AND m.content LIKE ? ESCAPE '\'
            )
         ORDER BY c.updated_at DESC
     """.trimIndent()
