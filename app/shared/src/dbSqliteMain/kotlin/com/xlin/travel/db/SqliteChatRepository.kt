@@ -17,10 +17,6 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
     override suspend fun searchConversations(keyword: String): List<ConversationRecord> =
         database.withConnection { it.searchConversations(keyword) }
 
-    /** 按消息内容搜索命中片段，按时间倒序，[limit]/[offset] 分页 */
-    override suspend fun searchMessageHits(keyword: String, limit: Int, offset: Int): List<MessageSearchHit> =
-        database.withConnection { it.searchMessageHits(keyword, limit, offset) }
-
     /** 某个会话的消息；[untilSeq] 为空时返回全部消息 */
     override suspend fun messages(conversationId: String, untilSeq: Long?): List<MessageRecord> =
         database.withConnection { it.selectMessages(conversationId, untilSeq) }
@@ -48,7 +44,6 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
         return record
     }
 
-    /** 追加一条消息，同时更新会话最后活跃时间；附带图片/文档时一并写入其路径与名称 */
     override suspend fun appendMessage(
         conversationId: String,
         role: String,
@@ -56,8 +51,6 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
         reasoning: String,
         status: String,
         imagePath: String?,
-        documentPath: String?,
-        documentName: String?,
     ): MessageRecord = database.withTransaction { connection ->
         val now = currentEpochMillis()
         val record = MessageRecord(
@@ -67,8 +60,6 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
             content = content,
             reasoning = reasoning,
             imagePath = imagePath,
-            documentPath = documentPath,
-            documentName = documentName,
             seq = connection.nextMessageSeq(conversationId),
             status = status,
             createdAt = now,
