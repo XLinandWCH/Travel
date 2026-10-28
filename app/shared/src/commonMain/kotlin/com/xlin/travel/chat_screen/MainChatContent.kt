@@ -34,6 +34,7 @@ import com.xlin.travel.color.TopBarEdgeFadeBrush
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.inputbox.ChatInputBox
 import com.xlin.travel.inputbox.ChatInputState
+import com.xlin.travel.miniprogram.MiniProgramQuickBar
 import com.xlin.travel.setting.UnreadBadgeDot
 import com.xlin.travel.tts.TtsController
 import kotlinx.coroutines.launch
@@ -44,7 +45,7 @@ import travel.app.shared.generated.resources.menu
 import travel.app.shared.generated.resources.start_reading
 
 /**
- * 聊天页：消息区铺满，顶栏半透明悬浮其上，底部固定输入框。
+ * 聊天页：消息区铺满，顶栏半透明悬浮其上，底部为小程序快捷条 + 固定输入框。
  *
  * 根节点统一监听「点击空白处」：Compose 不会自动取消文字选区、也不会因点击容器外
  * 而丢失输入框焦点（框架特性），这里用未被子级消费的按下事件作判据，
@@ -58,6 +59,7 @@ internal fun MainChatContent(
     onMenuClick: () -> Unit,
     onSend: (String) -> Unit,
     hasUnreadMessage: Boolean = false,
+    onOpenMiniProgram: (String) -> Unit = {},
 ) {
     val selectionRegistry = rememberSelectionRegistry()
     val focusManager = LocalFocusManager.current
@@ -107,6 +109,15 @@ internal fun MainChatContent(
                         .background(TopBarEdgeFadeBrush),
                 )
             }
+
+            // 小程序快捷条：紧贴输入框上方，左侧横向滚动的快捷胶囊撑满剩余宽度，
+            // 右侧固定圆形菜单按钮，点击弹出全部小程序的面板
+            MiniProgramQuickBar(
+                onOpenProgram = onOpenMiniProgram,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+            )
 
             // 输入框
             ChatInputBox(

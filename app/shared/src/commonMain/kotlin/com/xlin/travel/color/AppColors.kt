@@ -112,6 +112,12 @@ val SearchModalBorder: Color
 val BtnAddBorder: Color
     get() = themeColor(Color(0xFF555555), Color(0xFFA3A3A3))    // “+”按钮边框 [输入框]
 
+// ==================== 小程序（景区助手）====================
+// 呼应 UI设计/小程序选项UI参考.html：面板行分隔线 .panel-row border-bottom #2e2e2e，
+// 浅色主题按“深底变浅底”规则取反为中性浅灰。
+val MiniPanelDivider: Color
+    get() = themeColor(Color(0xFF2E2E2E), Color(0xFFDDDDE0))    // 面板网格行之间的分隔线 [小程序]
+
 // ==================== 附件动作面板（“+”展开：拍照 / 相册 / 本地文件）====================
 // 呼应 UI设计/输入框文件参考UI初稿.html 的 action-item：黑白为主， tiles 比卡片略作明暗对比，
 // 图标与文字统一走黑 / 柔白，按压态轻微加深，不使用彩色。
