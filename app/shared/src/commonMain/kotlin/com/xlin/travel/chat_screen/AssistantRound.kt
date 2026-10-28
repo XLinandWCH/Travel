@@ -114,11 +114,15 @@ internal class AssistantRound(
     /** 流式结束后把 AI 内容写回数据库；失败不影响界面展示 */
     private suspend fun persist(recordId: String?, reply: ChatMessage, status: String) {
         if (recordId == null) return
+        // 思考时间线含工具调用时编码内联进 reasoning 落库（重开历史可还原工具卡片）；
+        // 时间线为空（异常早退等）时退回纯 reasoning，避免丢失已输出的思考
+        val storedReasoning =
+            if (reply.timeline.isNotEmpty()) encodeThinkingTimeline(reply.timeline) else reply.reasoning
         runCatching {
             repository.updateMessage(
                 messageId = recordId,
                 content = reply.content,
-                reasoning = reply.reasoning,
+                reasoning = storedReasoning,
                 status = status,
             )
         }

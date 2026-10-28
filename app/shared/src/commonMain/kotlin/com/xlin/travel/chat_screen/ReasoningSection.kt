@@ -60,8 +60,8 @@ fun ReasoningSection(
     isThinking: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    // 没有思考内容、没有工具调用且不在思考中：整块不渲染
-    if (!isThinking && message.reasoning.isEmpty() && message.timeline.isEmpty()) return
+    // 没有思考文本也没有工具卡片：整块不渲染（非思考模型直接出正文时不出现空思考卡）
+    if (message.reasoning.isEmpty() && message.timeline.isEmpty()) return
 
     // null = 跟随默认（思考中展开、思考结束收起）；用户点击后记录手动状态
     var userExpanded by remember(message.id) { mutableStateOf<Boolean?>(null) }

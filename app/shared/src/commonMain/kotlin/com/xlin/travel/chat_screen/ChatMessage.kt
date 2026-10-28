@@ -79,8 +79,9 @@ class ChatMessage(
     val hasAnyContent: Boolean get() = content.isNotEmpty() || reasoning.isNotEmpty()
 
     /**
-     * 本轮思考时间线（仅内存，不落库）：思考文本与工具调用按到达顺序交错，
-     * 供 [ReasoningSection] 渲染「调用识图工具」这类工具卡片；历史恢复时为空、退化为纯文本思考。
+     * 本轮思考时间线：思考文本与工具调用按到达顺序交错，供 [ReasoningSection] 渲染
+     * 「调用识图工具」这类工具卡片。落库时用 [encodeThinkingTimeline] 把工具调用内联进
+     * reasoning 文本（不新增数据库列），历史恢复时用 [decodeThinkingTimeline] 还原。
      */
     var timeline: List<ThinkingItem> by mutableStateOf(emptyList())
         internal set
@@ -111,3 +112,46 @@ class ChatMessage(
         }
     }
 }
+
+// ==================== 思考时间线的持久化编解码 ====================
+// 工具卡片只有「名称 + 成功/失败」需要留存，用不可见控制符内联进 reasoning 文本，
+// 重新打开历史时 decode 还原成 Text/ToolCall 交错时间线；纯文本消息不含任何标记、原样存取。
+// 形如 \u0001TOOL\u0001<label>\u0001<0|1>\u0002 的行内标记（模型几乎不可能产出控制符，故安全）。
+private val ToolMarkRegex = Regex("\u0001TOOL\u0001(.*?)\u0001([01])\u0002")
+
+/** 时间线 → 落库文本：Text 原样拼接，ToolCall 编成行内标记 */
+internal fun encodeThinkingTimeline(items: List<ThinkingItem>): String = buildString {
+    items.forEach { item ->
+        when (item) {
+            is ThinkingItem.Text -> append(item.value)
+            is ThinkingItem.ToolCall ->
+                append("\u0001TOOL\u0001").append(item.label).append('\u0001')
+                    .append(if (item.failed) '1' else '0').append('\u0002')
+        }
+    }
+}
+
+/** 落库文本 → 时间线：含标记则拆分，否则整体视为一段思考文本 */
+internal fun decodeThinkingTimeline(raw: String): List<ThinkingItem> {
+    if (!raw.contains('\u0001')) return if (raw.isEmpty()) emptyList() else listOf(ThinkingItem.Text(raw))
+    val out = mutableListOf<ThinkingItem>()
+    var cursor = 0
+    for (match in ToolMarkRegex.findAll(raw)) {
+        val before = raw.substring(cursor, match.range.first)
+        if (before.isNotEmpty()) out.add(ThinkingItem.Text(before))
+        out.add(
+            ThinkingItem.ToolCall(
+                label = match.groupValues[1],
+                running = false,
+                failed = match.groupValues[2] == "1",
+            )
+        )
+        cursor = match.range.last + 1
+    }
+    val tail = raw.substring(cursor)
+    if (tail.isNotEmpty()) out.add(ThinkingItem.Text(tail))
+    return out
+}
+
+/** 去掉工具标记得到纯思考文本：供展示兜底与长度判断，避免控制符泄漏到界面 */
+internal fun stripThinkingMarkers(raw: String): String = raw.replace(ToolMarkRegex, "")
