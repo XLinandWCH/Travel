@@ -1,0 +1,100 @@
+name: Package Source Code
+
+# 手动触发：在 Actions 页面点击 "Run workflow" 后运行
+# 产出两个 zip 工件：
+#   1) 完整源码包（基于 git 跟踪的文件，自动排除 build/、中间产物等未跟踪文件，不含 Secrets）
+#   2) 后端源码包（server/ 模块，Ktor 后端）
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: '要打包的分支或 tag（留空则用当前分支）'
+        required: false
+        default: ''
+
+jobs:
+  package:
+    name: 打包源码
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 允许按输入的分支/tag 打包最近 50 层历史，避免浅克隆取不到指定 ref
+          fetch-depth: 50
+
+      - name: 切换到指定分支 / tag
+        if: ${{ github.event.inputs.ref != '' }}
+        run: git checkout "${{ github.event.inputs.ref }}"
+
+      # ============================================================
+      # 1) 完整源码包 —— 只含 git 跟踪的文件，天然排除 build 产物
+      # ============================================================
+      - name: 打包完整源码（zip）
+        run: |
+          set -e
+          COMMIT=$(git rev-parse --short HEAD)
+          git archive --format=zip --prefix=Travel-src-${COMMIT}/ HEAD > "Travel-full-src-${COMMIT}.zip"
+          echo "工件大小：$(wc -c < Travel-full-src-${COMMIT}.zip) bytes"
+          echo "ARCHIVE_FULL=Travel-full-src-${COMMIT}.zip" >> "$GITHUB_ENV"
+
+      - name: 上传完整源码包
+        uses: actions/upload-artifact@v4
+        with:
+          name: Travel-Full-Source
+          path: ${{ env.ARCHIVE_FULL }}
+
+      # ============================================================
+      # 2) 后端源码包 —— server + core（server 依赖 :core）+ 根构建文件（可独立编译）
+      # ============================================================
+      - name: 打包后端源码（zip）
+        run: |
+          set -e
+          COMMIT=$(git rev-parse --short HEAD)
+          STAGE=$(mktemp -d)
+          DEST="$STAGE/Travel-server-src-${COMMIT}"
+          mkdir -p "$DEST"
+          # 后端模块本体 + 它依赖的 :core 模块
+          cp -r server core "$DEST/"
+          # 工程根构建文件（server 脱离根工程无法编译，这些是必需的）
+          cp settings.gradle.kts gradle.properties "$DEST/"
+          cp -r gradle "$DEST/"
+          cp gradlew gradlew.bat "$DEST/"
+          # 改写 settings.gradle.kts：只保留 :core 与 :server，去掉 app 前端模块
+          sed -i -E '/^include\(:"app/d; /^include\(":core"\)/! { /^include\(":server"\)/!d }' "$DEST/settings.gradle.kts"
+          grep '^include' "$DEST/settings.gradle.kts"
+          # 生成精简版根 build.gradle.kts：只声明后端用到的插件，避免解析 Android/Compose 插件
+          # （heredoc 为了不退出 YAML 块缩进会多带 10 个前导空格，生成后用 sed 去掉）
+          cat > "$DEST/build.gradle.kts" <<'EOF'
+          plugins {
+              alias(libs.plugins.kotlinJvm) apply false
+              alias(libs.plugins.kotlinMultiplatform) apply false
+              alias(libs.plugins.ktor) apply false
+          }
+          EOF
+          sed -i -E 's/^ {10}//' "$DEST/build.gradle.kts"
+          echo "根构建脚本："; cat "$DEST/build.gradle.kts"
+          echo "打包内容清单："
+          find "$STAGE" -maxdepth 2 | sort
+          (cd "$STAGE" && zip -rq "$GITHUB_WORKSPACE/Travel-server-src-${COMMIT}.zip" "Travel-server-src-${COMMIT}")
+          echo "工件大小：$(wc -c < $GITHUB_WORKSPACE/Travel-server-src-${COMMIT}.zip) bytes"
+          echo "ARCHIVE_SERVER=Travel-server-src-${COMMIT}.zip" >> "$GITHUB_ENV"
+
+      - name: 上传后端源码包
+        uses: actions/upload-artifact@v4
+        with:
+          name: Travel-Server-Source
+          path: ${{ env.ARCHIVE_SERVER }}
+
+      # 简单校验：后端包里必须带有 Ktor 入口、core 模块与构建脚本
+      - name: 自检后端包内容
+        run: |
+          set -e
+          unzip -l "$ARCHIVE_SERVER" | grep "server/src/main/kotlin/com/xlin/travel"
+          unzip -l "$ARCHIVE_SERVER" | grep "server/build.gradle.kts"
+          unzip -l "$ARCHIVE_SERVER" | grep "core/build.gradle.kts"
+          unzip -l "$ARCHIVE_SERVER" | grep "gradle/libs.versions.toml"
+          # settings 里不应再残留 app 模块，且必须含 core 与 server
+          unzip -p "$ARCHIVE_SERVER" "*/settings.gradle.kts" | grep -q ':server'
+          ! unzip -p "$ARCHIVE_SERVER" "*/settings.gradle.kts" | grep -q ':app'
+          echo "✅ 后端源码包校验通过"
