@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider 共享路径：拍照 / 相册 / 本地文件均落在应用 cacheDir 下
+  （cacheDir/camera、cacheDir/images、cacheDir/documents）。
+  用一条 cache-path 覆盖整个缓存根目录即可，path="." 表示 cacheDir 本身。
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="shared_cache"
+        path="." />
+</paths>

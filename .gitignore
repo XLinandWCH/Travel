@@ -1,0 +1,27 @@
+# Gradle / Kotlin
+.gradle/
+build/
+.kotlin/
+local.properties
+
+# IDE
+.idea/*
+!.idea/vcs.xml
+*.iml
+
+# Node / Compose Web
+node_modules/
+kotlin-js-store/yarn.lock.bak
+
+# 敏感文件（签名密钥不要上传）
+*.jks
+*.keystore
+*.p12
+
+# 构建/部署产物（体积巨大，不进版本库，本地保留）
+server-all.jar
+travel-web-deploy.zip
+
+# OS
+.DS_Store
+Thumbs.db
