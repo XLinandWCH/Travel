@@ -8,7 +8,7 @@ import java.time.LocalDateTime
  * 业务表结构（Exposed DSL）。启动时由 DatabaseFactory 统一 SchemaUtils.create（缺表才建、绝不 DROP）。
  *
  * 接入服务：users（登录/注册，含管理员 role/type）、llm_models + voice_models（模型配置下发）、
- * feedback_tickets（用户反馈 + 管理员回复）、broadcast_messages（管理员公告）。
+ * feedback_tickets（用户反馈 + 管理员回复）、broadcast_messages（管理员公告）、map（高德地图密钥下发）。
  */
 
 /** 用户信息：用户名 / 手机号 / 邮箱 / 密码哈希 / 使用天数 / 注册时间 / 角色 type */
@@ -120,6 +120,26 @@ object FeedbackMessages : Table("feedback_messages") {
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
 
     override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * 高德地图密钥：一个平台一行，客户端登录后按 platform 拉取自己那行。
+ * [platform] 取值 ANDROID / IOS / WEB（大写，与客户端下发参数约定一致）；
+ * [securityCode] 仅 ANDROID 使用（SDK 安全码，iOS/Web 为 NULL）。
+ * 密钥是机密：与 llm_models 同样约定——正式环境通过环境变量注入轮换，见 MapKeySeeder。
+ */
+object MapKeys : Table("map") {
+    val id = long("id").autoIncrement()
+    val platform = varchar("platform", 8)                      // ANDROID / IOS / WEB
+    val apiKey = varchar("api_key", 128)                       // 高德控制台申请的 Key
+    val securityCode = varchar("security_code", 128).nullable() // SDK 安全码（仅 Android）
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(id)
+
+    init {
+        uniqueIndex("ux_map_platform", platform)
+    }
 }
 
 /**

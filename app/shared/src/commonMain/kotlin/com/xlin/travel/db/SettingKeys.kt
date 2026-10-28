@@ -29,6 +29,11 @@ object SettingKeys {
      */
     const val TtsConfigCache = "tts_config_cache"
 
+    /**
+     * 服务端下发的高德地图密钥（map 表）本地缓存，供断网兜底；随登录态清理。
+     */
+    const val MapConfigCache = "map_config_cache"
+
     /** 聊天顶栏的「自动朗读最新回复」开关："1" 开 / 其余关，跨启动记住 */
     const val TtsAutoRead = "tts_auto_read"
 }

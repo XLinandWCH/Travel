@@ -102,12 +102,16 @@ class UserSession {
         // 密钥类缓存一并作废：内存副本清空 + 本地缓存置空，下次登录重新向服务端拉取
         ModelConfigStore.forget()
         repository.setSetting(SettingKeys.ModelConfigCache, "")
+        // 地图密钥（map 表下发）同样随登录态清理
+        com.xlin.travel.map.MapKeysStore.forget()
+        repository.setSetting(SettingKeys.MapConfigCache, "")
     }
 
     /** 注销账号后：彻底清空内存会话（数据库清空由 repository.clearAllLocalData 负责） */
     fun erase() {
         resetInMemory()
         ModelConfigStore.forget()
+        com.xlin.travel.map.MapKeysStore.forget()
     }
 
     private fun resetInMemory() {

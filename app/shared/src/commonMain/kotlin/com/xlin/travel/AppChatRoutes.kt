@@ -60,6 +60,8 @@ internal fun AppHost.ChatRoutes() {
                     currentProgram = name
                     screen = AppScreen.MiniProgramDetail
                 },
+                // 聊天顶栏「地图」按钮：进入定位功能演示页
+                onOpenMap = { screen = AppScreen.Map },
                 onMenuClick = {
                     scope.launch {
                         history.refresh()

@@ -42,6 +42,7 @@ import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.close_reading
 import travel.app.shared.generated.resources.menu
+import travel.app.shared.generated.resources.scenic_area
 import travel.app.shared.generated.resources.start_reading
 
 /**
@@ -60,6 +61,7 @@ internal fun MainChatContent(
     onSend: (String) -> Unit,
     hasUnreadMessage: Boolean = false,
     onOpenMiniProgram: (String) -> Unit = {},
+    onOpenMap: () -> Unit = {},
 ) {
     val selectionRegistry = rememberSelectionRegistry()
     val focusManager = LocalFocusManager.current
@@ -104,6 +106,7 @@ internal fun MainChatContent(
                     hasUnreadMessage = hasUnreadMessage,
                     autoReadEnabled = tts.autoReadEnabled,
                     onToggleAutoRead = { uiScope.launch { tts.toggleAutoRead() } },
+                    onOpenMap = onOpenMap,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(TopBarEdgeFadeBrush),
@@ -144,6 +147,7 @@ private fun MainTopBar(
     hasUnreadMessage: Boolean = false,
     autoReadEnabled: Boolean = false,
     onToggleAutoRead: () -> Unit = {},
+    onOpenMap: () -> Unit = {},
 ) {
     Row(
         modifier = modifier.padding(12.dp),
@@ -171,6 +175,23 @@ private fun MainTopBar(
         }
         // 左右分栏：开关推到行尾，图标颜色与菜单按钮同款
         Spacer(Modifier.weight(1f))
+        // 地图入口（定位功能演示）：与朗读开关同尺寸的顶栏按钮
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MenuButtonBackground)
+                .clickable(onClick = onOpenMap),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(Res.drawable.scenic_area),
+                contentDescription = "地图",
+                colorFilter = ColorFilter.tint(TextWhite),
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Spacer(Modifier.size(8.dp))
         Box(
             modifier = Modifier
                 .size(40.dp)

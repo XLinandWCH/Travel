@@ -93,6 +93,7 @@ fun App() {
             host.SettingsRoutes()
             host.MessageCenterRoutes()
             host.MiniProgramRoutes()
+            host.MapRoutes()
         }
     }
 }

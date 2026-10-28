@@ -62,8 +62,8 @@ fun MiniProgramQuickBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
         ) {
-            items(MiniProgramCatalog.QuickNames) { name ->
-                QuickChip(text = name, onClick = { onOpenProgram(name) })
+            items(MiniProgramCatalog.Quick) { program ->
+                QuickChip(program = program, onClick = { onOpenProgram(program.name) })
             }
         }
         // 右：剩下的位置留给固定的圆形菜单按钮
@@ -78,24 +78,35 @@ fun MiniProgramQuickBar(
     )
 }
 
-/** 横向滚动的快捷胶囊（.quick-item）：卡片底色 + 全圆角，按压时叠加淡色反馈 */
+/**
+ * 横向滚动的快捷胶囊（.quick-item）：卡片底色 + 全圆角，按压时叠加淡色反馈。
+ * 图标为主、名称为辅：左侧小程序图标 + 右侧名称，二者作为一体。
+ */
 @Composable
 private fun QuickChip(
-    text: String,
+    program: MiniProgram,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    Box(
+    Row(
         modifier = modifier
             .clip(RoundedCornerShape(25.dp))
             .background(if (pressed) SettingItemPressed else InputCardBackground)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        Text(text = text, color = TextWhite, fontSize = 15.sp, maxLines = 1)
+        Image(
+            painter = painterResource(program.icon),
+            contentDescription = program.name,
+            // 图标自身为深色填充，浅/深主题下都染成白色与名称保持一致
+            colorFilter = ColorFilter.tint(TextWhite),
+            modifier = Modifier.size(18.dp),
+        )
+        Text(text = program.name, color = TextWhite, fontSize = 15.sp, maxLines = 1)
     }
 }
 

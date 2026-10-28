@@ -15,6 +15,7 @@ internal enum class AppScreen {
     Settings,
     Search,
     MiniProgramDetail,
+    Map,
     ThemeColor,
     History,
     MessageCenter,

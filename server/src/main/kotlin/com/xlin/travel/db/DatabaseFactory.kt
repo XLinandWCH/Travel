@@ -61,11 +61,11 @@ object DatabaseFactory {
         Database.connect(dataSource)
 
         // 3. 建表：users + 模型配置 llm_models / voice_models
-        //    + 反馈工单 feedback_tickets + 管理员公告 broadcast_messages。
+        //    + 反馈工单 feedback_tickets + 管理员公告 broadcast_messages + 地图密钥 map。
         //    历史统一表 model_api_keys 不再创建（旧库中已存在则原样保留、不引用、不 DROP）。
         //    SchemaUtils.create 是“缺表才建、存在即跳过”，绝不会 DROP / 重建已有表与数据。
         transaction {
-            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets, FeedbackMessages)
+            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets, FeedbackMessages, MapKeys)
         }
 
         // 4. 增量迁移：为已存在的旧表补上新列 / 外键
