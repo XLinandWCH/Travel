@@ -97,6 +97,22 @@ class WebChatRepository : ChatRepository {
         messages.filter { it.conversationId == conversationId }
             .maxOfOrNull { it.seq } ?: 0L
 
+    /** 与 SQLite 端一致：只取有界面的消息，带会话标题，按时间倒序 */
+    override suspend fun surfacesSince(since: Long, limit: Int): List<SurfaceRecord> =
+        messages
+            .filter { !it.surfaceJson.isNullOrBlank() && it.createdAt >= since }
+            .sortedByDescending { it.createdAt }
+            .take(limit)
+            .map { msg ->
+                SurfaceRecord(
+                    messageId = msg.id,
+                    conversationId = msg.conversationId,
+                    conversationTitle = conversations.firstOrNull { it.id == msg.conversationId }?.title.orEmpty(),
+                    surfaceJson = msg.surfaceJson.orEmpty(),
+                    createdAt = msg.createdAt,
+                )
+            }
+
     override suspend fun createConversation(
         title: String,
         model: String?,

@@ -130,21 +130,9 @@ class ChatState(
                 truncateFrom(edit)
             }
 
-            // 仅作为本轮发送给模型的输入：图片路径交给工具，文档在本机抽取正文内联，
-            // @小程序 提及翻译成工具调用要求；这些提示用户看不到
-            val llmPrompt = content
-                .withAttachmentHints(imagePath, documentPath, documentName)
-                .withMiniProgramHints()
-            // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
-            // 失败不在这里抛出，由 AssistantRound 统一在 AI 气泡里展示错误
-            runCatching { ModelConfigStore.ensure(repository) }
-            val activeConversation = ensureConversation(content)
-
-            // 本轮之前的历史分界线：ChatMemory 只加载 seq <= cutoff 的消息，
-            // 避免把刚刚写入的本轮用户消息重复拼进上下文
-            val cutoff = runCatching { repository.lastMessageSeq(activeConversation) }.getOrDefault(0L)
-
-            // 上屏与落库都用用户原始文本；图片缩略图仅在内存中随消息展示
+            // 先上屏：用户气泡与 AI 占位气泡必须在任何可能阻塞的工作之前加进来。
+            // 拉云端配置、建会话要等网络，带纯文本附件时还要在本机抽取正文，
+            // 这些放在气泡之前都会让「思考中…」迟迟不出现。
             _messages.add(
                 ChatMessage(
                     id = nextId++,
@@ -159,6 +147,22 @@ class ChatState(
             val reply = ChatMessage(nextId++, MessageRole.Assistant)
             _messages.add(reply)
 
+            // 仅作为本轮发送给模型的输入：图片路径交给工具，文档在本机抽取正文内联，
+            // @小程序 提及翻译成工具调用要求；这些提示用户看不到
+            val llmPrompt = content
+                .withAttachmentHints(imagePath, documentPath, documentName)
+                .withMiniProgramHints()
+
+            // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
+            // 失败不在这里抛出，由 AssistantRound 统一在 AI 气泡里展示错误
+            runCatching { ModelConfigStore.ensure(repository) }
+            val activeConversation = ensureConversation(content)
+
+            // 本轮之前的历史分界线：ChatMemory 只加载 seq <= cutoff 的消息，
+            // 避免把刚刚写入的本轮用户消息重复拼进上下文
+            val cutoff = runCatching { repository.lastMessageSeq(activeConversation) }.getOrDefault(0L)
+
+            // 上屏与落库都用用户原始文本；图片缩略图仅在内存中随消息展示
             runCatching {
                 repository.appendMessage(
                     activeConversation, MessageRoles.User, content,
@@ -190,12 +194,12 @@ class ChatState(
         isStreaming = true
         activeJob = coroutineContext[Job]
         try {
-            // 删除旧的 AI 记录，历史上下文才会停在用户提示词之前
-            _messages[index].recordId?.let { oldId ->
-                runCatching { repository.deleteMessage(oldId) }
-            }
+            // 先把占位回答换上去（「思考中…」立刻出现），再去删旧记录；
+            // 旧记录 id 已在同步段取出，不会因为列表被替换而丢
+            val oldRecordId = _messages[index].recordId
             val reply = ChatMessage(nextId++, MessageRole.Assistant)
             _messages[index] = reply
+            oldRecordId?.let { runCatching { repository.deleteMessage(it) } }
 
             // 此时数据库最后一条就是本轮的用户提示词，它作为新输入传入，
             // 需要再用 -1 把它从历史上下文中排除，避免重复拼接

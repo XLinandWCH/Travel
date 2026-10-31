@@ -76,9 +76,11 @@ fun App() {
         }
 
         // 系统返回键：子页面按 [AppScreen.systemBackTarget] 逐级回退；
+        // 个性化界面的返回目标随入口变化（聊天 / 历史页），改读 surfaceBackTarget；
         // 聊天页与未登入界面为根页，交给系统退出应用；帮助中心面板为独立窗口，返回键由它自己消费
         AppBackHandler(enabled = host.screen != AppScreen.Chat && host.screen != AppScreen.Guest) {
-            host.screen = host.screen.systemBackTarget()
+            host.screen = if (host.screen == AppScreen.A2ui) host.surfaceBackTarget
+            else host.screen.systemBackTarget()
         }
 
         // 背景铺满整屏（绘制到系统栏之下），内容再各自避开系统栏，符合原生 edge-to-edge 观感

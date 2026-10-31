@@ -59,6 +59,12 @@ internal class AppHost(
      */
     var currentSurfaceMessage by mutableStateOf<ChatMessage?>(null)
 
+    /**
+     * 个性化界面的返回目标：从聊天页进入回聊天页，从历史页进入回历史页。
+     * 顶栏返回按钮与系统返回键都读它，避免从历史页点进去后被弹回聊天。
+     */
+    var surfaceBackTarget by mutableStateOf(AppScreen.Chat)
+
     /** 尚未开发的设置条目统一进入「XXX 即将上线」占位页 */
     var comingSoonTitle by mutableStateOf("")
 

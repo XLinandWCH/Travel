@@ -114,6 +114,37 @@ internal fun SQLiteConnection.deleteMessagesFrom(conversationId: String, fromSeq
     }
 }
 
+/**
+ * 近期生成过个性化界面的消息：跨会话按生成时间倒序，带会话标题。
+ * 只查 surface_json 非空的行，界面页不需要把普通聊天消息拉回内存。
+ */
+internal fun SQLiteConnection.selectSurfacesSince(since: Long, limit: Int): List<SurfaceRecord> {
+    val sql = """
+        SELECT m.id, m.conversation_id, COALESCE(c.title, ''), m.surface_json, m.created_at
+        FROM message m LEFT JOIN conversation c ON c.id = m.conversation_id
+        WHERE m.surface_json IS NOT NULL AND m.surface_json <> '' AND m.created_at >= ?
+        ORDER BY m.created_at DESC
+        LIMIT ?
+    """.trimIndent()
+    return withStatement(sql) { statement ->
+        statement.bindLong(1, since)
+        statement.bindLong(2, limit.toLong())
+        buildList {
+            while (statement.step()) {
+                add(
+                    SurfaceRecord(
+                        messageId = statement.getText(0),
+                        conversationId = statement.getText(1),
+                        conversationTitle = statement.getText(2),
+                        surfaceJson = statement.getText(3),
+                        createdAt = statement.getLong(4),
+                    )
+                )
+            }
+        }
+    }
+}
+
 /** 转义 LIKE 通配符，避免用户输入的 % / _ 被当作模式匹配 */
 internal fun escapeLikePattern(keyword: String): String =
     keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

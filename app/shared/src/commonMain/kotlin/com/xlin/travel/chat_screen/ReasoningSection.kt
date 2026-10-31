@@ -60,8 +60,10 @@ fun ReasoningSection(
     isThinking: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    // 没有思考文本也没有工具卡片：整块不渲染（非思考模型直接出正文时不出现空思考卡）
-    if (message.reasoning.isEmpty() && message.timeline.isEmpty()) return
+    // 思考中即使还没有任何内容也要出标题：用户发送后立刻有「思考中…」反馈，而不是空白气泡；
+    // 只有「既不在思考、也没有任何思考内容」时才整块不渲染（非思考模型直接出正文）
+    val hasDetail = message.reasoning.isNotEmpty() || message.timeline.isNotEmpty()
+    if (!isThinking && !hasDetail) return
 
     // null = 跟随默认（思考中展开、思考结束收起）；用户点击后记录手动状态
     var userExpanded by remember(message.id) { mutableStateOf<Boolean?>(null) }
@@ -104,7 +106,8 @@ fun ReasoningSection(
         }
 
         AnimatedVisibility(
-            visible = expanded,
+            // 还没收到任何思考增量时不展开空卡片，只留标题行
+            visible = expanded && hasDetail,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically(),
         ) {

@@ -36,6 +36,21 @@ data class MessageRecord(
     val updatedAt: Long,
 )
 
+/**
+ * 一条个性化界面历史记录：跨会话列出近期由 AI 编排过的 A2UI 界面，
+ * 供顶栏「个性化窗口展示」页按时间由新到旧浏览。
+ */
+@Serializable
+data class SurfaceRecord(
+    val messageId: String,
+    val conversationId: String,
+    /** 所属会话标题，列表里用来说明「这屏是哪次聊出来的」 */
+    val conversationTitle: String,
+    /** A2UI 界面序列化结果，展示前解回 [com.xlin.travel.a2ui.A2uiSurface] */
+    val surfaceJson: String,
+    val createdAt: Long,
+)
+
 /** message.role 的取值 */
 object MessageRoles {
     const val User = "user"

@@ -23,6 +23,12 @@ interface ChatRepository {
     /** 某个会话的消息；[untilSeq] 为空时返回全部消息 */
     suspend fun messages(conversationId: String, untilSeq: Long? = null): List<MessageRecord>
 
+    /**
+     * 近期生成过个性化界面的消息，跨会话按时间由新到旧。
+     * [since] 为起始时间戳（毫秒），[limit] 为最多返回条数，供「个性化窗口展示」页浏览。
+     */
+    suspend fun surfacesSince(since: Long, limit: Int): List<SurfaceRecord>
+
     /** 会话内当前最后一条消息的顺序号，用作历史上下文的分界线 */
     suspend fun lastMessageSeq(conversationId: String): Long
 

@@ -64,8 +64,12 @@ internal fun AppHost.ChatRoutes() {
                 // 界面还在生成时也能进（页面会边生成边显示），所以不要求 surface 非空
                 onOpenSurface = { message ->
                     currentSurfaceMessage = message
+                    // 从聊天页点进去，返回时回聊天页
+                    surfaceBackTarget = AppScreen.Chat
                     screen = AppScreen.A2ui
                 },
+                // 顶栏 screen 图标：打开个性化界面历史，按天筛选、点开回看
+                onOpenSurfaces = { screen = AppScreen.Surfaces },
                 onMenuClick = {
                     scope.launch {
                         history.refresh()

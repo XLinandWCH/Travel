@@ -20,6 +20,7 @@ import com.xlin.travel.agent.tool.FoodGuideTool
 import com.xlin.travel.agent.tool.HelpConsultTool
 import com.xlin.travel.agent.tool.MediaAnalysisTool
 import com.xlin.travel.agent.tool.NearbySearchTool
+import com.xlin.travel.agent.tool.RagKnowledgeTool
 import com.xlin.travel.agent.tool.RoutePlanTool
 import com.xlin.travel.agent.tool.ShowTimeTool
 import com.xlin.travel.agent.tool.SpotGuideTool
@@ -51,6 +52,15 @@ private const val FALLBACK_SYSTEM_PROMPT =
 /** 排版工具名：与 [A2uiRenderTool] 注册名一致，用于识别它的流式参数 */
 private const val A2UI_RENDER_TOOL = "a2ui_render"
 
+/**
+ * 本地追加的知识库使用约束：云端 system_prompt 由服务端下发，改不了；
+ * 这里补一句「先查目录再取段落」，否则模型容易凭记忆编年份、门牌与价格。
+ */
+private const val KNOWLEDGE_HINT =
+    "\n\n[知识库] 遇到武汉里份相关的问题（历史、建筑、具体里份、路线、交通、美食、摄影、名人、保护改造），" +
+        "先调用 rag_knowledge（不填参数）看章节目录，再按章节号带 query 取对应段落；只依据工具返回的资料回答，" +
+        "资料里没写的就说没查到，不要凭记忆编造年份、门牌号与价格。"
+
 // 1. commonMain 里用 expect 拿 executor；密钥与地址来自云端配置，不写死在各平台
 expect fun createChatExecutor(config: RemoteModelConfig): PromptExecutor
 
@@ -76,6 +86,7 @@ suspend fun chatStreaming(
     // 另加 a2ui_render：模型把本轮内容整理成一屏 A2UI 界面，客户端用 a2ui 包的渲染器落地。
     val myTools = ToolRegistry {
         tool(A2uiRenderTool)
+        tool(RagKnowledgeTool)
         tool(MediaAnalysisTool)
         tool(DocumentReadTool)
         tool(RoutePlanTool)
@@ -95,7 +106,7 @@ suspend fun chatStreaming(
     val agent = AIAgent(
         promptExecutor = createChatExecutor(config),   // ← 不写 client，写 expect 函数
         llmModel = travelModel(config.modelId),
-        systemPrompt = config.systemPrompt?.takeIf { it.isNotBlank() } ?: FALLBACK_SYSTEM_PROMPT,
+        systemPrompt = (config.systemPrompt?.takeIf { it.isNotBlank() } ?: FALLBACK_SYSTEM_PROMPT) + KNOWLEDGE_HINT,
         temperature = config.temperature ?: ModelConfigStore.DEFAULT_TEMPERATURE,
         toolRegistry = myTools,
         strategy = strategy("streaming-demo"),

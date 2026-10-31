@@ -29,6 +29,10 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
     override suspend fun lastMessageSeq(conversationId: String): Long =
         database.withConnection { it.lastMessageSeq(conversationId) }
 
+    /** 近期生成过个性化界面的消息，跨会话按时间倒序 */
+    override suspend fun surfacesSince(since: Long, limit: Int): List<SurfaceRecord> =
+        database.withConnection { it.selectSurfacesSince(since, limit) }
+
     /** 新建会话，返回带 UUID 与外键时间戳的记录 */
     override suspend fun createConversation(
         title: String,

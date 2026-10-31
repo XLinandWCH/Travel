@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -43,6 +44,7 @@ import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.close_reading
 import travel.app.shared.generated.resources.menu
+import travel.app.shared.generated.resources.screen
 import travel.app.shared.generated.resources.start_reading
 
 /**
@@ -62,6 +64,7 @@ internal fun MainChatContent(
     hasUnreadMessage: Boolean = false,
     onOpenMiniProgram: (String) -> Unit = {},
     onOpenSurface: (ChatMessage) -> Unit = {},
+    onOpenSurfaces: () -> Unit = {},
 ) {
     val selectionRegistry = rememberSelectionRegistry()
     val focusManager = LocalFocusManager.current
@@ -112,6 +115,7 @@ internal fun MainChatContent(
                     hasUnreadMessage = hasUnreadMessage,
                     autoReadEnabled = tts.autoReadEnabled,
                     onToggleAutoRead = { uiScope.launch { tts.toggleAutoRead() } },
+                    onOpenSurfaces = onOpenSurfaces,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(TopBarEdgeFadeBrush),
@@ -146,8 +150,8 @@ internal fun MainChatContent(
 }
 
 /** 主内容顶栏：左侧菜单按钮（右上角可叠加未读圆点徽标）用于打开抽屉；
- * 最右侧通过 Spacer 分栏放「自动朗读」开关（close_reading 关 / start_reading 开），
- * 开启后每轮 AI 回复生成完自动朗读正文（不含思考内容） */
+ * 右侧依次为「个性化窗口展示」（screen 图标）与「自动朗读」开关（close_reading 关 / start_reading 开），
+ * 朗读开启后每轮 AI 回复生成完自动朗读正文（不含思考内容） */
 @Composable
 private fun MainTopBar(
     onMenuClick: () -> Unit,
@@ -155,6 +159,7 @@ private fun MainTopBar(
     hasUnreadMessage: Boolean = false,
     autoReadEnabled: Boolean = false,
     onToggleAutoRead: () -> Unit = {},
+    onOpenSurfaces: () -> Unit = {},
 ) {
     Row(
         modifier = modifier.padding(12.dp),
@@ -180,8 +185,25 @@ private fun MainTopBar(
                 modifier = Modifier.align(Alignment.TopEnd),
             )
         }
-        // 左右分栏：开关推到行尾，图标颜色与菜单按钮同款
+        // 左右分栏：两个入口推到行尾，图标颜色与菜单按钮同款
         Spacer(Modifier.weight(1f))
+        // 个性化窗口展示：近 N 天 AI 编排过的界面全部收在这里，可随时回看
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MenuButtonBackground)
+                .clickable(onClick = onOpenSurfaces),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(Res.drawable.screen),
+                contentDescription = "个性化窗口展示",
+                colorFilter = ColorFilter.tint(TextWhite),
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Spacer(Modifier.width(8.dp))
         Box(
             modifier = Modifier
                 .size(40.dp)
