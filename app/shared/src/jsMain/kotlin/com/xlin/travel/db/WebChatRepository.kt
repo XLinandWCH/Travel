@@ -189,6 +189,14 @@ class WebChatRepository : ChatRepository {
         persist()
     }
 
+    /** 界面就绪就先写库：与 SQLite 端同语义，只改 surfaceJson */
+    override suspend fun updateMessageSurface(messageId: String, surfaceJson: String) {
+        val index = messages.indexOfFirst { it.id == messageId }
+        if (index < 0) return
+        messages[index] = messages[index].copy(surfaceJson = surfaceJson)
+        persist()
+    }
+
     override suspend fun deleteMessagesFrom(conversationId: String, fromMessageId: String) {
         val seq = messages.firstOrNull { it.id == fromMessageId }?.seq ?: return
         messages.removeAll { it.conversationId == conversationId && it.seq >= seq }

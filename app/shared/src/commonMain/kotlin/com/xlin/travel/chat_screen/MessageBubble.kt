@@ -129,6 +129,7 @@ fun UserMessageBubble(
  *
  * [isThinking] 为 true 表示这条消息正处于思考阶段（流式中且正文还没开始），
  * 思考区标题显示跳动的「思考中…」并默认展开；思考结束后自动收起为「已深度思考」。
+ * 整块从上到下固定为「思考 → 正文 → 进入个性化界面 → 内容校验 → 动作按钮」。
  */
 @Composable
 fun AssistantMessageBlock(
@@ -158,8 +159,8 @@ fun AssistantMessageBlock(
             }
         }
 
-        // 顺序固定为「正文 → 进入个性化界面 → 动作按钮」：
-        // 入口是内容的一部分，反馈按钮是这一条的尾巴，不能让入口夹在反馈按钮后面。
+        // 顺序固定为「正文 → 进入个性化界面 → 内容校验 → 动作按钮」：
+        // 入口是内容的一部分，校验是收尾前的复核，反馈按钮是这一条的尾巴。
         // 入口不等流式结束：a2ui_render 的入口一出现就能点，界面在生成中也能进去看。
         val surface = message.surface
         val building = message.surfaceStage == SurfaceStage.Building
@@ -171,6 +172,12 @@ fun AssistantMessageBlock(
                 building = building,
                 blockCount = surface?.blocks?.count { !it.isEmpty } ?: 0,
             )
+        }
+
+        // 内容校验：与界面编排并行跑，但排在界面入口之后、动作按钮之前
+        if (message.verifyRunning || message.verifySteps.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            VerifySection(message = message)
         }
 
         if (showActions && (message.content.isNotEmpty() || surface != null)) {

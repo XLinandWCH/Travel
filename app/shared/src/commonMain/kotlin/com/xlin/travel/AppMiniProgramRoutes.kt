@@ -39,6 +39,8 @@ internal fun AppHost.MiniProgramRoutes() {
         AppScreen.Surfaces -> SurfaceGalleryScreen(
             repository = repository,
             onBack = { screen = AppScreen.Chat },
+            // 当前对话里已有界面的条数：变化时历史页自动重查一次（界面刚写库就应该能看见）
+            liveCount = chatState.messages.count { it.surface != null },
             onOpenSurface = { surface ->
                 // 历史里的界面已经定稿：包成一条只读消息交给同一个渲染页，不再走生成态
                 currentSurfaceMessage = ChatMessage(id = -1L, role = MessageRole.Assistant).apply {

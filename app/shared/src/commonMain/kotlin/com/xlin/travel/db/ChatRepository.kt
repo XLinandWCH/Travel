@@ -70,6 +70,12 @@ interface ChatRepository {
     suspend fun deleteMessage(id: String)
 
     /**
+     * 只写界面字段，不动正文与状态。
+     * a2ui_render 一执行完就调它：历史页不必等整轮回答结束，「界面已经能看了、历史里还没有」的窗口就不存在了。
+     */
+    suspend fun updateMessageSurface(messageId: String, surfaceJson: String)
+
+    /**
      * 「编辑重发」用：从 [fromMessageId] 这条消息开始（含它自身）删除本会话的全部后续消息，
      * 并刷新会话活跃时间。
      */

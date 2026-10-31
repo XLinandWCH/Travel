@@ -90,6 +90,15 @@ internal fun SQLiteConnection.updateMessage(
     }
 }
 
+/** 只更新界面 JSON（a2ui_render 刚执行完时抢先落库），不碰正文、状态与活跃时间 */
+internal fun SQLiteConnection.updateMessageSurface(id: String, surfaceJson: String) {
+    withStatement("UPDATE message SET surface_json = ? WHERE id = ?") { statement ->
+        statement.bindText(1, surfaceJson)
+        statement.bindText(2, id)
+        statement.step()
+    }
+}
+
 /** 删除单条消息（重新生成时先移除旧的 AI 回答） */
 internal fun SQLiteConnection.deleteMessage(id: String) {
     withStatement("DELETE FROM message WHERE id = ?") { statement ->

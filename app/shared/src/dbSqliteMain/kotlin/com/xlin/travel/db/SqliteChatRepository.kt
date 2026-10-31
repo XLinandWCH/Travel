@@ -101,6 +101,11 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
         database.withConnection { it.deleteMessage(id) }
     }
 
+    /** 界面就绪就先写库，不等整轮回答结束 */
+    override suspend fun updateMessageSurface(messageId: String, surfaceJson: String) {
+        database.withConnection { it.updateMessageSurface(messageId, surfaceJson) }
+    }
+
     /**
      * 「编辑重发」用：从 [fromMessageId] 这条消息开始（含它自身）删除本会话的全部后续消息，
      * 并刷新会话活跃时间。在一个事务内先查 seq 再删除，避免其它写入插进来导致删错范围。

@@ -58,6 +58,9 @@ private const val MillisPerDay = 24 * 60 * 60 * 1000L
  *
  * 不做缩略图：A2UI 的色块与图片缩到卡片大小会糊成一团，反而认不出是哪一屏，
  * 所以列表只给标题 / 副标题 / 块数 / 来源会话，点进去看完整界面。
+ *
+ * [liveCount] 为当前对话里已生成但可能尚未写完历史的界面数：它只用来做两件事——
+ * 界面就绪落库后自动重查一次（否则页面停在空列表）；为空时告诉用户不是丢了，是还没写进来。
  */
 @Composable
 fun SurfaceGalleryScreen(
@@ -65,6 +68,7 @@ fun SurfaceGalleryScreen(
     onBack: () -> Unit,
     onOpenSurface: (A2uiSurface) -> Unit,
     modifier: Modifier = Modifier,
+    liveCount: Int = 0,
 ) {
     var days by remember { mutableStateOf(DefaultDays) }
     var entries by remember { mutableStateOf<List<SurfaceEntry>>(emptyList()) }
@@ -72,7 +76,7 @@ fun SurfaceGalleryScreen(
     // 相对时间的基准：切天数或重进页面时更新一次，避免停留久了显示「59 分钟前」
     var now by remember { mutableStateOf(currentEpochMillis()) }
 
-    LaunchedEffect(days) {
+    LaunchedEffect(days, liveCount) {
         loading = true
         now = currentEpochMillis()
         val since = now - days * MillisPerDay
@@ -104,7 +108,11 @@ fun SurfaceGalleryScreen(
                     color = A2uiColor.accent,
                     strokeWidth = 2.dp,
                 )
-                entries.isEmpty() -> GalleryEmptyState(days = days, modifier = Modifier.align(Alignment.Center))
+                entries.isEmpty() -> GalleryEmptyState(
+                    days = days,
+                    liveCount = liveCount,
+                    modifier = Modifier.align(Alignment.Center),
+                )
                 else -> LazyColumn(
                     contentPadding = PaddingValues(
                         start = A2uiSpace.lg,
@@ -205,9 +213,9 @@ private fun RangeMenu(days: Int, onDaysChange: (Int) -> Unit) {
     }
 }
 
-/** 空态：不白屏，顺手告诉用户界面是怎么来的 */
+/** 空态：不白屏，顺手告诉用户界面是怎么来的；本对话有界面但没写进来时，说清是时序不是丢失 */
 @Composable
-private fun GalleryEmptyState(days: Int, modifier: Modifier = Modifier) {
+private fun GalleryEmptyState(days: Int, liveCount: Int, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.padding(horizontal = A2uiSpace.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -219,7 +227,11 @@ private fun GalleryEmptyState(days: Int, modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(A2uiSpace.sm))
         Text(
-            text = "在聊天里问一句路线或攻略，AI 会把回答再排成一屏，这里就能回看。",
+            text = if (liveCount > 0) {
+                "本次对话有 $liveCount 屏还没写进历史（界面刚排好或这一轮还没结束），稍后重新进入本页即可看到。"
+            } else {
+                "在聊天里问一句路线或攻略，AI 会把回答再排成一屏，这里就能回看。"
+            },
             color = A2uiColor.textTertiary,
             fontSize = A2uiText.caption,
             textAlign = TextAlign.Center,

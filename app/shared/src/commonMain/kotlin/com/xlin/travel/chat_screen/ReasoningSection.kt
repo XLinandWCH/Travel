@@ -80,7 +80,7 @@ fun ReasoningSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (isThinking) {
-                ThinkingLabel()
+                WaveLabel("思考中")
                 Spacer(Modifier.width(4.dp))
                 // 展开=箭头朝下（内容在下方可见），收起=旋转成朝右
                 RotateChevron(
@@ -159,9 +159,9 @@ fun ReasoningSection(
     }
 }
 
-/** 「思考中」三个字依次上下波动，像大厂 AI 应用的呼吸加载；末尾省略号静止 */
+/** 折叠标题的呼吸波动文字（思考区「思考中」与校验区「校验中」共用）；末尾省略号静止 */
 @Composable
-private fun ThinkingLabel() {
+internal fun WaveLabel(text: String) {
     val transition = rememberInfiniteTransition(label = "thinking-wave")
     // 一个 1.2s 的匀速循环相位，各字按序错开，形成波浪传递
     val phase by transition.animateFloat(
@@ -171,7 +171,7 @@ private fun ThinkingLabel() {
         label = "phase",
     )
     Row(verticalAlignment = Alignment.CenterVertically) {
-        "思考中".forEachIndexed { index, char ->
+        text.forEachIndexed { index, char ->
             Text(
                 text = char.toString(),
                 color = TextGray400,
@@ -188,7 +188,7 @@ private fun ThinkingLabel() {
 
 /** 折叠指示图标：展开 / 收起时平滑旋转；图标尺寸与 14sp 标题匹配 */
 @Composable
-private fun RotateChevron(
+internal fun RotateChevron(
     icon: org.jetbrains.compose.resources.DrawableResource,
     expanded: Boolean,
     collapsedRotation: Float,
@@ -200,7 +200,7 @@ private fun RotateChevron(
     )
     Image(
         painter = painterResource(icon),
-        contentDescription = if (expanded) "收起思考内容" else "展开思考内容",
+        contentDescription = if (expanded) "收起内容" else "展开内容",
         colorFilter = ColorFilter.tint(TextGray400),
         modifier = Modifier
             .size(16.dp)

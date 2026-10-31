@@ -5,6 +5,7 @@ import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.agent.chatStreaming
 import com.xlin.travel.a2ui.A2uiPartialParser
 import com.xlin.travel.a2ui.A2uiRelay
+import com.xlin.travel.a2ui.A2uiSurface
 import com.xlin.travel.a2ui.encodeA2uiSurface
 import com.xlin.travel.a2ui.stripA2uiPayload
 import com.xlin.travel.db.ChatRepository
@@ -12,6 +13,9 @@ import com.xlin.travel.db.DatabaseChatHistoryProvider
 import com.xlin.travel.db.MessageRoles
 import com.xlin.travel.db.MessageStatuses
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -35,7 +39,7 @@ internal class AssistantRound(
         conversationId: String,
         cutoffSeq: Long,
         reply: ChatMessage,
-    ): String? {
+    ): String? = coroutineScope {
         val recordId = runCatching {
             repository.appendMessage(
                 conversationId = conversationId,
@@ -47,6 +51,8 @@ internal class AssistantRound(
 
         // 本轮开始前清空界面票据：只让本轮 a2ui_render 的产物挂到这条回复上
         A2uiRelay.clear()
+        // 校验只跑一次：模型万一把 a2ui_render 调两次，不能叠出两段校验
+        var verifyJob: Job? = null
 
         try {
             // 密钥 / 模型 id / 系统提示词都由服务端下发：先确保拿到配置，
@@ -104,15 +110,23 @@ internal class AssistantRound(
                         if (thinkingStart == null) thinkingStart = TimeSource.Monotonic.markNow()
                         reply.appendTimelineToolCall(toolDisplayName(event.toolName))
                         // 参数还没开始流式时也先把入口挂上，避免「正文写完却什么都没出现」
-                        if (event.toolName == A2UI_TOOL_NAME) reply.surfaceStage = SurfaceStage.Building
+                        if (event.toolName == A2UI_TOOL_NAME) {
+                            reply.surfaceStage = SurfaceStage.Building
+                            // 内容校验与界面编排同时开始（两条线并行），
+                            // 但校验块排在界面入口之后、动作按钮之前
+                            if (verifyJob == null) verifyJob = launch { FakeContentVerifier.run(reply) }
+                        }
                     }
                     is ChatStreamEvent.ToolCallFinished -> {
                         reply.finishTimelineToolCall(failed = false)
                         // a2ui_render 的界面结构不在返回值里，而是经 A2uiRelay 单向传递
                         if (event.toolName == A2UI_TOOL_NAME) {
-                            A2uiRelay.take()?.let {
-                                reply.surface = it
+                            A2uiRelay.take()?.let { surface ->
+                                reply.surface = surface
                                 reply.surfaceStage = SurfaceStage.Ready
+                                // 界面一就绪就先写库：历史页读的是数据库，
+                                // 等整轮结束才写会出现「界面已经能看了、历史里还没有」的不一致
+                                launch { storeSurface(recordId, surface) }
                             }
                         }
                     }
@@ -145,6 +159,8 @@ internal class AssistantRound(
                     "已为这次回答排好一屏界面，点下方「进入个性化界面」查看。"
                 }
             }
+            // 校验也要收尾：等它跑完再落库，「校验完成」一定在动作按钮之前出现
+            verifyJob?.join()
             persist(recordId, reply, MessageStatuses.Done)
         } catch (t: Throwable) {
             // 用户主动“停止生成”：保留已输出的部分内容并正常落库，不把协程取消当作错误
@@ -152,13 +168,16 @@ internal class AssistantRound(
                 if (reply.content.isEmpty() && reply.reasoning.isEmpty()) {
                     reply.content = "（已停止生成）"
                 }
+                verifyJob?.join()
                 persist(recordId, reply, MessageStatuses.Done)
                 throw t
             }
             reply.content = reply.content.ifEmpty { "请求失败：${t.message ?: "未知错误"}" }
+            // 出错时不再等界面定稿，直接把校验收起，否则会卡在「校验中」
+            verifyJob?.cancel()
             persist(recordId, reply, MessageStatuses.Error)
         }
-        return recordId
+        recordId
     }
 
     /** 流式结束后把 AI 内容写回数据库；失败不影响界面展示 */
@@ -169,11 +188,16 @@ internal class AssistantRound(
             reply.surfaceStage =
                 if (reply.surface?.isEmpty == false) SurfaceStage.Ready else SurfaceStage.None
         }
+        // 停止 / 失败分支也要给校验收尾，否则标题会一直停在「校验中…」
+        if (reply.verifyRunning) reply.verifyRunning = false
         if (recordId == null) return
         // 思考时间线含工具调用时编码内联进 reasoning 落库（重开历史可还原工具卡片）；
         // 时间线为空（异常早退等）时退回纯 reasoning，避免丢失已输出的思考
+        // 校验步骤也内联进 reasoning 尾部（历史重开能还原校验卡片）；
+        // 没有校验步骤时不追加任何字符，普通消息的 reasoning 与以前一模一样
         val storedReasoning =
-            if (reply.timeline.isNotEmpty()) encodeThinkingTimeline(reply.timeline) else reply.reasoning
+            (if (reply.timeline.isNotEmpty()) encodeThinkingTimeline(reply.timeline) else reply.reasoning) +
+                encodeVerifySteps(reply.verifySteps)
         // 界面结构一并落库：历史会话重开时入口依然可用，不必重新问一遍 AI
         val storedSurface = reply.surface
             ?.takeIf { !it.isEmpty }
@@ -188,35 +212,23 @@ internal class AssistantRound(
             )
         }
     }
+
+    /** 界面已排版完成：只写 surface_json，不等整轮回答结束（正文/状态由 [persist] 后续补齐） */
+    private suspend fun storeSurface(recordId: String?, surface: A2uiSurface) {
+        if (recordId == null || surface.isEmpty) return
+        val json = runCatching { encodeA2uiSurface(surface) }.getOrNull() ?: return
+        runCatching { repository.updateMessageSurface(recordId, json) }
+    }
 }
 
 /** a2ui_render 失败：入口与半成品都撤掉，避免一直停在「正在编排」 */
 private fun ChatMessage.clearSurface() {
     surface = null
     surfaceStage = SurfaceStage.None
+    // 界面没排成，校验也失去了对象：一并撤掉，避免留下孤零零的「校验完成」
+    verifySteps = emptyList()
+    verifyRunning = false
 }
 
-/**
- * 工具名→用户可读的展示名（只展这几个字，不拼参数 / 结果）；未知工具回退为通用文案。
- * 12 个小程序各自对应一个工具，用户在工具卡片上能直接看出 AI 查了哪一类景区数据。
- */
+/** 编排个性化界面的工具名：只有它的完成事件会从 A2uiRelay 取界面、并触发内容校验 */
 private const val A2UI_TOOL_NAME = "a2ui_render"
-
-private fun toolDisplayName(toolName: String): String = when (toolName) {
-    "a2ui_render" -> "生成个性化界面"
-    "media_analysis" -> "调用识图工具"
-    "document_read" -> "调用阅读工具"
-    "route_plan" -> "调用路线规划工具"
-    "spot_recommend" -> "调用景点推荐工具"
-    "nearby_search" -> "调用周边查询工具"
-    "avoid_pit" -> "调用避坑指南工具"
-    "show_time" -> "调用表演时间工具"
-    "help_consult" -> "调用求助咨询工具"
-    "ticket_consult" -> "调用门票咨询工具"
-    "food_guide" -> "调用美食攻略工具"
-    "traffic_guide" -> "调用交通出行工具"
-    "spot_guide" -> "调用景点讲解工具"
-    "flow_analysis" -> "调用客流分析工具"
-    "check_in" -> "调用打卡分享工具"
-    else -> "调用工具"
-}

@@ -287,8 +287,8 @@ class ChatState(
             id = nextId++,
             role = messageRole,
             content = content,
-            // 落库的 reasoning 可能内联了工具标记：展示用去掉标记的纯文本
-            reasoning = stripThinkingMarkers(reasoning),
+            // 落库的 reasoning 可能内联了工具标记与校验步骤：展示用去掉全部标记的纯文本
+            reasoning = stripVerifySteps(stripThinkingMarkers(reasoning)),
             imagePath = imagePath,
             imageBitmap = imagePath?.let { decodeImageFromPath(it) },
             documentPath = documentPath,
@@ -297,6 +297,8 @@ class ChatState(
         message.recordId = id
         // 还原思考时间线（含历史工具卡片）；无标记时为空/纯文本，与实时流式一致
         message.timeline = decodeThinkingTimeline(reasoning)
+        // 还原校验卡片：校验与界面一起落库，重开历史仍可回看当时核对了什么
+        message.verifySteps = decodeVerifySteps(reasoning)
         // 还原当时生成的个性化界面：入口在历史会话里也能点开，而不是只能看文字
         surfaceJson?.let { json ->
             message.surface = decodeA2uiSurface(json)
