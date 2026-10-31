@@ -42,8 +42,9 @@ private data class CachedMapKeys(val savedAt: Long, val keys: RemoteMapKeys)
  * 3. 网络 / 服务端异常时退回本地缓存（7 天内有效）；
  * 4. 三者都拿不到则抛错，绝不回退到硬编码密钥。
  *
- * 定位演示页用它验证「密钥已就绪」（key 不硬编码、登录后可拉取），
- * 后续接入高德 SDK 时由平台侧初始化代码消费。
+ * 按平台分开缓存：设备平台行（ANDROID / IOS）的 Key 是 SDK 类型，供定位与后续 SDK 初始化；
+ * 静态地图等 Web 服务（[fetchFor] 传 "WEB"）必须用 Web服务类型的 WEB 行 Key，
+ * 用 SDK Key 调 restapi 会返回 USERKEY_PLAT_NOMATCH。
  */
 object MapKeysStore {
 
@@ -52,50 +53,58 @@ object MapKeysStore {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private var memory: RemoteMapKeys? = null
-    private var memoryAt = 0L
+    /** 平台 → 密钥 / 拉取时间（设备平台与 WEB 各自一份，互不覆盖） */
+    private val memory = mutableMapOf<String, RemoteMapKeys>()
+    private val memoryAt = mutableMapOf<String, Long>()
 
-    /** 已加载的密钥快照，供非挂起入口使用；尚未加载时为 null */
-    fun current(): RemoteMapKeys? = memory
+    /** 已加载的某平台密钥快照；尚未加载时为 null */
+    fun current(platform: String = mapPlatformKey): RemoteMapKeys? = memory[platform]
 
     /** 丢弃内存副本（退出登录 / 注销），本地缓存由调用方清空 */
     fun forget() {
-        memory = null
-        memoryAt = 0L
+        memory.clear()
+        memoryAt.clear()
     }
 
-    /** 取可用密钥，失败时抛出带用户可读信息的异常 */
-    suspend fun ensure(repository: ChatRepository): RemoteMapKeys {
-        memory?.takeIf { currentEpochMillis() - memoryAt < MEMORY_TTL_MILLIS }?.let { return it }
+    /** 取指定平台可用密钥（默认设备平台），失败时抛出带用户可读信息的异常 */
+    suspend fun ensure(repository: ChatRepository, platform: String = mapPlatformKey): RemoteMapKeys {
+        memory[platform]?.takeIf {
+            currentEpochMillis() - (memoryAt[platform] ?: 0L) < MEMORY_TTL_MILLIS
+        }?.let { return it }
 
         val token = repository.getSetting(SettingKeys.AuthToken).orEmpty()
         if (token.isBlank()) error("未登录，无法获取地图配置，请先登录")
 
-        val fetched = runCatching { MapKeysApi.fetch(token, mapPlatformKey) }
+        val cacheKey = diskKeyFor(platform)
+        val fetched = runCatching { MapKeysApi.fetch(token, platform) }
         val keys = fetched.getOrNull()?.takeIf { it.apiKey.isNotBlank() }
         if (keys != null) {
             val now = currentEpochMillis()
-            memory = keys
-            memoryAt = now
+            memory[platform] = keys
+            memoryAt[platform] = now
             repository.setSetting(
-                SettingKeys.MapConfigCache,
+                cacheKey,
                 json.encodeToString(CachedMapKeys.serializer(), CachedMapKeys(now, keys)),
             )
             return keys
         }
 
         // 断网 / 服务端异常：退回上次成功的本地缓存
-        val cached = repository.getSetting(SettingKeys.MapConfigCache)
+        val cached = repository.getSetting(cacheKey)
             ?.let { runCatching { json.decodeFromString(CachedMapKeys.serializer(), it) }.getOrNull() }
         cached?.takeIf { currentEpochMillis() - it.savedAt < DISK_TTL_MILLIS }?.let {
-            memory = it.keys
-            memoryAt = it.savedAt
+            memory[platform] = it.keys
+            memoryAt[platform] = it.savedAt
             return it.keys
         }
 
         val reason = fetched.exceptionOrNull()?.message ?: "服务端未返回地图配置"
         error("地图配置获取失败（$reason），请检查网络或稍后重试")
     }
+
+    /** 各平台的磁盘缓存键：WEB 行单独一份，不与设备平台缓存互相顶掉 */
+    private fun diskKeyFor(platform: String): String =
+        if (platform == "WEB") SettingKeys.MapWebConfigCache else SettingKeys.MapConfigCache
 }
 
 /** /api/map/keys 接口客户端 */

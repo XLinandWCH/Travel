@@ -74,7 +74,9 @@ kotlin {
             implementation(libs.koog.http.client.ktor)
             implementation(libs.ktor.clientCio)
             implementation(libs.androidx.sqlite.bundled)
-
+            // 路线规划小程序：高德 Android 原生 3D 地图 SDK（可交互真地图 + 路线折线/标记）。
+            // 官网组合包（含定位与搜索），Maven Central 可解析；10.x 仅带 armeabi-v7a / arm64-v8a 的 so。
+            implementation("com.amap.api:3dmap-location-search:10.1.200_loc6.4.9_sea9.7.4")
         }
         commonMain.dependencies {
             api(project(":core"))

@@ -118,6 +118,17 @@ val BtnAddBorder: Color
 val MiniPanelDivider: Color
     get() = themeColor(Color(0xFF2E2E2E), Color(0xFFDDDDE0))    // 面板网格行之间的分隔线 [小程序]
 
+// ==================== 路线规划小程序 ====================
+// 地图卡片相关中性色；强调一律用 AccentOrange（线条 / 站点序号 / 选中胶囊），不另引入新色相。
+val MapPlaceholderBackground: Color
+    get() = themeColor(Color(0xFF232327), Color(0xFFEDEEF1))    // 地图加载 / 不可用时的占位底 [路线规划]
+val RouteChipSelectedBackground: Color
+    get() = themeColor(Color(0x2E5722), Color(0x14FF5722))      // 出行方式选中胶囊底：强调橙 18% / 12% [路线规划]
+val RouteStopSelectedBackground: Color
+    get() = themeColor(Color(0x14FFFFFF), Color(0x0FFF5722))    // 时间线站点选中底：深叠白 8% / 浅叠橙 6% [路线规划]
+val RouteTimelineConnector: Color
+    get() = themeColor(Color(0xFF3A3A3A), Color(0xFFD5D5D9))    // 时间线竖向连线 [路线规划]
+
 // ==================== 附件动作面板（“+”展开：拍照 / 相册 / 本地文件）====================
 // 呼应 UI设计/输入框文件参考UI初稿.html 的 action-item：黑白为主， tiles 比卡片略作明暗对比，
 // 图标与文字统一走黑 / 柔白，按压态轻微加深，不使用彩色。

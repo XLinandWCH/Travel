@@ -34,6 +34,7 @@ import com.xlin.travel.color.TopBarEdgeFadeBrush
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.inputbox.ChatInputBox
 import com.xlin.travel.inputbox.ChatInputState
+import com.xlin.travel.map.LocationTracker
 import com.xlin.travel.miniprogram.MiniProgramQuickBar
 import com.xlin.travel.setting.UnreadBadgeDot
 import com.xlin.travel.tts.TtsController
@@ -42,7 +43,6 @@ import org.jetbrains.compose.resources.painterResource
 import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.close_reading
 import travel.app.shared.generated.resources.menu
-import travel.app.shared.generated.resources.scenic_area
 import travel.app.shared.generated.resources.start_reading
 
 /**
@@ -61,7 +61,7 @@ internal fun MainChatContent(
     onSend: (String) -> Unit,
     hasUnreadMessage: Boolean = false,
     onOpenMiniProgram: (String) -> Unit = {},
-    onOpenMap: () -> Unit = {},
+    onOpenSurface: (ChatMessage) -> Unit = {},
 ) {
     val selectionRegistry = rememberSelectionRegistry()
     val focusManager = LocalFocusManager.current
@@ -69,6 +69,11 @@ internal fun MainChatContent(
     // 朗读总控：动作条的手动朗读 + 顶栏的自动朗读开关共用一套状态
     val tts = remember { TtsController(repository) }
     LaunchedEffect(Unit) { tts.loadPreferences() }
+    // 定位提醒：用户手动关闭定位（权限被拒）时顶部提醒打开，不跳专门页面
+    val toast = remember { ChatToastState() }
+    LaunchedEffect(LocationTracker.needEnableReminder) {
+        if (LocationTracker.needEnableReminder) toast.show("定位已关闭，请在系统设置中允许本应用获取位置")
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -98,6 +103,7 @@ internal fun MainChatContent(
                     inputState = inputState,
                     tts = tts,
                     modifier = Modifier.fillMaxSize(),
+                    onOpenSurface = onOpenSurface,
                 )
 
                 // 顶部区域半透明，避免整条 fillMaxWidth 的实色条大面积遮挡聊天内容
@@ -106,11 +112,13 @@ internal fun MainChatContent(
                     hasUnreadMessage = hasUnreadMessage,
                     autoReadEnabled = tts.autoReadEnabled,
                     onToggleAutoRead = { uiScope.launch { tts.toggleAutoRead() } },
-                    onOpenMap = onOpenMap,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(TopBarEdgeFadeBrush),
                 )
+
+                // 定位关闭提醒等顶部提示（铺满 Box 最上层，避让状态栏由 TopToast 内部处理）
+                TopToast(toast, modifier = Modifier.fillMaxSize())
             }
 
             // 小程序快捷条：紧贴输入框上方，左侧横向滚动的快捷胶囊撑满剩余宽度，
@@ -147,7 +155,6 @@ private fun MainTopBar(
     hasUnreadMessage: Boolean = false,
     autoReadEnabled: Boolean = false,
     onToggleAutoRead: () -> Unit = {},
-    onOpenMap: () -> Unit = {},
 ) {
     Row(
         modifier = modifier.padding(12.dp),
@@ -175,23 +182,6 @@ private fun MainTopBar(
         }
         // 左右分栏：开关推到行尾，图标颜色与菜单按钮同款
         Spacer(Modifier.weight(1f))
-        // 地图入口（定位功能演示）：与朗读开关同尺寸的顶栏按钮
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MenuButtonBackground)
-                .clickable(onClick = onOpenMap),
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painter = painterResource(Res.drawable.scenic_area),
-                contentDescription = "地图",
-                colorFilter = ColorFilter.tint(TextWhite),
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        Spacer(Modifier.size(8.dp))
         Box(
             modifier = Modifier
                 .size(40.dp)

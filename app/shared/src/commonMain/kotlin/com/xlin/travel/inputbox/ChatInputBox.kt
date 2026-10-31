@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
@@ -197,6 +199,14 @@ private const val AttachmentHintVisibleMillis = 2600L
 @Composable
 private fun InputRow(state: ChatInputState, onSend: (String) -> Unit) {
     val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
+
+    // 点小程序快捷条插入「@名称」后把焦点交回输入框：键盘弹出、光标停在末尾，
+    // 用户接着补一句需求即可发送（这里只聚焦，不自动发送）
+    LaunchedEffect(state.focusRequestTick) {
+        if (state.focusRequestTick > 0) focusRequester.requestFocus()
+    }
+
     Row(
         modifier = Modifier.heightIn(min = 36.dp),
         verticalAlignment = Alignment.Top,
@@ -206,7 +216,8 @@ private fun InputRow(state: ChatInputState, onSend: (String) -> Unit) {
             onValueChange = { state.onTextChange(it) },
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 24.dp, max = 120.dp),
+                .heightIn(min = 24.dp, max = 120.dp)
+                .focusRequester(focusRequester),
             textStyle = TextStyle(color = InputTextColor, fontSize = 16.sp, lineHeight = 24.sp),
             cursorBrush = SolidColor(AccentOrange),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),

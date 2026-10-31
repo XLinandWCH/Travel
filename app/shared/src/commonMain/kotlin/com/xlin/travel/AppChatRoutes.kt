@@ -55,13 +55,18 @@ internal fun AppHost.ChatRoutes() {
                 chatState = chatState,
                 repository = repository,
                 hasUnreadMessage = badge.hasUnread,
-                // 输入框上方快捷条 / 面板点到某个小程序：记住名字再进入它的占位页
+                // 输入框上方快捷条 / 面板点到某个小程序：只在输入框插入「@名称」并把焦点交回输入框，
+                // 发送时再由 withMiniProgramHints 翻译成工具调用要求，由 AI 调用对应工具作答
                 onOpenMiniProgram = { name ->
-                    currentProgram = name
-                    screen = AppScreen.MiniProgramDetail
+                    inputState.appendMention("@$name")
                 },
-                // 聊天顶栏「地图」按钮：进入定位功能演示页
-                onOpenMap = { screen = AppScreen.Map },
+                // AI 回答下方的「进入个性化界面」：带上这条回复的 A2UI 界面切页，返回时回聊天
+                onOpenSurface = { message ->
+                    message.surface?.let { surface ->
+                        currentSurface = surface
+                        screen = AppScreen.A2ui
+                    }
+                },
                 onMenuClick = {
                     scope.launch {
                         history.refresh()

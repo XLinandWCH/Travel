@@ -11,8 +11,21 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
+import com.xlin.travel.agent.tool.A2uiRenderTool
+import com.xlin.travel.agent.tool.AvoidPitTool
+import com.xlin.travel.agent.tool.CheckInTool
 import com.xlin.travel.agent.tool.DocumentReadTool
+import com.xlin.travel.agent.tool.FlowAnalysisTool
+import com.xlin.travel.agent.tool.FoodGuideTool
+import com.xlin.travel.agent.tool.HelpConsultTool
 import com.xlin.travel.agent.tool.MediaAnalysisTool
+import com.xlin.travel.agent.tool.NearbySearchTool
+import com.xlin.travel.agent.tool.RoutePlanTool
+import com.xlin.travel.agent.tool.ShowTimeTool
+import com.xlin.travel.agent.tool.SpotGuideTool
+import com.xlin.travel.agent.tool.SpotRecommendTool
+import com.xlin.travel.agent.tool.TicketConsultTool
+import com.xlin.travel.agent.tool.TrafficTool
 
 /**
  * 旅行主模型：模型 id 由服务端 model_api_keys 下发，客户端只固定能力清单。
@@ -55,9 +68,25 @@ suspend fun chatStreaming(
     historyProvider: ChatHistoryProvider? = null,
     onEvent: (ChatStreamEvent) -> Unit = {},
 ): String {
+    // 12 个小程序 = 12 个工具：用户在输入框插入「@名称」后，模型据此调用对应工具作答。
+    // 内容暂为写死的武汉·里份景区数据（agent.tool.lifen 包），后续换云端数据源时无需改注册。
+    // 另加 a2ui_render：模型把本轮内容整理成一屏 A2UI 界面，客户端用 a2ui 包的渲染器落地。
     val myTools = ToolRegistry {
+        tool(A2uiRenderTool)
         tool(MediaAnalysisTool)
         tool(DocumentReadTool)
+        tool(RoutePlanTool)
+        tool(SpotRecommendTool)
+        tool(NearbySearchTool)
+        tool(AvoidPitTool)
+        tool(ShowTimeTool)
+        tool(HelpConsultTool)
+        tool(TicketConsultTool)
+        tool(FoodGuideTool)
+        tool(TrafficTool)
+        tool(SpotGuideTool)
+        tool(FlowAnalysisTool)
+        tool(CheckInTool)
     }
 
     val agent = AIAgent(

@@ -18,12 +18,15 @@ import com.xlin.travel.color.AppTheme
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.ThemePreference
 import com.xlin.travel.db.SettingKeys
+import com.xlin.travel.map.LocationTracker
+import com.xlin.travel.map.initMapContext
+import com.xlin.travel.map.mapPlatformContext
 import com.xlin.travel.navigation.AppBackHandler
 import kotlinx.coroutines.launch
 
 /**
  * 应用装配入口：创建并持有应用级状态 [AppHost]，跑启动期的一次性 effects
- * （恢复历史 / 主题 / 登录态、未读徽标刷新、系统深浅色同步）与两个返回键处理，
+ * （恢复历史 / 主题 / 登录态、未读徽标刷新、系统深浅色同步、定位自启），
  * 页面渲染按分组拆到同包的 AppChatRoutes / AppSettingsRoutes / AppMessageCenterRoutes /
  * AppMiniProgramRoutes，路由枚举与返回栈映射见 AppNavigation.kt。
  */
@@ -32,6 +35,8 @@ fun App() {
     MaterialTheme {
         val host = rememberAppHost()
         val systemIsDark = isSystemInDarkTheme()
+        // 挂起函数里取不到 CompositionLocal：组合期捕获平台上下文注入地图模块（仅 Android 定位需要）
+        initMapContext(mapPlatformContext())
 
         // 启动时从数据库恢复历史会话列表、主题偏好与登录态
         LaunchedEffect(host.repository) {
@@ -60,6 +65,10 @@ fun App() {
         LaunchedEffect(systemIsDark) {
             AppTheme.systemIsDark = systemIsDark
         }
+
+        // 定位随应用自启：ready 后申请权限并静默定位一次（结果存 LocationTracker），
+        // 无专门地图页面；用户手动关闭定位时由聊天页顶部提醒打开
+        if (host.appReady) LocationTracker.StartupEffect()
 
         // 抽屉（历史记录区域）打开时：系统返回键先关闭抽屉，而不是把事件交给系统直接退出应用
         AppBackHandler(enabled = host.drawerState.currentValue == DrawerValue.Open) {
@@ -93,7 +102,6 @@ fun App() {
             host.SettingsRoutes()
             host.MessageCenterRoutes()
             host.MiniProgramRoutes()
-            host.MapRoutes()
         }
     }
 }

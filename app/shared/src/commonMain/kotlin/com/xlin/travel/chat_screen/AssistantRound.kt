@@ -3,6 +3,7 @@ package com.xlin.travel.chat_screen
 import com.xlin.travel.agent.ChatStreamEvent
 import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.agent.chatStreaming
+import com.xlin.travel.a2ui.A2uiRelay
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.DatabaseChatHistoryProvider
 import com.xlin.travel.db.MessageRoles
@@ -40,6 +41,9 @@ internal class AssistantRound(
                 status = MessageStatuses.Sending,
             )
         }.getOrNull()?.id
+
+        // 本轮开始前清空界面票据：只让本轮 a2ui_render 的产物挂到这条回复上
+        A2uiRelay.clear()
 
         try {
             // 密钥 / 模型 id / 系统提示词都由服务端下发：先确保拿到配置，
@@ -81,8 +85,13 @@ internal class AssistantRound(
                         if (thinkingStart == null) thinkingStart = TimeSource.Monotonic.markNow()
                         reply.appendTimelineToolCall(toolDisplayName(event.toolName))
                     }
-                    is ChatStreamEvent.ToolCallFinished ->
+                    is ChatStreamEvent.ToolCallFinished -> {
                         reply.finishTimelineToolCall(failed = false)
+                        // a2ui_render 的界面结构不在返回值里，而是经 A2uiRelay 单向传递
+                        if (event.toolName == A2UI_TOOL_NAME) {
+                            reply.surface = A2uiRelay.take() ?: reply.surface
+                        }
+                    }
                     is ChatStreamEvent.ToolValidationFailed ->
                         reply.finishTimelineToolCall(failed = true)
                     is ChatStreamEvent.ToolCallFailed ->
@@ -91,6 +100,8 @@ internal class AssistantRound(
                 }
             }
             finalizeThinking()
+            // 兜底：工具执行完但未收到 Finished 事件时，界面票据仍在槽位里
+            if (reply.surface == null) reply.surface = A2uiRelay.take()
             // 兜底：若没有收到任何流式内容，用最终结果直接展示，避免界面一直停留在“正在思考”
             if (reply.content.isEmpty() && result.isNotEmpty()) {
                 reply.content = result
@@ -129,9 +140,27 @@ internal class AssistantRound(
     }
 }
 
-/** 工具名→用户可读的展示名（只展这几个字，不拼参数 / 结果）；未知工具回退为通用文案 */
+/**
+ * 工具名→用户可读的展示名（只展这几个字，不拼参数 / 结果）；未知工具回退为通用文案。
+ * 12 个小程序各自对应一个工具，用户在工具卡片上能直接看出 AI 查了哪一类景区数据。
+ */
+private const val A2UI_TOOL_NAME = "a2ui_render"
+
 private fun toolDisplayName(toolName: String): String = when (toolName) {
+    "a2ui_render" -> "生成个性化界面"
     "media_analysis" -> "调用识图工具"
     "document_read" -> "调用阅读工具"
+    "route_plan" -> "调用路线规划工具"
+    "spot_recommend" -> "调用景点推荐工具"
+    "nearby_search" -> "调用周边查询工具"
+    "avoid_pit" -> "调用避坑指南工具"
+    "show_time" -> "调用表演时间工具"
+    "help_consult" -> "调用求助咨询工具"
+    "ticket_consult" -> "调用门票咨询工具"
+    "food_guide" -> "调用美食攻略工具"
+    "traffic_guide" -> "调用交通出行工具"
+    "spot_guide" -> "调用景点讲解工具"
+    "flow_analysis" -> "调用客流分析工具"
+    "check_in" -> "调用打卡分享工具"
     else -> "调用工具"
 }

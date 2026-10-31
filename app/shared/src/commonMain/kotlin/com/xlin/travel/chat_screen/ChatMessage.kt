@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
+import com.xlin.travel.a2ui.A2uiSurface
 
 /** 消息角色 */
 enum class MessageRole {
@@ -84,6 +85,13 @@ class ChatMessage(
      * reasoning 文本（不新增数据库列），历史恢复时用 [decodeThinkingTimeline] 还原。
      */
     var timeline: List<ThinkingItem> by mutableStateOf(emptyList())
+        internal set
+
+    /**
+     * 本轮 AI 编排的个性化界面（a2ui_render 的产物）。
+     * 仅内存持有：重开历史会话不会重新生成界面，因此入口按钮只在当轮出现。
+     */
+    var surface: A2uiSurface? by mutableStateOf(null)
         internal set
 
     private val timelineItems = mutableListOf<ThinkingItem>()

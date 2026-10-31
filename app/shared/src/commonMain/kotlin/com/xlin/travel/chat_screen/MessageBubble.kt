@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xlin.travel.a2ui.A2uiEntryButton
 import com.xlin.travel.color.FileChipBackground
 import com.xlin.travel.color.FileChipText
 import com.xlin.travel.color.UserBubbleBackground
@@ -141,6 +142,7 @@ fun AssistantMessageBlock(
     onRegenerate: () -> Unit,
     onRead: () -> Unit,
     onCopy: () -> Unit,
+    onOpenSurface: () -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // 思考区：思考中 / 已深度思考两种标题态，点击可展开收起
@@ -168,6 +170,14 @@ fun AssistantMessageBlock(
                     onCopy = onCopy,
                 )
             }
+        }
+
+        // 本轮 AI 编排了界面：正文下方出现「进入个性化界面」入口。
+        // 流式未结束（showActions 为 false）时先不显示，避免按钮在中途冒出来又消失
+        val surface = message.surface
+        if (surface != null && showActions) {
+            Spacer(Modifier.height(8.dp))
+            A2uiEntryButton(onClick = onOpenSurface, title = surface.title)
         }
     }
 }

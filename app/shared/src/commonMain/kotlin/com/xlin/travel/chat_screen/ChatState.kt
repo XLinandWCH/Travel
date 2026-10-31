@@ -106,6 +106,7 @@ class ChatState(
      * [imagePath] / [image] 非空时，只把真实图片路径拼进「发送给模型的提示词」，
      * 供 media_analysis 工具调用；[documentPath] / [documentName] 非空时，在本机抽取文档正文
      * 并以纯文本内联进提示词（OpenAI 兼容端点不接受文档二进制，只吃 text/image_url）。
+     * 文本里带「@景点推荐」这类小程序提及时，只额外追加一段工具调用提示（withMiniProgramHints）。
      * 上屏与落库的用户消息都只保留原始文本，绝不会把系统提示语或抽取正文混进用户自己发送的内容里。
      */
     suspend fun send(
@@ -128,8 +129,11 @@ class ChatState(
                 truncateFrom(edit)
             }
 
-            // 仅作为本轮发送给模型的输入：图片路径交给工具，文档在本机抽取正文内联，用户看不到这段话
-            val llmPrompt = content.withAttachmentHints(imagePath, documentPath, documentName)
+            // 仅作为本轮发送给模型的输入：图片路径交给工具，文档在本机抽取正文内联，
+            // @小程序 提及翻译成工具调用要求；这些提示用户看不到
+            val llmPrompt = content
+                .withAttachmentHints(imagePath, documentPath, documentName)
+                .withMiniProgramHints()
             // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
             // 失败不在这里抛出，由 AssistantRound 统一在 AI 气泡里展示错误
             runCatching { ModelConfigStore.ensure(repository) }
@@ -177,10 +181,10 @@ class ChatState(
         if (index < 0 || isStreaming) return
         val userMessage = _messages.subList(0, index).lastOrNull { it.role == MessageRole.User }
             ?: return
-        // 重新发送时同样只把路径拼进给模型的提示词，用户消息本身仍是原始文本
-        val prompt = userMessage.content.withAttachmentHints(
-            userMessage.imagePath, userMessage.documentPath, userMessage.documentName,
-        )
+        // 重新发送时同样只把路径与 @小程序 提示拼进给模型的提示词，用户消息本身仍是原始文本
+        val prompt = userMessage.content
+            .withAttachmentHints(userMessage.imagePath, userMessage.documentPath, userMessage.documentName)
+            .withMiniProgramHints()
 
         isStreaming = true
         activeJob = coroutineContext[Job]

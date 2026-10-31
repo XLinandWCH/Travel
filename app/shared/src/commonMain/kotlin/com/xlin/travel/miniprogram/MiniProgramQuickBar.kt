@@ -41,7 +41,8 @@ import travel.app.shared.generated.resources.mini_menu
  * 一行分左右两栏 —— 左侧 [LazyRow] 用 weight(1f) 撑满剩余宽度、横向滚动展示常用小程序胶囊，
  * 右侧固定一个圆形菜单按钮（mini_menu.xml，深灰填充需按主题染色），
  * 点它弹出 [MiniProgramPanel] 展示全部小程序。
- * 点任一胶囊或面板条目都回调 [onOpenProgram]，由上层跳到该小程序的「开发中」占位页。
+ * 点任一胶囊或面板条目都回调 [onOpenProgram]，由上层在输入框插入「@名称」并把焦点交回输入框，
+ * 用户补完需求发送后，由模型调用该小程序对应的工具作答（不再跳独立页面）。
  */
 @Composable
 fun MiniProgramQuickBar(

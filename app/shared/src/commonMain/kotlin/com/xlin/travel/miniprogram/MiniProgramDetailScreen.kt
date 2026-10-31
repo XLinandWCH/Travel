@@ -1,25 +1,20 @@
 package com.xlin.travel.miniprogram
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.xlin.travel.color.ChatBackground
-import com.xlin.travel.color.TextGray500
 import com.xlin.travel.navigation.PageTopBar
 
 /**
- * 小程序详情占位页：每个小程序都有自己的界面（顶栏带返回按钮 + 小程序名作标题），
- * 功能尚未开发，正文统一显示「开发中」，返回按钮回到聊天页。
+ * 小程序空壳页：只有顶栏（「< 小程序名」），内容区留空。
+ *
+ * 为什么留空：12 个小程序已改为「点一下 → 输入框插入 @名称 → AI 调用对应工具作答」，
+ * 不再各自维护一套页面；这里保留入口壳，是为了以后需要独立页面时有落点，
+ * 同时固定「顶部返回 + 标题」这一层导航观感。真正的展示交给 AI 回答与 A2UI 个性化界面。
  */
 @Composable
 fun MiniProgramDetailScreen(
@@ -34,19 +29,5 @@ fun MiniProgramDetailScreen(
             .safeContentPadding(),
     ) {
         PageTopBar(title = name, onBack = onBack)
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "$name 开发中",
-                color = TextGray500,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 24.dp),
-            )
-        }
     }
 }

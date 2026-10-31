@@ -54,6 +54,7 @@ fun ChatScreen(
     inputState: ChatInputState,
     tts: TtsController,
     modifier: Modifier = Modifier,
+    onOpenSurface: (ChatMessage) -> Unit = {},
 ) {
     if (state.messages.isEmpty()) {
         // 空会话：欢迎语居中，强调色显示；每次进入新会话重新随机
@@ -191,6 +192,8 @@ fun ChatScreen(
                             writeClipboard(message.content)
                             toast.show("复制成功")
                         },
+                        // 点「进入个性化界面」：把这条回复带的 A2UI 界面交给上层导航
+                        onOpenSurface = { onOpenSurface(message) },
                     )
                 }
             }
