@@ -26,6 +26,8 @@ data class MessageRecord(
     val documentPath: String? = null,
     /** 附带文档的展示文件名（决定消息气泡的类型图标与名称） */
     val documentName: String? = null,
+    /** AI 编排的个性化界面（a2ui_render 产物）序列化结果；无界面时为 null */
+    val surfaceJson: String? = null,
     val seq: Long,
     val status: String = MessageStatuses.Done,
     val promptTokens: Int? = null,

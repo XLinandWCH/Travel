@@ -48,6 +48,9 @@ fun travelModel(modelId: String): LLModel = LLModel(
 private const val FALLBACK_SYSTEM_PROMPT =
     "你是一个旅行助手：给出可执行的行程、地点、交通与预算建议，需要工具调用时按工具结果回答，语气克制、温和、专业。"
 
+/** 排版工具名：与 [A2uiRenderTool] 注册名一致，用于识别它的流式参数 */
+private const val A2UI_RENDER_TOOL = "a2ui_render"
+
 // 1. commonMain 里用 expect 拿 executor；密钥与地址来自云端配置，不写死在各平台
 expect fun createChatExecutor(config: RemoteModelConfig): PromptExecutor
 
@@ -99,6 +102,10 @@ suspend fun chatStreaming(
 
     ) {
         handleEvents {
+            // a2ui_render 的参数是流式生成的：按 index 累积参数文本，
+            // 每来一个片段就向外发一次「累计快照」，界面层才能边生成边排版
+            val toolCallArgs = mutableMapOf<Int, Pair<String, StringBuilder>>()
+
             install(ChatMemory) {
                 historyProvider?.let { chatHistoryProvider(it) }
                 windowSize(20)
@@ -129,11 +136,24 @@ suspend fun chatStreaming(
                     is StreamFrame.TextDelta -> {
                         onEvent(ChatStreamEvent.Content(frame.text))
                     }
+                    is StreamFrame.ToolCallDelta -> {
+                        // 首帧才带 name，后续片段只有参数，所以按 index 记住工具名
+                        val index = frame.index ?: 0
+                        val previous = toolCallArgs[index]
+                        val name = frame.name?.takeIf { it.isNotBlank() } ?: previous?.first.orEmpty()
+                        val args = (previous?.second ?: StringBuilder()).append(frame.content.orEmpty())
+                        toolCallArgs[index] = name to args
+                        if (name == A2UI_RENDER_TOOL) {
+                            onEvent(ChatStreamEvent.SurfaceDelta(name, args.toString()))
+                        }
+                    }
                     else -> {}
                 }
             }
 
             onLLMStreamingCompleted {
+                // 一次 LLM 调用结束后清空累积：工具结果会开启下一轮，index 从 0 重新计数
+                toolCallArgs.clear()
                 onEvent(ChatStreamEvent.Completed)
             }
         }

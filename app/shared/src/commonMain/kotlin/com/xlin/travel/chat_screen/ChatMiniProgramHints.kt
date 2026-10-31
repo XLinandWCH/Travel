@@ -26,7 +26,8 @@ internal fun String.withMiniProgramHints(): String {
         append("。请先调用对应工具（")
         hit.joinTo(this, "、") { "${it.toolName}（提示：${it.toolHint}）" }
         append("），再依据工具返回的数据作答：不要编造工具结果里没有的价格、时间与点位；")
-        append("回答尽量具体、分点，并在结尾提醒用户可以再点一个小程序或补充条件继续问。\n")
+        append("正文尽量具体、分点；调用 a2ui_render 之后本轮直接结束，")
+        append("不要再另写总结或邀请语（后续追问由界面底部按钮承载）。\n")
         append(A2uiCatalog.contract())
     }
 }

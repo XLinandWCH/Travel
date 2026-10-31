@@ -21,7 +21,9 @@ object A2uiRenderTool : Tool<A2uiSurface, String>(
     name = "a2ui_render",
     description = "把这一轮已经查到的景区内容（路线、门票、美食、演出、避坑等）整理成一屏可交互的个性化界面，"
         + "客户端会在回答下方出现「进入个性化界面」入口。"
-        + "只在正文写完之后调用一次，块数 3–6；不要在正文里粘贴 JSON 或重复界面内容。",
+        + "只在正文写完之后调用一次，调用后立即结束本轮：不要再输出任何正文、总结或邀请语；"
+        + "涉及地点时加一块 image（image=map）保证界面有图，块数 4–7；"
+        + "正文里绝不能粘贴 JSON、字段名或组件名，也不要复述界面里的条目。",
 ) {
 
     override suspend fun execute(args: A2uiSurface): String {
@@ -35,9 +37,9 @@ object A2uiRenderTool : Tool<A2uiSurface, String>(
             return "（本次没有可展示的界面：请先调用对应的小程序工具拿到真实数据，再按契约重新组织 blocks。）"
         }
         A2uiRelay.publish(surface)
-        return "已生成个性化界面「${surface.title}」，共 ${surface.blocks.size} 块。" +
-            "用户可在正文下方点「进入个性化界面」查看；请不要再复述块内文字，" +
-            "用一两句话总结并邀请用户点开或继续追问。"
+        // 返回值不能再引导模型「总结一句」：那会在入口下方再长出一段正文
+        return "界面已展示给用户，本轮到此结束：不要再输出任何正文、总结或邀请语——" +
+            "正文已经写过，用户已经在下方看到「进入个性化界面」入口。"
     }
 
     /** 一屏最多块数：与 [com.xlin.travel.a2ui.A2uiCatalog.contract] 的口径保持一致 */

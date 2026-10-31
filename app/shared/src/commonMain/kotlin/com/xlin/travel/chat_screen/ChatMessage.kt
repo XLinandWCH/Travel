@@ -32,6 +32,18 @@ sealed class ThinkingItem {
 }
 
 /**
+ * 个性化界面的生成阶段。
+ *
+ * AI 调 a2ui_render 时参数还在流式生成，入口不必等它写完：
+ * [Building] 就能点开看块一块块出现，[Ready] 表示整屏已经可以稳定展示。
+ */
+enum class SurfaceStage {
+    None,
+    Building,
+    Ready,
+}
+
+/**
  * 单条聊天消息。
  * AI 消息把「思考内容」与「正文内容」分开保存，便于界面用不同颜色渲染。
  */
@@ -89,9 +101,14 @@ class ChatMessage(
 
     /**
      * 本轮 AI 编排的个性化界面（a2ui_render 的产物）。
-     * 仅内存持有：重开历史会话不会重新生成界面，因此入口按钮只在当轮出现。
+     * 流式生成过程中先放「已闭合的块」，结束后换成完整版本并落库，
+     * 因此历史会话重开也能再次点进入口。
      */
     var surface: A2uiSurface? by mutableStateOf(null)
+        internal set
+
+    /** 界面生成阶段：决定入口文案是「正在编排」还是「进入界面」 */
+    var surfaceStage: SurfaceStage by mutableStateOf(SurfaceStage.None)
         internal set
 
     private val timelineItems = mutableListOf<ThinkingItem>()

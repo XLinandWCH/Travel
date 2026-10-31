@@ -5,7 +5,7 @@ import androidx.sqlite.SQLiteStatement
 
 private const val Columns =
     "id, conversation_id, role, content, reasoning, seq, status, " +
-        "prompt_tokens, completion_tokens, created_at, updated_at, image_path, document_path, document_name"
+        "prompt_tokens, completion_tokens, created_at, updated_at, image_path, document_path, document_name, surface_json"
 
 /** 取会话内下一个顺序号（从 1 开始） */
 internal fun SQLiteConnection.nextMessageSeq(conversationId: String): Long =
@@ -16,7 +16,7 @@ internal fun SQLiteConnection.nextMessageSeq(conversationId: String): Long =
 
 /** 插入一条消息 */
 internal fun SQLiteConnection.insertMessage(record: MessageRecord) {
-    withStatement("INSERT INTO message($Columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)") { statement ->
+    withStatement("INSERT INTO message($Columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)") { statement ->
         statement.bindText(1, record.id)
         statement.bindText(2, record.conversationId)
         statement.bindText(3, record.role)
@@ -31,6 +31,7 @@ internal fun SQLiteConnection.insertMessage(record: MessageRecord) {
         statement.bindTextOrNull(12, record.imagePath)
         statement.bindTextOrNull(13, record.documentPath)
         statement.bindTextOrNull(14, record.documentName)
+        statement.bindTextOrNull(15, record.surfaceJson)
         statement.step()
     }
 }
@@ -63,22 +64,28 @@ internal fun SQLiteConnection.selectMessages(
     }
 }
 
-/** 更新消息内容与状态（流式结束 / 失败时调用） */
+/**
+ * 更新消息内容与状态（流式结束 / 失败时调用）。
+ * [surfaceJson] 为 null 时保留库里已有的界面——普通更新不应把已落库的界面抹掉。
+ */
 internal fun SQLiteConnection.updateMessage(
     id: String,
     content: String,
     reasoning: String,
     status: String,
+    surfaceJson: String?,
     updatedAt: Long,
 ) {
     withStatement(
-        "UPDATE message SET content = ?, reasoning = ?, status = ?, updated_at = ? WHERE id = ?"
+        "UPDATE message SET content = ?, reasoning = ?, status = ?, " +
+            "surface_json = COALESCE(?, surface_json), updated_at = ? WHERE id = ?"
     ) { statement ->
         statement.bindText(1, content)
         statement.bindText(2, reasoning)
         statement.bindText(3, status)
-        statement.bindLong(4, updatedAt)
-        statement.bindText(5, id)
+        statement.bindTextOrNull(4, surfaceJson)
+        statement.bindLong(5, updatedAt)
+        statement.bindText(6, id)
         statement.step()
     }
 }
@@ -160,6 +167,7 @@ private fun SQLiteStatement.readMessage() = MessageRecord(
     imagePath = getTextOrNull(11),
     documentPath = getTextOrNull(12),
     documentName = getTextOrNull(13),
+    surfaceJson = getTextOrNull(14),
 )
 
 private fun SQLiteStatement.bindIntOrNull(index: Int, value: Int?) {

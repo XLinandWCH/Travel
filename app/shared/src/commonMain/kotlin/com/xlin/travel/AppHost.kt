@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import com.xlin.travel.a2ui.A2uiSurface
+import com.xlin.travel.chat_screen.ChatMessage
 import com.xlin.travel.chat_screen.ChatState
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.rememberChatRepository
@@ -53,8 +53,11 @@ internal class AppHost(
     /** 从聊天页输入框上方的小程序快捷条（或弹出的全部面板）点某个小程序时记住名字，供占位页作标题 */
     var currentProgram by mutableStateOf("")
 
-    /** 从聊天页点「进入个性化界面」时记住这条回复带的 A2UI 界面，供个性化界面页渲染 */
-    var currentSurface by mutableStateOf<A2uiSurface?>(null)
+    /**
+     * 从聊天页点「进入个性化界面」时记住这条回复（而不是拷贝一份 surface）。
+     * 界面可能还在生成：持有消息本体，新块到达时页面能直接重组出来。
+     */
+    var currentSurfaceMessage by mutableStateOf<ChatMessage?>(null)
 
     /** 尚未开发的设置条目统一进入「XXX 即将上线」占位页 */
     var comingSoonTitle by mutableStateOf("")

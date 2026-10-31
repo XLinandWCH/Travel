@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
+import com.xlin.travel.a2ui.decodeA2uiSurface
 import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.MessageRecord
@@ -292,6 +293,11 @@ class ChatState(
         message.recordId = id
         // 还原思考时间线（含历史工具卡片）；无标记时为空/纯文本，与实时流式一致
         message.timeline = decodeThinkingTimeline(reasoning)
+        // 还原当时生成的个性化界面：入口在历史会话里也能点开，而不是只能看文字
+        surfaceJson?.let { json ->
+            message.surface = decodeA2uiSurface(json)
+            if (message.surface != null) message.surfaceStage = SurfaceStage.Ready
+        }
         return message
     }
 }

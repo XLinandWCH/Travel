@@ -31,6 +31,7 @@ internal object ChatSchema {
             image_path TEXT,
             document_path TEXT,
             document_name TEXT,
+            surface_json TEXT,
             seq INTEGER NOT NULL,
             status TEXT NOT NULL DEFAULT 'done',
             prompt_tokens INTEGER,

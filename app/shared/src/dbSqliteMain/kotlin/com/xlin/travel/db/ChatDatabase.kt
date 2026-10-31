@@ -63,7 +63,7 @@ class ChatDatabase internal constructor(
     }
 
     /**
-     * 安全增量迁移：给已存在的旧库 message 表补上 image_path / document_path / document_name 列。
+     * 安全增量迁移：给已存在的旧库 message 表补上 image_path / document_path / document_name / surface_json 列。
      * 全新安装时 CREATE TABLE 已带这些列；这里一次读取现有列名，缺哪列补哪列，已存在则跳过，不会报错。
      */
     private fun migrateMessageColumns(connection: SQLiteConnection) {
@@ -73,6 +73,7 @@ class ChatDatabase internal constructor(
         if ("image_path" !in existing) connection.execSQL("ALTER TABLE message ADD COLUMN image_path TEXT")
         if ("document_path" !in existing) connection.execSQL("ALTER TABLE message ADD COLUMN document_path TEXT")
         if ("document_name" !in existing) connection.execSQL("ALTER TABLE message ADD COLUMN document_name TEXT")
+        if ("surface_json" !in existing) connection.execSQL("ALTER TABLE message ADD COLUMN surface_json TEXT")
     }
 }
 

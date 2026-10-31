@@ -48,12 +48,16 @@ interface ChatRepository {
         documentName: String? = null,
     ): MessageRecord
 
-    /** 流式结束后更新 AI 消息内容与状态 */
+    /**
+     * 流式结束后更新 AI 消息内容与状态。
+     * [surfaceJson] 为个性化界面的序列化结果；传 null 表示保留库里已有界面，不覆盖。
+     */
     suspend fun updateMessage(
         messageId: String,
         content: String,
         reasoning: String,
         status: String,
+        surfaceJson: String? = null,
     )
 
     /** 删除单条消息，例如“重新生成”时移除旧的 AI 回答 */

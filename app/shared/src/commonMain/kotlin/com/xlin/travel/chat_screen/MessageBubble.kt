@@ -156,28 +156,35 @@ fun AssistantMessageBlock(
             SelectionBox {
                 MarkdownText(message.content)
             }
-
-            if (showActions) {
-                Spacer(Modifier.height(6.dp))
-                MessageActionRow(
-                    message = message,
-                    canRegenerate = canRegenerate,
-                    isReading = isReading,
-                    onLike = onLike,
-                    onDislike = onDislike,
-                    onRegenerate = onRegenerate,
-                    onRead = onRead,
-                    onCopy = onCopy,
-                )
-            }
         }
 
-        // 本轮 AI 编排了界面：正文下方出现「进入个性化界面」入口。
-        // 流式未结束（showActions 为 false）时先不显示，避免按钮在中途冒出来又消失
+        // 顺序固定为「正文 → 进入个性化界面 → 动作按钮」：
+        // 入口是内容的一部分，反馈按钮是这一条的尾巴，不能让入口夹在反馈按钮后面。
+        // 入口不等流式结束：a2ui_render 的入口一出现就能点，界面在生成中也能进去看。
         val surface = message.surface
-        if (surface != null && showActions) {
-            Spacer(Modifier.height(8.dp))
-            A2uiEntryButton(onClick = onOpenSurface, title = surface.title)
+        val building = message.surfaceStage == SurfaceStage.Building
+        if (surface != null || building) {
+            Spacer(Modifier.height(10.dp))
+            A2uiEntryButton(
+                onClick = onOpenSurface,
+                title = surface?.title.orEmpty(),
+                building = building,
+                blockCount = surface?.blocks?.count { !it.isEmpty } ?: 0,
+            )
+        }
+
+        if (showActions && (message.content.isNotEmpty() || surface != null)) {
+            Spacer(Modifier.height(6.dp))
+            MessageActionRow(
+                message = message,
+                canRegenerate = canRegenerate,
+                isReading = isReading,
+                onLike = onLike,
+                onDislike = onDislike,
+                onRegenerate = onRegenerate,
+                onRead = onRead,
+                onCopy = onCopy,
+            )
         }
     }
 }

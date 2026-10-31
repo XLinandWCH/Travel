@@ -152,6 +152,7 @@ class WebChatRepository : ChatRepository {
         content: String,
         reasoning: String,
         status: String,
+        surfaceJson: String?,
     ) {
         val index = messages.indexOfFirst { it.id == messageId }
         if (index < 0) return
@@ -160,6 +161,8 @@ class WebChatRepository : ChatRepository {
             content = content,
             reasoning = reasoning,
             status = status,
+            // 与 SQLite 端保持一致：null 表示保留已有界面，不覆盖
+            surfaceJson = surfaceJson ?: old.surfaceJson,
             updatedAt = currentEpochMillis(),
         )
         persist()

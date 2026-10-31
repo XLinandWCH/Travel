@@ -20,60 +20,61 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xlin.travel.a2ui.A2uiBlock
-import com.xlin.travel.a2ui.A2uiBlockHeading
 import com.xlin.travel.a2ui.A2uiColor
 import com.xlin.travel.a2ui.A2uiPanel
 import com.xlin.travel.a2ui.A2uiRadius
+import com.xlin.travel.a2ui.A2uiSection
 import com.xlin.travel.a2ui.A2uiSpace
 import com.xlin.travel.a2ui.A2uiText
 
 /**
  * 数据类组件：statRow / progress / rating / timeline。
  *
- * 契约里明确「需要横向对比数字时用 statRow，不要做表格」——这四块就是替代表格的四件套：
- * 数字横排、进度条、评分、带时间的行程。
+ * 强调色只留给「进度填充」和「评分星」这两处小面积；数字、时间、标签全走中性色。
+ * 时间线的时间列尤其不能用强调色——一整列橙色看着像告警，读起来也累。
  */
 
-/** 指标横排：2–4 个数字并列，值大标签小 */
+/** 指标横排：2–3 个数字并列，值大标签小，数字用正文色而不是橙色 */
 @Composable
 internal fun A2uiStatRowBlock(block: A2uiBlock) {
-    A2uiPanel {
-        if (block.title.isNotBlank()) A2uiBlockHeading(block.title, block.subtitle)
-        Row(horizontalArrangement = Arrangement.spacedBy(A2uiSpace.sm)) {
-            block.stats.forEach { stat ->
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(A2uiSpace.xxs),
-                ) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = stat.value,
-                            color = A2uiColor.accent,
-                            fontSize = A2uiText.headline,
-                            lineHeight = A2uiText.headlineLine,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        if (stat.unit.isNotBlank()) {
+    A2uiSection(title = block.title, subtitle = block.subtitle) {
+        A2uiPanel {
+            Row(horizontalArrangement = Arrangement.spacedBy(A2uiSpace.sm)) {
+                block.stats.forEach { stat ->
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(A2uiSpace.xxs),
+                    ) {
+                        Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = stat.unit,
-                                color = A2uiColor.textTertiary,
-                                fontSize = A2uiText.label,
-                                modifier = Modifier.padding(start = A2uiSpace.xxs, bottom = 3.dp),
+                                text = stat.value,
+                                color = A2uiColor.textPrimary,
+                                fontSize = A2uiText.headline,
+                                lineHeight = A2uiText.headlineLine,
+                                fontWeight = FontWeight.SemiBold,
                             )
+                            if (stat.unit.isNotBlank()) {
+                                Text(
+                                    text = stat.unit,
+                                    color = A2uiColor.textMeta,
+                                    fontSize = A2uiText.label,
+                                    modifier = Modifier.padding(start = A2uiSpace.xxs, bottom = 3.dp),
+                                )
+                            }
                         }
+                        Text(
+                            text = stat.label,
+                            color = A2uiColor.textTertiary,
+                            fontSize = A2uiText.label,
+                        )
                     }
-                    Text(
-                        text = stat.label,
-                        color = A2uiColor.textTertiary,
-                        fontSize = A2uiText.label,
-                    )
                 }
             }
         }
     }
 }
 
-/** 进度条：拥挤度、完成度；右侧显示当前值 / 上限 */
+/** 进度条：拥挤度、完成度；右侧显示当前值 / 上限，填充条用强调色（小面积） */
 @Composable
 internal fun A2uiProgressBlock(block: A2uiBlock) {
     val max = if (block.max > 0f) block.max else 100f
@@ -89,7 +90,7 @@ internal fun A2uiProgressBlock(block: A2uiBlock) {
             )
             Text(
                 text = block.subtitle.ifBlank { "${block.value.toInt()} / ${block.max.toInt()}" },
-                color = A2uiColor.textTertiary,
+                color = A2uiColor.textMeta,
                 fontSize = A2uiText.label,
             )
         }
@@ -137,7 +138,7 @@ internal fun A2uiRatingBlock(block: A2uiBlock) {
             if (block.text.isNotBlank()) {
                 Text(
                     text = block.text,
-                    color = A2uiColor.textSecondary,
+                    color = A2uiColor.textMeta,
                     fontSize = A2uiText.caption,
                     modifier = Modifier.padding(start = A2uiSpace.sm),
                 )
@@ -146,42 +147,51 @@ internal fun A2uiRatingBlock(block: A2uiBlock) {
     }
 }
 
-/** 时间线：左侧时间 + 圆点 + 事件，用于带时刻的行程与演出场次 */
+/**
+ * 时间线：左侧时间 + 圆点 + 事件，用于带时刻的行程与演出场次。
+ * 时间走中性灰；只有带 badge 的「当前项」圆点是强调色，一屏最多一个焦点。
+ */
 @Composable
 internal fun A2uiTimelineBlock(block: A2uiBlock) {
-    Column(verticalArrangement = Arrangement.spacedBy(A2uiSpace.md)) {
-        if (block.title.isNotBlank()) A2uiBlockHeading(block.title, block.subtitle)
-        block.items.forEach { item ->
-            Row(horizontalArrangement = Arrangement.spacedBy(A2uiSpace.sm)) {
-                Text(
-                    text = item.meta,
-                    color = A2uiColor.accent,
-                    fontSize = A2uiText.label,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.width(54.dp).padding(top = 2.dp),
-                )
-                Box(
-                    modifier = Modifier
-                        .padding(top = 5.dp)
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(if (item.badge.isNotBlank()) A2uiColor.accent else A2uiColor.textTertiary),
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(A2uiSpace.xxs)) {
+    A2uiSection(title = block.title, subtitle = block.subtitle) {
+        Column(verticalArrangement = Arrangement.spacedBy(A2uiSpace.md)) {
+            block.items.forEach { item ->
+                Row(horizontalArrangement = Arrangement.spacedBy(A2uiSpace.sm)) {
                     Text(
-                        text = item.title,
-                        color = A2uiColor.textPrimary,
-                        fontSize = A2uiText.body,
-                        lineHeight = A2uiText.bodyLine,
+                        text = item.meta,
+                        color = A2uiColor.textMeta,
+                        fontSize = A2uiText.label,
                         fontWeight = FontWeight.Medium,
+                        modifier = Modifier.width(56.dp).padding(top = 2.dp),
                     )
-                    if (item.text.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 5.dp)
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (item.badge.isNotBlank()) A2uiColor.accent else A2uiColor.textTertiary,
+                            ),
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(A2uiSpace.xxs),
+                    ) {
                         Text(
-                            text = item.text,
-                            color = A2uiColor.textSecondary,
-                            fontSize = A2uiText.caption,
-                            lineHeight = A2uiText.captionLine,
+                            text = item.title,
+                            color = A2uiColor.textPrimary,
+                            fontSize = A2uiText.body,
+                            lineHeight = A2uiText.bodyLine,
+                            fontWeight = FontWeight.Medium,
                         )
+                        if (item.text.isNotBlank()) {
+                            Text(
+                                text = item.text,
+                                color = A2uiColor.textSecondary,
+                                fontSize = A2uiText.caption,
+                                lineHeight = A2uiText.captionLine,
+                            )
+                        }
                     }
                 }
             }

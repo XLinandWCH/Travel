@@ -10,8 +10,10 @@ import com.xlin.travel.a2ui.blocks.A2uiBulletsBlock
 import com.xlin.travel.a2ui.blocks.A2uiCardListBlock
 import com.xlin.travel.a2ui.blocks.A2uiChipsBlock
 import com.xlin.travel.a2ui.blocks.A2uiDividerBlock
+import com.xlin.travel.a2ui.blocks.A2uiGridCardsBlock
 import com.xlin.travel.a2ui.blocks.A2uiHeaderBlock
 import com.xlin.travel.a2ui.blocks.A2uiHeroBlock
+import com.xlin.travel.a2ui.blocks.A2uiImageBlock
 import com.xlin.travel.a2ui.blocks.A2uiKeyValueBlock
 import com.xlin.travel.a2ui.blocks.A2uiNoticeBlock
 import com.xlin.travel.a2ui.blocks.A2uiParagraphBlock
@@ -26,12 +28,13 @@ import com.xlin.travel.a2ui.blocks.A2uiTimelineBlock
 /**
  * A2UI 渲染器：把模型下发的 block 列表映射到本地 Compose 组件。
  *
- * 这里是「AI 永远碰不到 UI 代码」的边界——模型只会得到 17 个 type 名字，
+ * 这里是「AI 永远碰不到 UI 代码」的边界——模型只会得到 19 个 type 名字，
  * 具体长什么样完全由客户端决定；因此换皮肤、改字号都只改这一层与 [A2uiDesign]。
  *
- * 两个容错约定：
+ * 三个容错约定：
  * 1. 空块直接跳过（模型常留占位块，屏幕上不能出现空白卡片）；
- * 2. 未知 type 退化为 paragraph，绝不因为模型写错一个词就整屏白掉。
+ * 2. 未知 type 退化为 paragraph，绝不因为模型写错一个词就整屏白掉；
+ * 3. actionBar 不参与正文滚动——它由宿主页固定在底部，这里直接跳过。
  */
 @Composable
 fun A2uiBlocks(
@@ -41,10 +44,12 @@ fun A2uiBlocks(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(A2uiSpace.lg),
+        verticalArrangement = Arrangement.spacedBy(A2uiSpace.module),
     ) {
         blocks.forEach { block ->
-            if (!block.isEmpty) A2uiBlockView(block = block, onAction = onAction)
+            if (block.isEmpty) return@forEach
+            if (A2uiCatalog.canonicalType(block.type) == A2uiType.ActionBar) return@forEach
+            A2uiBlockView(block = block, onAction = onAction)
         }
     }
 }
@@ -55,8 +60,10 @@ fun A2uiBlockView(block: A2uiBlock, onAction: (String) -> Unit) {
     when (A2uiCatalog.canonicalType(block.type)) {
         A2uiType.Header -> A2uiHeaderBlock(block)
         A2uiType.Hero -> A2uiHeroBlock(block)
+        A2uiType.Image -> A2uiImageBlock(block)
         A2uiType.Bullets -> A2uiBulletsBlock(block)
         A2uiType.CardList -> A2uiCardListBlock(block)
+        A2uiType.GridCards -> A2uiGridCardsBlock(block)
         A2uiType.KeyValue -> A2uiKeyValueBlock(block)
         A2uiType.Chips -> A2uiChipsBlock(block)
         A2uiType.Steps -> A2uiStepsBlock(block)

@@ -78,16 +78,17 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
         record
     }
 
-    /** 流式结束后更新 AI 消息内容与状态 */
+    /** 流式结束后更新 AI 消息内容与状态；界面 JSON 随同一条 UPDATE 写入 */
     override suspend fun updateMessage(
         messageId: String,
         content: String,
         reasoning: String,
         status: String,
+        surfaceJson: String?,
     ) {
         val now = currentEpochMillis()
         database.withConnection {
-            it.updateMessage(messageId, content, reasoning, status, now)
+            it.updateMessage(messageId, content, reasoning, status, surfaceJson, now)
         }
     }
 

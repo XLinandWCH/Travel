@@ -21,7 +21,7 @@ data class A2uiSurface(
     val title: String = "",
     @property:LLMDescription("副标题：一句话补充时长 / 起点 / 适合人群，例如「3 小时 · 黎黄陂路起 · 适合第一次来」")
     val subtitle: String = "",
-    @property:LLMDescription("界面块列表，按从上到下的顺序，一屏 3–6 块；首块用 hero 或 header，末块用 actionBar")
+    @property:LLMDescription("界面块列表，按从上到下的顺序，一屏 4–7 块；首块用 hero 或 header，涉及地点时插一块 image，末块用 actionBar")
     val blocks: List<A2uiBlock> = emptyList(),
 ) {
     /** 没有任何可渲染内容时宿主页显示空态，而不是一片空白 */
@@ -29,14 +29,14 @@ data class A2uiSurface(
 }
 
 /**
- * 一个界面块。17 种 `type` 共用这一份字段表——
+ * 一个界面块。19 种 `type` 共用这一份字段表——
  * 对模型来说「只记一份结构、换 type 即可」，对客户端来说解析永远不会因为多态失败。
  */
 @Serializable
 data class A2uiBlock(
     /** 组件类型，取值见 [A2uiType] 或 [A2uiCatalog] 中的别名 */
     @property:LLMDescription(
-        "组件类型，只能取：header、hero、paragraph、bullets、cardList、keyValue、chips、steps、"
+        "组件类型，只能取：header、hero、image、paragraph、bullets、cardList、gridCards、keyValue、chips、steps、"
             + "timeline、statRow、notice、quote、divider、progress、rating、actionBar、spacer"
     )
     val type: String = A2uiType.Paragraph,
@@ -49,6 +49,9 @@ data class A2uiBlock(
     /** 语义图标名（route / food / spot …），由 [A2uiIcons] 映射到项目内矢量图 */
     @property:LLMDescription("语义图标名：route、spot、nearby、avoid、show、help、ticket、food、traffic、guide、flow、checkin，可留空")
     val icon: String = "",
+    /** 语义图片名，仅 image 块使用；由 [A2uiImages] 映射到本地图片，认不出则退化占位 */
+    @property:LLMDescription("图片名，仅 image 使用：map（武汉历史城区与里份分布图）、scenic、food、route，可留空")
+    val image: String = "",
     /** notice 的语义级别：info / warn / danger */
     @property:LLMDescription("提示级别，仅 notice 使用：info / warn / danger")
     val level: String = "info",
@@ -72,6 +75,9 @@ data class A2uiBlock(
         get() {
             val canonical = A2uiCatalog.canonicalType(type)
             if (canonical == A2uiType.Divider || canonical == A2uiType.Spacer) return false
+            if (canonical == A2uiType.Image) {
+                return title.isBlank() && subtitle.isBlank() && text.isBlank() && image.isBlank()
+            }
             return title.isBlank() && subtitle.isBlank() && text.isBlank() &&
                 items.isEmpty() && stats.isEmpty() && actions.isEmpty()
         }
@@ -123,9 +129,11 @@ data class A2uiAction(
 object A2uiType {
     const val Header = "header"
     const val Hero = "hero"
+    const val Image = "image"
     const val Paragraph = "paragraph"
     const val Bullets = "bullets"
     const val CardList = "cardList"
+    const val GridCards = "gridCards"
     const val KeyValue = "keyValue"
     const val Chips = "chips"
     const val Steps = "steps"
@@ -150,3 +158,7 @@ internal val A2uiJson = Json {
 
 internal fun decodeA2uiSurface(json: String): A2uiSurface? =
     runCatching { A2uiJson.decodeFromString<A2uiSurface>(json) }.getOrNull()
+
+/** 落库用：把界面结构序列化成一行 JSON，历史会话重开时再解回来 */
+internal fun encodeA2uiSurface(surface: A2uiSurface): String =
+    A2uiJson.encodeToString(A2uiSurface.serializer(), surface)

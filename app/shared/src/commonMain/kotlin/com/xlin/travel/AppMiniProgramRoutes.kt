@@ -2,6 +2,7 @@ package com.xlin.travel
 
 import androidx.compose.runtime.Composable
 import com.xlin.travel.a2ui.A2uiSurfaceScreen
+import com.xlin.travel.chat_screen.SurfaceStage
 import com.xlin.travel.miniprogram.MiniProgramDetailScreen
 import kotlinx.coroutines.launch
 
@@ -19,7 +20,9 @@ internal fun AppHost.MiniProgramRoutes() {
         )
 
         AppScreen.A2ui -> A2uiSurfaceScreen(
-            surface = currentSurface,
+            // 读消息本体：生成中的新块到达时，页面自动重组，不用回到聊天再点一次
+            surface = currentSurfaceMessage?.surface,
+            building = currentSurfaceMessage?.surfaceStage == SurfaceStage.Building,
             onBack = { screen = AppScreen.Chat },
             onAction = { prompt ->
                 // 回聊天并真实发问：界面里的「换个更慢的版本」这类按钮，最终都变成一句话

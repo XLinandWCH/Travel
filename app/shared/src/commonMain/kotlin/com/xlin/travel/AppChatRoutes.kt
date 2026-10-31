@@ -60,12 +60,11 @@ internal fun AppHost.ChatRoutes() {
                 onOpenMiniProgram = { name ->
                     inputState.appendMention("@$name")
                 },
-                // AI 回答下方的「进入个性化界面」：带上这条回复的 A2UI 界面切页，返回时回聊天
+                // AI 回答下方的「进入个性化界面」：带着这条回复切页；
+                // 界面还在生成时也能进（页面会边生成边显示），所以不要求 surface 非空
                 onOpenSurface = { message ->
-                    message.surface?.let { surface ->
-                        currentSurface = surface
-                        screen = AppScreen.A2ui
-                    }
+                    currentSurfaceMessage = message
+                    screen = AppScreen.A2ui
                 },
                 onMenuClick = {
                     scope.launch {

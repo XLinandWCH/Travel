@@ -3,7 +3,10 @@ package com.xlin.travel.chat_screen
 import com.xlin.travel.agent.ChatStreamEvent
 import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.agent.chatStreaming
+import com.xlin.travel.a2ui.A2uiPartialParser
 import com.xlin.travel.a2ui.A2uiRelay
+import com.xlin.travel.a2ui.encodeA2uiSurface
+import com.xlin.travel.a2ui.stripA2uiPayload
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.DatabaseChatHistoryProvider
 import com.xlin.travel.db.MessageRoles
@@ -77,34 +80,70 @@ internal class AssistantRound(
                     }
                     is ChatStreamEvent.Content -> {
                         finalizeThinking()
-                        reply.content += event.text
+                        // 模型调完 a2ui_render 后常会再补一段「已为你排好…」的收尾正文。
+                        // 正文已经写过、入口也已出现，这段再追加就变成「正文 → 入口 → 又一段正文」，
+                        // 看上去像是重复输出，所以直接丢弃；正文为空时（先调工具）仍然正常接收。
+                        val afterSurface = reply.surfaceStage != SurfaceStage.None && reply.content.isNotEmpty()
+                        if (!afterSurface) reply.content += event.text
+                    }
+                    // a2ui_render 的参数是流式的：先拿已闭合的块上屏，
+                    // 入口在正文之后立刻就能点开，不必等整段 JSON 写完
+                    is ChatStreamEvent.SurfaceDelta -> {
+                        reply.surfaceStage = SurfaceStage.Building
+                        // 还没闭合任何对象时没必要重新扫描（标题首帧就已经取到）
+                        val partial = if (event.json.contains('}')) A2uiPartialParser.parse(event.json) else null
+                        val known = reply.surface?.blocks?.count { !it.isEmpty } ?: 0
+                        val hasNewBlock = partial != null && partial.blocks.size > known
+                        val hasNewTitle = partial != null &&
+                            partial.title.isNotBlank() && partial.title != reply.surface?.title
+                        if (partial != null && (hasNewBlock || hasNewTitle)) reply.surface = partial
                     }
                     // 工具调用不再挤进思考文本，而是作为独立时间线项呈现（仅显名称）；
                     // 工具进行中正文仍为空，isThinking 保持为真，整段思考区不中断
                     is ChatStreamEvent.ToolCallStarted -> {
                         if (thinkingStart == null) thinkingStart = TimeSource.Monotonic.markNow()
                         reply.appendTimelineToolCall(toolDisplayName(event.toolName))
+                        // 参数还没开始流式时也先把入口挂上，避免「正文写完却什么都没出现」
+                        if (event.toolName == A2UI_TOOL_NAME) reply.surfaceStage = SurfaceStage.Building
                     }
                     is ChatStreamEvent.ToolCallFinished -> {
                         reply.finishTimelineToolCall(failed = false)
                         // a2ui_render 的界面结构不在返回值里，而是经 A2uiRelay 单向传递
                         if (event.toolName == A2UI_TOOL_NAME) {
-                            reply.surface = A2uiRelay.take() ?: reply.surface
+                            A2uiRelay.take()?.let {
+                                reply.surface = it
+                                reply.surfaceStage = SurfaceStage.Ready
+                            }
                         }
                     }
-                    is ChatStreamEvent.ToolValidationFailed ->
+                    is ChatStreamEvent.ToolValidationFailed -> {
                         reply.finishTimelineToolCall(failed = true)
-                    is ChatStreamEvent.ToolCallFailed ->
+                        // 排版工具本身失败：收起入口，后续模型解释界面没生成的那段正文才能正常显示
+                        if (event.toolName == A2UI_TOOL_NAME) reply.clearSurface()
+                    }
+                    is ChatStreamEvent.ToolCallFailed -> {
                         reply.finishTimelineToolCall(failed = true)
+                        if (event.toolName == A2UI_TOOL_NAME) reply.clearSurface()
+                    }
                     ChatStreamEvent.Completed -> finalizeThinking()
                 }
             }
             finalizeThinking()
             // 兜底：工具执行完但未收到 Finished 事件时，界面票据仍在槽位里
             if (reply.surface == null) reply.surface = A2uiRelay.take()
+            // 有块就算可用（停止生成时已排好的半屏也保留），空壳入口直接收起
+            reply.surfaceStage =
+                if (reply.surface?.isEmpty == false) SurfaceStage.Ready else SurfaceStage.None
             // 兜底：若没有收到任何流式内容，用最终结果直接展示，避免界面一直停留在“正在思考”
             if (reply.content.isEmpty() && result.isNotEmpty()) {
                 reply.content = result
+            }
+            // 模型无视契约把界面 JSON 抄进正文时，在这里剪掉，聊天里只留人话
+            val cleaned = reply.content.stripA2uiPayload()
+            if (cleaned != reply.content && (cleaned.isNotEmpty() || reply.surface != null)) {
+                reply.content = cleaned.ifEmpty {
+                    "已为这次回答排好一屏界面，点下方「进入个性化界面」查看。"
+                }
             }
             persist(recordId, reply, MessageStatuses.Done)
         } catch (t: Throwable) {
@@ -124,20 +163,37 @@ internal class AssistantRound(
 
     /** 流式结束后把 AI 内容写回数据库；失败不影响界面展示 */
     private suspend fun persist(recordId: String?, reply: ChatMessage, status: String) {
+        // 停止 / 失败分支也会走到这里：界面阶段必须收尾，
+        // 否则入口会一直停在「正在编排」而再也不会有新块
+        if (reply.surfaceStage == SurfaceStage.Building) {
+            reply.surfaceStage =
+                if (reply.surface?.isEmpty == false) SurfaceStage.Ready else SurfaceStage.None
+        }
         if (recordId == null) return
         // 思考时间线含工具调用时编码内联进 reasoning 落库（重开历史可还原工具卡片）；
         // 时间线为空（异常早退等）时退回纯 reasoning，避免丢失已输出的思考
         val storedReasoning =
             if (reply.timeline.isNotEmpty()) encodeThinkingTimeline(reply.timeline) else reply.reasoning
+        // 界面结构一并落库：历史会话重开时入口依然可用，不必重新问一遍 AI
+        val storedSurface = reply.surface
+            ?.takeIf { !it.isEmpty }
+            ?.let { runCatching { encodeA2uiSurface(it) }.getOrNull() }
         runCatching {
             repository.updateMessage(
                 messageId = recordId,
                 content = reply.content,
                 reasoning = storedReasoning,
                 status = status,
+                surfaceJson = storedSurface,
             )
         }
     }
+}
+
+/** a2ui_render 失败：入口与半成品都撤掉，避免一直停在「正在编排」 */
+private fun ChatMessage.clearSurface() {
+    surface = null
+    surfaceStage = SurfaceStage.None
 }
 
 /**
