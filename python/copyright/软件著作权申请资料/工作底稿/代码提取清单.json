@@ -1,0 +1,179 @@
+{
+  "software": "武汉里份智慧旅行导览系统",
+  "version": "V1.0",
+  "total_lines": 3705,
+  "wrap_col": 90,
+  "files": [
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/AppChatRoutes.kt",
+      "lines": 132,
+      "reason": "核心业务代码"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/AppNavigation.kt",
+      "lines": 53,
+      "reason": "核心业务代码"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/AppHost.kt",
+      "lines": 100,
+      "reason": "核心业务代码"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/App.kt",
+      "lines": 109,
+      "reason": "核心业务代码"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/FakeContentVerifier.kt",
+      "lines": 92,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ChatMiniProgramHints.kt",
+      "lines": 33,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ChatGreetings.kt",
+      "lines": 28,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ChatAttachmentHints.kt",
+      "lines": 61,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/MessageActionRow.kt",
+      "lines": 116,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/androidMain/kotlin/com/xlin/travel/chat_screen/Clipboard.android.kt",
+      "lines": 16,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/AssistantRound.kt",
+      "lines": 234,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ToolCallCard.kt",
+      "lines": 56,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ChatScrollFollow.kt",
+      "lines": 150,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/MainChatContent.kt",
+      "lines": 228,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ChatScreen.kt",
+      "lines": 243,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/MessageBubble.kt",
+      "lines": 197,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/FeedbackSheet.kt",
+      "lines": 55,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/FeedbackSheetState.kt",
+      "lines": 77,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ReasoningSection.kt",
+      "lines": 213,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/FeedbackSheetParts.kt",
+      "lines": 93,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ChatState.kt",
+      "lines": 309,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ScrollToBottomButton.kt",
+      "lines": 119,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/TopToast.kt",
+      "lines": 92,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/ChatMessage.kt",
+      "lines": 216,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/VerifySection.kt",
+      "lines": 121,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/UserMessageMenu.kt",
+      "lines": 91,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/chat_screen/SelectionBox.kt",
+      "lines": 70,
+      "reason": "对话主界面与消息渲染逻辑"
+    },
+    {
+      "rel": "app/shared/src/androidMain/kotlin/com/xlin/travel/inputbox/voice/AudioRecorder.android.kt",
+      "lines": 139,
+      "reason": "输入框、附件与语音输入交互"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/inputbox/ChatInputBox.kt",
+      "lines": 167,
+      "reason": "输入框、附件与语音输入交互"
+    },
+    {
+      "rel": "app/shared/src/commonMain/kotlin/com/xlin/travel/inputbox/Attachment.kt",
+      "lines": 203,
+      "reason": "输入框、附件与语音输入交互"
+    },
+    {
+      "rel": "app/shared/src/androidMain/kotlin/com/xlin/travel/inputbox/voice/MicrophonePermission.android.kt",
+      "lines": 25,
+      "reason": "输入框、附件与语音输入交互"
+    }
+  ],
+  "outputs": [
+    {
+      "key": "front",
+      "path": "D:\\KOTLIN\\Travel\\python\\copyright\\软件著作权申请资料\\正式资料\\武汉里份智慧旅行导览系统V1.0_源程序（前30页）.docx",
+      "lines": 1590,
+      "start_page": 1,
+      "pages": 30
+    },
+    {
+      "key": "back",
+      "path": "D:\\KOTLIN\\Travel\\python\\copyright\\软件著作权申请资料\\正式资料\\武汉里份智慧旅行导览系统V1.0_源程序（后30页）.docx",
+      "lines": 1590,
+      "start_page": 31,
+      "pages": 30
+    }
+  ]
+}
