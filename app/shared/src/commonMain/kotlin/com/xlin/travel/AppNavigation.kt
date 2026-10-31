@@ -8,7 +8,8 @@ package com.xlin.travel
  * Guest 为未登入界面，Login 由未登入界面「登入」或退出登录进入；
  * MiniProgramDetail 为单个小程序的空壳页（只保留顶栏），从聊天页输入框上方的小程序快捷条进入；
  * A2ui 为 AI 编排的个性化界面（a2ui_render 的产物），从 AI 回答下方的「进入个性化界面」进入；
- * Surfaces 为个性化界面历史（顶栏 screen 图标），列出近 1~7 天生成过的所有界面。
+ * Surfaces 为个性化界面历史（顶栏 screen 图标），列出近 1~7 天生成过的所有界面；
+ * VideoExplain 为视频讲解（输入框里的同名入口），模拟通话页，关闭后回聊天。
  */
 internal enum class AppScreen {
     Chat,
@@ -19,6 +20,7 @@ internal enum class AppScreen {
     MiniProgramDetail,
     A2ui,
     Surfaces,
+    VideoExplain,
     ThemeColor,
     History,
     MessageCenter,

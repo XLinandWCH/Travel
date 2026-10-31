@@ -65,6 +65,8 @@ internal fun MainChatContent(
     onOpenMiniProgram: (String) -> Unit = {},
     onOpenSurface: (ChatMessage) -> Unit = {},
     onOpenSurfaces: () -> Unit = {},
+    // 输入框里的「视频讲解」：进入模拟通话页
+    onOpenVideoExplain: () -> Unit = {},
 ) {
     val selectionRegistry = rememberSelectionRegistry()
     val focusManager = LocalFocusManager.current
@@ -141,6 +143,7 @@ internal fun MainChatContent(
                 isStreaming = chatState.isStreaming,
                 onStop = chatState::stopStreaming,
                 repository = repository,
+                onOpenVideoExplain = onOpenVideoExplain,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp),

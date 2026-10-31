@@ -7,6 +7,7 @@ import com.xlin.travel.drawer.ChatDrawer
 import com.xlin.travel.guest.GuestScreen
 import com.xlin.travel.login.LoginScreen
 import com.xlin.travel.search.SearchScreen
+import com.xlin.travel.videoexplain.VideoExplainScreen
 import kotlinx.coroutines.launch
 
 /**
@@ -70,6 +71,8 @@ internal fun AppHost.ChatRoutes() {
                 },
                 // 顶栏 screen 图标：打开个性化界面历史，按天筛选、点开回看
                 onOpenSurfaces = { screen = AppScreen.Surfaces },
+                // 输入框「视频讲解」：进入模拟通话页，关闭后回聊天
+                onOpenVideoExplain = { screen = AppScreen.VideoExplain },
                 onMenuClick = {
                     scope.launch {
                         history.refresh()
@@ -90,6 +93,12 @@ internal fun AppHost.ChatRoutes() {
         AppScreen.Guest -> GuestScreen(
             inputState = inputState,
             onLogin = { screen = AppScreen.Login },
+        )
+
+        // 视频讲解：独立全屏页；repository 用于拉 ASR 配置（与输入框语音同一套）
+        AppScreen.VideoExplain -> VideoExplainScreen(
+            onClose = { screen = AppScreen.Chat },
+            repository = repository,
         )
 
         AppScreen.Login -> LoginScreen(

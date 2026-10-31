@@ -114,7 +114,7 @@ internal class AssistantRound(
                             reply.surfaceStage = SurfaceStage.Building
                             // 内容校验与界面编排同时开始（两条线并行），
                             // 但校验块排在界面入口之后、动作按钮之前
-                            if (verifyJob == null) verifyJob = launch { FakeContentVerifier.run(reply) }
+                            if (verifyJob == null) verifyJob = launch { FakeContentVerifier.run(reply, prompt) }
                         }
                     }
                     is ChatStreamEvent.ToolCallFinished -> {

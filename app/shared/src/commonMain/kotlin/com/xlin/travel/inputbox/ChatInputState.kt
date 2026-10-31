@@ -6,14 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 
-/** 输入模式 */
-enum class InputMode(val label: String) {
-    Fast("Fast")
-}
-
 /**
  * 输入框状态：对应 HTML 中 chatInput 的 has-text / has-image 类切换逻辑。
  * 图片使用真实的 [ImageBitmap]（由系统图片选择器提供），而非占位绘制。
+ *
+ * 输入框里原先的「Fast」模式选择已改成「视频讲解」入口，不再有模式枚举。
  */
 @Stable
 class ChatInputState {

@@ -71,6 +71,11 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             // 拍照走 ACTION_IMAGE_CAPTURE + FileProvider（androidx.core.content.FileProvider）
             implementation(libs.androidx.core.ktx)
+            // 视频讲解页的真机摄像头预览（CameraX：PreviewView + 生命周期绑定）
+            implementation(libs.androidx.camera.core)
+            implementation(libs.androidx.camera.camera2)
+            implementation(libs.androidx.camera.lifecycle)
+            implementation(libs.androidx.camera.view)
             implementation(libs.koog.http.client.ktor)
             implementation(libs.ktor.clientCio)
             implementation(libs.androidx.sqlite.bundled)
