@@ -25,6 +25,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xlin.travel.agent.aiErrorText
+import com.xlin.travel.agent.withServerExpiryNotice
 import com.xlin.travel.color.AccentOrange
 import com.xlin.travel.color.BtnAddBorder
 import com.xlin.travel.color.BtnAddIcon
@@ -209,8 +211,11 @@ private class VoiceRunner(
                 voice.recognizedText = text
                 onFinish(text, voice.autoSend)
             } else {
-                voice.error = result.exceptionOrNull()?.message
-                    ?: if (text.isBlank()) "没听清，请再说一次" else "识别失败"
+                // 识别请求报错统一走 aiErrorText：可读原因 + （后端停维后）自部署说明；
+                // 只是没说话、服务本身正常时不提服务器
+                voice.error = result.exceptionOrNull()?.let { aiErrorText(it, "语音识别") }
+                    ?: if (text.isBlank()) "没听清，请再说一次"
+                    else withServerExpiryNotice("语音识别失败，请再说一次")
                 startRecording()
             }
         }

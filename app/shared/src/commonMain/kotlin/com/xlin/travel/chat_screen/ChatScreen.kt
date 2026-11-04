@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xlin.travel.agent.aiErrorText
 import com.xlin.travel.color.AccentOrange
 import com.xlin.travel.inputbox.ChatInputState
 import com.xlin.travel.tts.TtsController
@@ -118,7 +119,7 @@ fun ChatScreen(
         if (!finishedRound) return@LaunchedEffect
         val latest = state.messages.lastOrNull { it.role == MessageRole.Assistant }
         runCatching { tts.autoRead(latest) }
-            .onFailure { if (it !is CancellationException) toast.show(it.message ?: "朗读失败") }
+            .onFailure { if (it !is CancellationException) toast.show(aiErrorText(it, "语音合成")) }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -184,7 +185,7 @@ fun ChatScreen(
                         onRead = {
                             scope.launch {
                                 runCatching { tts.toggleRead(message) }
-                                    .onFailure { if (it !is CancellationException) toast.show(it.message ?: "朗读失败") }
+                                    .onFailure { if (it !is CancellationException) toast.show(aiErrorText(it, "语音合成")) }
                             }
                         },
                         onCopy = {

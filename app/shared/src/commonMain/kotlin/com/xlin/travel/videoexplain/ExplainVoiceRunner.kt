@@ -1,5 +1,7 @@
 package com.xlin.travel.videoexplain
 
+import com.xlin.travel.agent.aiErrorText
+import com.xlin.travel.agent.withServerExpiryNotice
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.inputbox.voice.AsrConfigStore
 import com.xlin.travel.inputbox.voice.AudioRecorder
@@ -92,8 +94,10 @@ internal class ExplainVoiceRunner(
                 voice.recognizedText = text
                 onRecognized(text)
             } else {
-                voice.error = result.exceptionOrNull()?.message
-                    ?: if (text.isBlank()) "没听清，请再说一次" else "识别失败"
+                // 与输入框语音模式同款报错：可读原因 + （后端停维后）自部署说明
+                voice.error = result.exceptionOrNull()?.let { aiErrorText(it, "语音识别") }
+                    ?: if (text.isBlank()) "没听清，请再说一次"
+                    else withServerExpiryNotice("语音识别失败，请再说一次")
                 // 失败不退出面板，直接重新开录
                 start()
             }

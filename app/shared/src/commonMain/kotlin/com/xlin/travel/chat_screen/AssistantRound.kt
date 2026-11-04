@@ -2,6 +2,7 @@ package com.xlin.travel.chat_screen
 
 import com.xlin.travel.agent.ChatStreamEvent
 import com.xlin.travel.agent.ModelConfigStore
+import com.xlin.travel.agent.aiErrorText
 import com.xlin.travel.agent.chatStreaming
 import com.xlin.travel.a2ui.A2uiPartialParser
 import com.xlin.travel.a2ui.A2uiRelay
@@ -172,7 +173,10 @@ internal class AssistantRound(
                 persist(recordId, reply, MessageStatuses.Done)
                 throw t
             }
-            reply.content = reply.content.ifEmpty { "请求失败：${t.message ?: "未知错误"}" }
+            // 报错文案统一交给 aiErrorText：网络异常翻译成可读原因，
+            // 后端停止维护之后还要附上一段自部署说明
+            val errorText = aiErrorText(t)
+            reply.content = if (reply.content.isBlank()) errorText else reply.content + "\n\n" + errorText
             // 出错时不再等界面定稿，直接把校验收起，否则会卡在「校验中」
             verifyJob?.cancel()
             persist(recordId, reply, MessageStatuses.Error)

@@ -1,6 +1,7 @@
 package com.xlin.travel.inputbox.voice
 
 import com.xlin.travel.agent.RemoteModelConfig
+import com.xlin.travel.agent.describeAiError
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.SettingKeys
 import com.xlin.travel.db.currentEpochMillis
@@ -69,7 +70,8 @@ object AsrConfigStore {
             return it.config
         }
 
-        val reason = fetched.exceptionOrNull()?.message ?: "服务端未返回语音识别配置"
+        // 网络层原生异常没有可读文案，先归类成一句中文原因
+        val reason = fetched.exceptionOrNull()?.let { describeAiError(it) } ?: "服务端未返回语音识别配置"
         error("语音识别配置获取失败（$reason），请检查网络或稍后重试")
     }
 }

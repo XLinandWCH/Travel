@@ -9,6 +9,7 @@ import ai.koog.prompt.llm.LLModel
 import ai.koog.serialization.typeToken
 import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.agent.createChatExecutor
+import com.xlin.travel.agent.describeAiError
 import kotlinx.io.files.Path
 import kotlinx.serialization.Serializable
 
@@ -83,7 +84,8 @@ object MediaAnalysisTool : Tool<MediaAnalysisTool.Args, String>(
             createChatExecutor(config).execute(prompt, mediaVisionModel(config.modelId))
                 .textContent()
         }.getOrElse { t ->
-            "（识图失败：${t.message ?: "未知错误"}；若本模型不支持图片输入，请改由用户描述图片内容。）"
+            // 结果交给模型看，只归类原因、不附自部署说明（否则会把服务器地址文案混进提示词）
+            "（识图失败：${describeAiError(t)}；若本模型不支持图片输入，请改由用户描述图片内容。）"
         }.ifBlank { "（未能识别出有效内容，请确认图片路径是否正确）" }
     }
 }
