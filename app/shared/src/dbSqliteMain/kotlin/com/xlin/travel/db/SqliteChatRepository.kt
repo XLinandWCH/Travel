@@ -29,6 +29,10 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
     override suspend fun lastMessageSeq(conversationId: String): Long =
         database.withConnection { it.lastMessageSeq(conversationId) }
 
+    /** 近期生成过个性化界面的消息，跨会话按时间倒序 */
+    override suspend fun surfacesSince(since: Long, limit: Int): List<SurfaceRecord> =
+        database.withConnection { it.selectSurfacesSince(since, limit) }
+
     /** 新建会话，返回带 UUID 与外键时间戳的记录 */
     override suspend fun createConversation(
         title: String,
@@ -78,22 +82,28 @@ class SqliteChatRepository(private val database: ChatDatabase) : ChatRepository 
         record
     }
 
-    /** 流式结束后更新 AI 消息内容与状态 */
+    /** 流式结束后更新 AI 消息内容与状态；界面 JSON 随同一条 UPDATE 写入 */
     override suspend fun updateMessage(
         messageId: String,
         content: String,
         reasoning: String,
         status: String,
+        surfaceJson: String?,
     ) {
         val now = currentEpochMillis()
         database.withConnection {
-            it.updateMessage(messageId, content, reasoning, status, now)
+            it.updateMessage(messageId, content, reasoning, status, surfaceJson, now)
         }
     }
 
     /** 删除单条消息，例如“重新生成”时移除旧的 AI 回答 */
     override suspend fun deleteMessage(id: String) {
         database.withConnection { it.deleteMessage(id) }
+    }
+
+    /** 界面就绪就先写库，不等整轮回答结束 */
+    override suspend fun updateMessageSurface(messageId: String, surfaceJson: String) {
+        database.withConnection { it.updateMessageSurface(messageId, surfaceJson) }
     }
 
     /**

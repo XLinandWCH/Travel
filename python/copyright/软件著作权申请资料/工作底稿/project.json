@@ -1,0 +1,132 @@
+{
+  "project_root": "D:\\KOTLIN\\Travel",
+  "code_files": 327,
+  "code_lines": 27761,
+  "by_lang": {
+    "Kotlin": 27708,
+    "Swift": 28,
+    "JavaScript": 25
+  },
+  "docs": [
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\03-architecture.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/03-architecture.md",
+      "size": 20359,
+      "lines": 828
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\03-建筑特色.md",
+      "rel": "武汉里份知识库/03-建筑特色.md",
+      "size": 20359,
+      "lines": 828
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\04-xian-an-fang.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/04-xian-an-fang.md",
+      "size": 17290,
+      "lines": 642
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\04-咸安坊.md",
+      "rel": "武汉里份知识库/04-咸安坊.md",
+      "size": 17290,
+      "lines": 642
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\02-history.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/02-history.md",
+      "size": 14088,
+      "lines": 629
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\02-历史沿革.md",
+      "rel": "武汉里份知识库/02-历史沿革.md",
+      "size": 14088,
+      "lines": 629
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\13-photography.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/13-photography.md",
+      "size": 10820,
+      "lines": 603
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\13-摄影指南.md",
+      "rel": "武汉里份知识库/13-摄影指南.md",
+      "size": 10820,
+      "lines": 603
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\19-commerce.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/19-commerce.md",
+      "size": 11300,
+      "lines": 575
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\19-商业开发.md",
+      "rel": "武汉里份知识库/19-商业开发.md",
+      "size": 11300,
+      "lines": 575
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\10-routes.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/10-routes.md",
+      "size": 11334,
+      "lines": 560
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\10-推荐路线.md",
+      "rel": "武汉里份知识库/10-推荐路线.md",
+      "size": 11334,
+      "lines": 560
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\21-events.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/21-events.md",
+      "size": 14346,
+      "lines": 555
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\21-活动表演.md",
+      "rel": "武汉里份知识库/21-活动表演.md",
+      "size": 14346,
+      "lines": 555
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\09-travel-guide.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/09-travel-guide.md",
+      "size": 12059,
+      "lines": 536
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\09-游玩攻略.md",
+      "rel": "武汉里份知识库/09-游玩攻略.md",
+      "size": 12059,
+      "lines": 536
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\00-index.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/00-index.md",
+      "size": 13116,
+      "lines": 524
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\00-目录与导读.md",
+      "rel": "武汉里份知识库/00-目录与导读.md",
+      "size": 12624,
+      "lines": 508
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\app\\shared\\src\\commonMain\\composeResources\\files\\lifen\\15-culture.md",
+      "rel": "app/shared/src/commonMain/composeResources/files/lifen/15-culture.md",
+      "size": 10842,
+      "lines": 439
+    },
+    {
+      "path": "D:\\KOTLIN\\Travel\\武汉里份知识库\\15-文化价值.md",
+      "rel": "武汉里份知识库/15-文化价值.md",
+      "size": 10842,
+      "lines": 439
+    }
+  ]
+}

@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xlin.travel.a2ui.A2uiEntryButton
 import com.xlin.travel.color.FileChipBackground
 import com.xlin.travel.color.FileChipText
 import com.xlin.travel.color.UserBubbleBackground
@@ -128,6 +129,7 @@ fun UserMessageBubble(
  *
  * [isThinking] 为 true 表示这条消息正处于思考阶段（流式中且正文还没开始），
  * 思考区标题显示跳动的「思考中…」并默认展开；思考结束后自动收起为「已深度思考」。
+ * 整块从上到下固定为「思考 → 正文 → 进入个性化界面 → 内容校验 → 动作按钮」。
  */
 @Composable
 fun AssistantMessageBlock(
@@ -141,6 +143,7 @@ fun AssistantMessageBlock(
     onRegenerate: () -> Unit,
     onRead: () -> Unit,
     onCopy: () -> Unit,
+    onOpenSurface: () -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // 思考区：思考中 / 已深度思考两种标题态，点击可展开收起
@@ -154,20 +157,41 @@ fun AssistantMessageBlock(
             SelectionBox {
                 MarkdownText(message.content)
             }
+        }
 
-            if (showActions) {
-                Spacer(Modifier.height(6.dp))
-                MessageActionRow(
-                    message = message,
-                    canRegenerate = canRegenerate,
-                    isReading = isReading,
-                    onLike = onLike,
-                    onDislike = onDislike,
-                    onRegenerate = onRegenerate,
-                    onRead = onRead,
-                    onCopy = onCopy,
-                )
-            }
+        // 顺序固定为「正文 → 进入个性化界面 → 内容校验 → 动作按钮」：
+        // 入口是内容的一部分，校验是收尾前的复核，反馈按钮是这一条的尾巴。
+        // 入口不等流式结束：a2ui_render 的入口一出现就能点，界面在生成中也能进去看。
+        val surface = message.surface
+        val building = message.surfaceStage == SurfaceStage.Building
+        if (surface != null || building) {
+            Spacer(Modifier.height(10.dp))
+            A2uiEntryButton(
+                onClick = onOpenSurface,
+                title = surface?.title.orEmpty(),
+                building = building,
+                blockCount = surface?.blocks?.count { !it.isEmpty } ?: 0,
+            )
+        }
+
+        // 内容校验：与界面编排并行跑，但排在界面入口之后、动作按钮之前
+        if (message.verifyRunning || message.verifySteps.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            VerifySection(message = message)
+        }
+
+        if (showActions && (message.content.isNotEmpty() || surface != null)) {
+            Spacer(Modifier.height(6.dp))
+            MessageActionRow(
+                message = message,
+                canRegenerate = canRegenerate,
+                isReading = isReading,
+                onLike = onLike,
+                onDislike = onDislike,
+                onRegenerate = onRegenerate,
+                onRead = onRead,
+                onCopy = onCopy,
+            )
         }
     }
 }

@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xlin.travel.agent.aiErrorText
 import com.xlin.travel.color.AccentOrange
 import com.xlin.travel.inputbox.ChatInputState
 import com.xlin.travel.tts.TtsController
@@ -54,6 +55,7 @@ fun ChatScreen(
     inputState: ChatInputState,
     tts: TtsController,
     modifier: Modifier = Modifier,
+    onOpenSurface: (ChatMessage) -> Unit = {},
 ) {
     if (state.messages.isEmpty()) {
         // 空会话：欢迎语居中，强调色显示；每次进入新会话重新随机
@@ -117,7 +119,7 @@ fun ChatScreen(
         if (!finishedRound) return@LaunchedEffect
         val latest = state.messages.lastOrNull { it.role == MessageRole.Assistant }
         runCatching { tts.autoRead(latest) }
-            .onFailure { if (it !is CancellationException) toast.show(it.message ?: "朗读失败") }
+            .onFailure { if (it !is CancellationException) toast.show(aiErrorText(it, "语音合成")) }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -166,10 +168,10 @@ fun ChatScreen(
                         showActions = !(state.isStreaming && index == lastIndex),
                         // 重新生成只会重跑最后一条回答，因此仅在它上面可用
                         canRegenerate = index == lastIndex && !state.isStreaming,
-                        // 思考阶段：正在流式的最后一条。工具调用前后模型常会先输出一段文本，
-                        // 若用「正文为空」判定会让卡片在工具调用时过早塌成“已深度思考”且不再恢复；
-                        // 思考/工具是贯穿整轮的过程，故仅在流式期间保持“思考中…”，整轮结束才折叠
-                        isThinking = state.isStreaming && index == lastIndex,
+                        // 思考阶段 = 流式中且正文还没开始：正文首字到达即视为思考结束，
+                        // 思考区自动收起成「已深度思考（用时X秒）」；工具调用期间正文仍为空，
+                        // 所以「查工具」这段过程依旧算在思考中，不会提前塌掉
+                        isThinking = state.isStreaming && index == lastIndex && message.content.isEmpty(),
                         isReading = tts.isReading(message),
                         onLike = {
                             state.markFeedback(message, Feedback.Like)
@@ -183,7 +185,7 @@ fun ChatScreen(
                         onRead = {
                             scope.launch {
                                 runCatching { tts.toggleRead(message) }
-                                    .onFailure { if (it !is CancellationException) toast.show(it.message ?: "朗读失败") }
+                                    .onFailure { if (it !is CancellationException) toast.show(aiErrorText(it, "语音合成")) }
                             }
                         },
                         onCopy = {
@@ -191,6 +193,8 @@ fun ChatScreen(
                             writeClipboard(message.content)
                             toast.show("复制成功")
                         },
+                        // 点「进入个性化界面」：把这条回复带的 A2UI 界面交给上层导航
+                        onOpenSurface = { onOpenSurface(message) },
                     )
                 }
             }

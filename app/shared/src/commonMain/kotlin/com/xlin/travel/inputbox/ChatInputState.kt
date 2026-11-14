@@ -6,14 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 
-/** 输入模式 */
-enum class InputMode(val label: String) {
-    Fast("Fast")
-}
-
 /**
  * 输入框状态：对应 HTML 中 chatInput 的 has-text / has-image 类切换逻辑。
  * 图片使用真实的 [ImageBitmap]（由系统图片选择器提供），而非占位绘制。
+ *
+ * 输入框里原先的「Fast」模式选择已改成「视频讲解」入口，不再有模式枚举。
  */
 @Stable
 class ChatInputState {
@@ -48,6 +45,13 @@ class ChatInputState {
 
     /** 每次提示自增，作为界面重新计时 / 重播动画的 key */
     var attachmentHintTick: Long by mutableStateOf(0L)
+        internal set
+
+    /**
+     * 每次请求聚焦自增：点小程序快捷条插入「@名称」后，输入框据此请求焦点并弹出键盘，
+     * 用户接着把“想怎么玩”补完就能直接发送。
+     */
+    var focusRequestTick: Long by mutableStateOf(0L)
         internal set
 
     /** 是否有有效文本（对应 JS updateState 的 trim 判断） */
@@ -147,6 +151,22 @@ class ChatInputState {
     fun appendRecognized(recognized: String) {
         if (recognized.isBlank()) return
         onTextChange(if (text.isBlank()) recognized else "$text $recognized")
+    }
+
+    /**
+     * 点小程序时把「@名称」追加进输入框，并把焦点抛回输入框。
+     *
+     * 已存在同样的提及时不重复插入；已有文字以空格分隔，光标停在末尾供用户继续补充需求。
+     * 发给模型时这串文字会由 withMiniProgramHints 翻译成具体的工具调用要求。
+     */
+    fun appendMention(mention: String) {
+        val base = text.trimEnd()
+        when {
+            base.isEmpty() -> onTextChange("$mention ")
+            base.contains(mention) -> Unit
+            else -> onTextChange("$base $mention ")
+        }
+        focusRequestTick++
     }
 
     fun onTextChange(value: String) {

@@ -18,6 +18,13 @@ This is a Kotlin Multiplatform project targeting Android, iOS, Server.
 
 * [/server](./server/src/main/kotlin) is for the Ktor server application.
 
+### 自部署后端
+
+客户端的登录态、大模型 / 语音模型密钥与系统提示词都由 `/server` 下发，公网演示服务器已到期下线。
+拿到源码后请按 [后端部署教程.md](./后端部署教程.md) 自行部署：装 JDK 21 与 MySQL 8 →
+`:server:buildFatJar` 生成 `server-all.jar` → 在 PowerShell 里注入 `DB_PASSWORD` / `MODEL_API_KEY` 运行
+→ 把客户端的 `SERVER_BASE_URL` 指向你的地址。
+
 ### Running the apps
 
 Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:

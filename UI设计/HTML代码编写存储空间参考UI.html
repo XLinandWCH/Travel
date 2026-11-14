@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>存储空间</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    background-color: #121212;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* 顶部导航 */
+  .header {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 0 20px;
+  }
+  .header-title {
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .header-back {
+    position: absolute;
+    left: 20px;
+    font-size: 24px;
+    color: #ffffff;
+    cursor: pointer;
+  }
+
+  /* 主体内容 */
+  .content {
+    padding: 10px 20px 20px;
+    flex: 1;
+  }
+
+  /* 卡片通用样式 */
+  .card {
+    background-color: #242424;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  /* 已使用区域 */
+  .used-label {
+    font-size: 16px;
+    color: #aaaaaa;
+    margin-bottom: 12px;
+  }
+  .used-value {
+    font-size: 42px;
+    font-weight: 500;
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+  .used-value .unit {
+    font-size: 18px;
+    color: #cccccc;
+    margin: 0 4px;
+    font-weight: 400;
+  }
+
+  /* 进度条 */
+  .progress-bar {
+    height: 10px;
+    background-color: #2e3d36; /* 深色底，呼应笔记占比极小 */
+    border-radius: 5px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+  }
+  .progress-kb {
+    width: 0.2%; /* 模拟 0.20GB / 100GB 的极小占比 */
+    background-color: #2ecc71; /* 知识库绿色 */
+    height: 100%;
+    border-radius: 5px 0 0 5px;
+  }
+  .progress-note {
+    width: 0.001%; /* 模拟 0.9MB 的极微小占比 */
+    background-color: #3498db; /* 笔记蓝色 */
+    height: 100%;
+  }
+
+  /* 图例 */
+  .legend {
+    display: flex;
+    gap: 20px;
+    font-size: 16px;
+    color: #cccccc;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  .color-green { background-color: #2ecc71; }
+  .color-blue { background-color: #3498db; }
+
+  /* 明细列表 */
+  .detail-card {
+    padding: 0;
+    overflow: hidden;
+  }
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    font-size: 18px;
+  }
+  .detail-row:first-child {
+    border-bottom: 1px solid #333333;
+  }
+  .detail-name {
+    color: #dddddd;
+  }
+  .detail-size {
+    color: #aaaaaa;
+  }
+
+  /* 底部安全区 */
+  .safe-area {
+    height: 34px;
+    background-color: #121212;
+  }
+  .home-indicator {
+    width: 40%;
+    height: 5px;
+    background-color: #cccccc;
+    border-radius: 3px;
+    margin: 14px auto 0;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 顶部导航 -->
+  <div class="header">
+    <div class="header-back">‹</div>
+    <div class="header-title">存储空间</div>
+  </div>
+
+  <!-- 主体内容 -->
+  <div class="content">
+    
+    <!-- 上半部分卡片 -->
+    <div class="card">
+      <div class="used-label">已使用</div>
+      <div class="used-value">
+        0.20<span class="unit">GB</span> / 100<span class="unit">GB</span>
+      </div>
+      
+      <div class="progress-bar">
+        <div class="progress-kb"></div>
+        <div class="progress-note"></div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color color-green"></div>
+          <span>知识库</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color color-blue"></div>
+          <span>笔记</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 下半部分明细 -->
+    <div class="card detail-card">
+      <div class="detail-row">
+        <span class="detail-name">知识库</span>
+        <span class="detail-size">208.8MB</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-name">笔记</span>
+        <span class="detail-size">0.9MB</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 底部 Home Indicator -->
+  <div class="safe-area">
+    <div class="home-indicator"></div>
+  </div>
+
+</body>
+</html>

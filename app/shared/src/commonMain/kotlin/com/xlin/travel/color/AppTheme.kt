@@ -14,10 +14,11 @@ enum class ThemePreference(val label: String) {
     System("跟随系统"),
     Dark("深色"),
     Light("浅色"),
+    Warm("暖色"),
 }
 
 /**
- * 全局主题状态。AppColors.kt 中所有颜色 getter 都根据 [isDark] 返回深 / 浅两套值，
+ * 全局主题状态。AppColors.kt 中所有颜色 getter 都根据 [isDark] 和 [isWarm] 返回深 / 浅 / 暖三套值，
  * 切换主题时写入 [preference] 或 [systemIsDark]，所有读取这些颜色的组合函数自动重组。
  *
  * [preference] 的持久化由 App.kt 负责（启动时从数据库恢复，选择时写回数据库）。
@@ -37,9 +38,18 @@ object AppTheme {
             ThemePreference.System -> systemIsDark
             ThemePreference.Dark -> true
             ThemePreference.Light -> false
+            ThemePreference.Warm -> false
         }
+
+    /** 颜色取值时实际生效的是否暖色主题 */
+    val isWarm: Boolean
+        get() = preference == ThemePreference.Warm
 }
 
-/** 按当前主题在深 / 浅两个值之间取值（在组合中调用即可随主题切换重组） */
-internal fun themeColor(dark: Color, light: Color): Color =
-    if (AppTheme.isDark) dark else light
+/** 按当前主题在深 / 浅 / 暖三个值之间取值（在组合中调用即可随主题切换重组） */
+internal fun themeColor(dark: Color, light: Color, warm: Color = light): Color =
+    when {
+        AppTheme.isWarm -> warm
+        AppTheme.isDark -> dark
+        else -> light
+    }

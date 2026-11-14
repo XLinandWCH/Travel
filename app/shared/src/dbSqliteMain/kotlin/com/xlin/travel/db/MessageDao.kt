@@ -5,7 +5,7 @@ import androidx.sqlite.SQLiteStatement
 
 private const val Columns =
     "id, conversation_id, role, content, reasoning, seq, status, " +
-        "prompt_tokens, completion_tokens, created_at, updated_at, image_path, document_path, document_name"
+        "prompt_tokens, completion_tokens, created_at, updated_at, image_path, document_path, document_name, surface_json"
 
 /** 取会话内下一个顺序号（从 1 开始） */
 internal fun SQLiteConnection.nextMessageSeq(conversationId: String): Long =
@@ -16,7 +16,7 @@ internal fun SQLiteConnection.nextMessageSeq(conversationId: String): Long =
 
 /** 插入一条消息 */
 internal fun SQLiteConnection.insertMessage(record: MessageRecord) {
-    withStatement("INSERT INTO message($Columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)") { statement ->
+    withStatement("INSERT INTO message($Columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)") { statement ->
         statement.bindText(1, record.id)
         statement.bindText(2, record.conversationId)
         statement.bindText(3, record.role)
@@ -31,6 +31,7 @@ internal fun SQLiteConnection.insertMessage(record: MessageRecord) {
         statement.bindTextOrNull(12, record.imagePath)
         statement.bindTextOrNull(13, record.documentPath)
         statement.bindTextOrNull(14, record.documentName)
+        statement.bindTextOrNull(15, record.surfaceJson)
         statement.step()
     }
 }
@@ -63,22 +64,37 @@ internal fun SQLiteConnection.selectMessages(
     }
 }
 
-/** 更新消息内容与状态（流式结束 / 失败时调用） */
+/**
+ * 更新消息内容与状态（流式结束 / 失败时调用）。
+ * [surfaceJson] 为 null 时保留库里已有的界面——普通更新不应把已落库的界面抹掉。
+ */
 internal fun SQLiteConnection.updateMessage(
     id: String,
     content: String,
     reasoning: String,
     status: String,
+    surfaceJson: String?,
     updatedAt: Long,
 ) {
     withStatement(
-        "UPDATE message SET content = ?, reasoning = ?, status = ?, updated_at = ? WHERE id = ?"
+        "UPDATE message SET content = ?, reasoning = ?, status = ?, " +
+            "surface_json = COALESCE(?, surface_json), updated_at = ? WHERE id = ?"
     ) { statement ->
         statement.bindText(1, content)
         statement.bindText(2, reasoning)
         statement.bindText(3, status)
-        statement.bindLong(4, updatedAt)
-        statement.bindText(5, id)
+        statement.bindTextOrNull(4, surfaceJson)
+        statement.bindLong(5, updatedAt)
+        statement.bindText(6, id)
+        statement.step()
+    }
+}
+
+/** 只更新界面 JSON（a2ui_render 刚执行完时抢先落库），不碰正文、状态与活跃时间 */
+internal fun SQLiteConnection.updateMessageSurface(id: String, surfaceJson: String) {
+    withStatement("UPDATE message SET surface_json = ? WHERE id = ?") { statement ->
+        statement.bindText(1, surfaceJson)
+        statement.bindText(2, id)
         statement.step()
     }
 }
@@ -104,6 +120,37 @@ internal fun SQLiteConnection.deleteMessagesFrom(conversationId: String, fromSeq
         statement.bindText(1, conversationId)
         statement.bindLong(2, fromSeq)
         statement.step()
+    }
+}
+
+/**
+ * 近期生成过个性化界面的消息：跨会话按生成时间倒序，带会话标题。
+ * 只查 surface_json 非空的行，界面页不需要把普通聊天消息拉回内存。
+ */
+internal fun SQLiteConnection.selectSurfacesSince(since: Long, limit: Int): List<SurfaceRecord> {
+    val sql = """
+        SELECT m.id, m.conversation_id, COALESCE(c.title, ''), m.surface_json, m.created_at
+        FROM message m LEFT JOIN conversation c ON c.id = m.conversation_id
+        WHERE m.surface_json IS NOT NULL AND m.surface_json <> '' AND m.created_at >= ?
+        ORDER BY m.created_at DESC
+        LIMIT ?
+    """.trimIndent()
+    return withStatement(sql) { statement ->
+        statement.bindLong(1, since)
+        statement.bindLong(2, limit.toLong())
+        buildList {
+            while (statement.step()) {
+                add(
+                    SurfaceRecord(
+                        messageId = statement.getText(0),
+                        conversationId = statement.getText(1),
+                        conversationTitle = statement.getText(2),
+                        surfaceJson = statement.getText(3),
+                        createdAt = statement.getLong(4),
+                    )
+                )
+            }
+        }
     }
 }
 
@@ -160,6 +207,7 @@ private fun SQLiteStatement.readMessage() = MessageRecord(
     imagePath = getTextOrNull(11),
     documentPath = getTextOrNull(12),
     documentName = getTextOrNull(13),
+    surfaceJson = getTextOrNull(14),
 )
 
 private fun SQLiteStatement.bindIntOrNull(index: Int, value: Int?) {

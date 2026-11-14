@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
+import com.xlin.travel.a2ui.decodeA2uiSurface
 import com.xlin.travel.agent.ModelConfigStore
 import com.xlin.travel.db.ChatRepository
 import com.xlin.travel.db.MessageRecord
@@ -106,6 +107,7 @@ class ChatState(
      * [imagePath] / [image] 非空时，只把真实图片路径拼进「发送给模型的提示词」，
      * 供 media_analysis 工具调用；[documentPath] / [documentName] 非空时，在本机抽取文档正文
      * 并以纯文本内联进提示词（OpenAI 兼容端点不接受文档二进制，只吃 text/image_url）。
+     * 文本里带「@景点推荐」这类小程序提及时，只额外追加一段工具调用提示（withMiniProgramHints）。
      * 上屏与落库的用户消息都只保留原始文本，绝不会把系统提示语或抽取正文混进用户自己发送的内容里。
      */
     suspend fun send(
@@ -128,18 +130,9 @@ class ChatState(
                 truncateFrom(edit)
             }
 
-            // 仅作为本轮发送给模型的输入：图片路径交给工具，文档在本机抽取正文内联，用户看不到这段话
-            val llmPrompt = content.withAttachmentHints(imagePath, documentPath, documentName)
-            // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
-            // 失败不在这里抛出，由 AssistantRound 统一在 AI 气泡里展示错误
-            runCatching { ModelConfigStore.ensure(repository) }
-            val activeConversation = ensureConversation(content)
-
-            // 本轮之前的历史分界线：ChatMemory 只加载 seq <= cutoff 的消息，
-            // 避免把刚刚写入的本轮用户消息重复拼进上下文
-            val cutoff = runCatching { repository.lastMessageSeq(activeConversation) }.getOrDefault(0L)
-
-            // 上屏与落库都用用户原始文本；图片缩略图仅在内存中随消息展示
+            // 先上屏：用户气泡与 AI 占位气泡必须在任何可能阻塞的工作之前加进来。
+            // 拉云端配置、建会话要等网络，带纯文本附件时还要在本机抽取正文，
+            // 这些放在气泡之前都会让「思考中…」迟迟不出现。
             _messages.add(
                 ChatMessage(
                     id = nextId++,
@@ -154,6 +147,22 @@ class ChatState(
             val reply = ChatMessage(nextId++, MessageRole.Assistant)
             _messages.add(reply)
 
+            // 仅作为本轮发送给模型的输入：图片路径交给工具，文档在本机抽取正文内联，
+            // @小程序 提及翻译成工具调用要求；这些提示用户看不到
+            val llmPrompt = content
+                .withAttachmentHints(imagePath, documentPath, documentName)
+                .withMiniProgramHints()
+
+            // 预热云端模型配置（密钥不再硬编码），供会话记录落库使用；
+            // 失败不在这里抛出，由 AssistantRound 统一在 AI 气泡里展示错误
+            runCatching { ModelConfigStore.ensure(repository) }
+            val activeConversation = ensureConversation(content)
+
+            // 本轮之前的历史分界线：ChatMemory 只加载 seq <= cutoff 的消息，
+            // 避免把刚刚写入的本轮用户消息重复拼进上下文
+            val cutoff = runCatching { repository.lastMessageSeq(activeConversation) }.getOrDefault(0L)
+
+            // 上屏与落库都用用户原始文本；图片缩略图仅在内存中随消息展示
             runCatching {
                 repository.appendMessage(
                     activeConversation, MessageRoles.User, content,
@@ -177,20 +186,20 @@ class ChatState(
         if (index < 0 || isStreaming) return
         val userMessage = _messages.subList(0, index).lastOrNull { it.role == MessageRole.User }
             ?: return
-        // 重新发送时同样只把路径拼进给模型的提示词，用户消息本身仍是原始文本
-        val prompt = userMessage.content.withAttachmentHints(
-            userMessage.imagePath, userMessage.documentPath, userMessage.documentName,
-        )
+        // 重新发送时同样只把路径与 @小程序 提示拼进给模型的提示词，用户消息本身仍是原始文本
+        val prompt = userMessage.content
+            .withAttachmentHints(userMessage.imagePath, userMessage.documentPath, userMessage.documentName)
+            .withMiniProgramHints()
 
         isStreaming = true
         activeJob = coroutineContext[Job]
         try {
-            // 删除旧的 AI 记录，历史上下文才会停在用户提示词之前
-            _messages[index].recordId?.let { oldId ->
-                runCatching { repository.deleteMessage(oldId) }
-            }
+            // 先把占位回答换上去（「思考中…」立刻出现），再去删旧记录；
+            // 旧记录 id 已在同步段取出，不会因为列表被替换而丢
+            val oldRecordId = _messages[index].recordId
             val reply = ChatMessage(nextId++, MessageRole.Assistant)
             _messages[index] = reply
+            oldRecordId?.let { runCatching { repository.deleteMessage(it) } }
 
             // 此时数据库最后一条就是本轮的用户提示词，它作为新输入传入，
             // 需要再用 -1 把它从历史上下文中排除，避免重复拼接
@@ -278,8 +287,8 @@ class ChatState(
             id = nextId++,
             role = messageRole,
             content = content,
-            // 落库的 reasoning 可能内联了工具标记：展示用去掉标记的纯文本
-            reasoning = stripThinkingMarkers(reasoning),
+            // 落库的 reasoning 可能内联了工具标记与校验步骤：展示用去掉全部标记的纯文本
+            reasoning = stripVerifySteps(stripThinkingMarkers(reasoning)),
             imagePath = imagePath,
             imageBitmap = imagePath?.let { decodeImageFromPath(it) },
             documentPath = documentPath,
@@ -288,6 +297,13 @@ class ChatState(
         message.recordId = id
         // 还原思考时间线（含历史工具卡片）；无标记时为空/纯文本，与实时流式一致
         message.timeline = decodeThinkingTimeline(reasoning)
+        // 还原校验卡片：校验与界面一起落库，重开历史仍可回看当时核对了什么
+        message.verifySteps = decodeVerifySteps(reasoning)
+        // 还原当时生成的个性化界面：入口在历史会话里也能点开，而不是只能看文字
+        surfaceJson?.let { json ->
+            message.surface = decodeA2uiSurface(json)
+            if (message.surface != null) message.surfaceStage = SurfaceStage.Ready
+        }
         return message
     }
 }

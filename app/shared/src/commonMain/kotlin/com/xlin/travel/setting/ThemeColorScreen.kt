@@ -18,6 +18,7 @@ import travel.app.shared.generated.resources.Res
 import travel.app.shared.generated.resources.dark
 import travel.app.shared.generated.resources.light
 import travel.app.shared.generated.resources.phone_number
+import travel.app.shared.generated.resources.warm
 
 /** 各主题选项在主题颜色页使用的图标 */
 internal val ThemePreference.iconRes: DrawableResource
@@ -25,6 +26,7 @@ internal val ThemePreference.iconRes: DrawableResource
         ThemePreference.System -> Res.drawable.phone_number
         ThemePreference.Dark -> Res.drawable.dark
         ThemePreference.Light -> Res.drawable.light
+        ThemePreference.Warm -> Res.drawable.warm
     }
 
 /**

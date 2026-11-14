@@ -58,6 +58,8 @@ jobs:
           cp -r server core "$DEST/"
           # 工程根构建文件（server 脱离根工程无法编译，这些是必需的）
           cp settings.gradle.kts gradle.properties "$DEST/"
+          # 自部署教程随源码包一起发布：客户端 AI 报错里的提示直接指向这个文件名
+          cp 后端部署教程.md "$DEST/"
           cp -r gradle "$DEST/"
           cp gradlew gradlew.bat "$DEST/"
           # 改写 settings.gradle.kts：只保留 :core 与 :server，去掉 app 前端模块
@@ -94,6 +96,7 @@ jobs:
           unzip -l "$ARCHIVE_SERVER" | grep "server/build.gradle.kts"
           unzip -l "$ARCHIVE_SERVER" | grep "core/build.gradle.kts"
           unzip -l "$ARCHIVE_SERVER" | grep "gradle/libs.versions.toml"
+          unzip -l "$ARCHIVE_SERVER" | grep "后端部署教程.md"
           # settings 里不应再残留 app 模块，且必须含 core 与 server
           unzip -p "$ARCHIVE_SERVER" "*/settings.gradle.kts" | grep -q ':server'
           ! unzip -p "$ARCHIVE_SERVER" "*/settings.gradle.kts" | grep -q ':app'

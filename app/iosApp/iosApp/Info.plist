@@ -8,6 +8,9 @@
 	<string>用于在对话中选择并发送图片</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>用于语音输入，将你的说话内容识别为文字</string>
+	<!-- 地图定位（MAP 功能）：缺失该声明时 CoreLocation 申请授权会直接崩溃 -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>用于获取你的当前位置，提供周边查询与路线规划服务</string>
 	<!-- 开发阶段后端为公网 IP + http 明文，放开 ATS；上 https 后可移除 -->
 	<key>NSAppTransportSecurity</key>
 	<dict>

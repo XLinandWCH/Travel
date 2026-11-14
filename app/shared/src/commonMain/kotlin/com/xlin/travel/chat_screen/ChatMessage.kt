@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
+import com.xlin.travel.a2ui.A2uiSurface
 
 /** 消息角色 */
 enum class MessageRole {
@@ -28,6 +29,18 @@ sealed class ThinkingItem {
 
     /** 一次工具调用：[label] 为展示名，[running] 进行中，[failed] 校验 / 执行失败 */
     data class ToolCall(val label: String, val running: Boolean, val failed: Boolean) : ThinkingItem()
+}
+
+/**
+ * 个性化界面的生成阶段。
+ *
+ * AI 调 a2ui_render 时参数还在流式生成，入口不必等它写完：
+ * [Building] 就能点开看块一块块出现，[Ready] 表示整屏已经可以稳定展示。
+ */
+enum class SurfaceStage {
+    None,
+    Building,
+    Ready,
 }
 
 /**
@@ -86,6 +99,29 @@ class ChatMessage(
     var timeline: List<ThinkingItem> by mutableStateOf(emptyList())
         internal set
 
+    /**
+     * 本轮 AI 编排的个性化界面（a2ui_render 的产物）。
+     * 流式生成过程中先放「已闭合的块」，结束后换成完整版本并落库，
+     * 因此历史会话重开也能再次点进入口。
+     */
+    var surface: A2uiSurface? by mutableStateOf(null)
+        internal set
+
+    /** 界面生成阶段：决定入口文案是「正在编排」还是「进入界面」 */
+    var surfaceStage: SurfaceStage by mutableStateOf(SurfaceStage.None)
+        internal set
+
+    /**
+     * 「内容校验」的进度行：与界面编排并行产出（联网核对类步骤），展示在界面入口下方的
+     * 折叠卡片里。落库时用标记内联进 reasoning 尾部（同思考时间线的做法），不新增数据库列。
+     */
+    var verifySteps: List<String> by mutableStateOf(emptyList())
+        internal set
+
+    /** 校验进行中：标题显示波动的「校验中…」且默认展开，结束后自动收起为「校验完成」 */
+    var verifyRunning: Boolean by mutableStateOf(false)
+        internal set
+
     private val timelineItems = mutableListOf<ThinkingItem>()
 
     /** 追加思考文本增量：并入最后一个文本项，否则新建一项 */
@@ -111,6 +147,11 @@ class ChatMessage(
             timeline = timelineItems.toList()
         }
     }
+
+    /** 追加一条校验进度（界面编排期间由校验器逐条写入） */
+    internal fun appendVerifyStep(step: String) {
+        verifySteps = verifySteps + step
+    }
 }
 
 // ==================== 思考时间线的持久化编解码 ====================
@@ -133,11 +174,13 @@ internal fun encodeThinkingTimeline(items: List<ThinkingItem>): String = buildSt
 
 /** 落库文本 → 时间线：含标记则拆分，否则整体视为一段思考文本 */
 internal fun decodeThinkingTimeline(raw: String): List<ThinkingItem> {
-    if (!raw.contains('\u0001')) return if (raw.isEmpty()) emptyList() else listOf(ThinkingItem.Text(raw))
+    // 校验步骤与思考一起存在 reasoning 列里，先整段摘掉，思考区看不到这些行
+    val text = stripVerifySteps(raw)
+    if (!text.contains('\u0001')) return if (text.isEmpty()) emptyList() else listOf(ThinkingItem.Text(text))
     val out = mutableListOf<ThinkingItem>()
     var cursor = 0
-    for (match in ToolMarkRegex.findAll(raw)) {
-        val before = raw.substring(cursor, match.range.first)
+    for (match in ToolMarkRegex.findAll(text)) {
+        val before = text.substring(cursor, match.range.first)
         if (before.isNotEmpty()) out.add(ThinkingItem.Text(before))
         out.add(
             ThinkingItem.ToolCall(
@@ -148,10 +191,26 @@ internal fun decodeThinkingTimeline(raw: String): List<ThinkingItem> {
         )
         cursor = match.range.last + 1
     }
-    val tail = raw.substring(cursor)
+    val tail = text.substring(cursor)
     if (tail.isNotEmpty()) out.add(ThinkingItem.Text(tail))
     return out
 }
+
+/**
+ * 「内容校验」步骤的持久化：与工具卡片同理，用控制符把每一步内联进 reasoning 尾部，
+ * 形如 \u0001VFY\u0001<步骤>\u0002。打开历史时原样解码回校验卡片。
+ */
+private val VerifyMarkRegex = Regex("\u0001VFY\u0001(.*?)\u0002")
+
+internal fun encodeVerifySteps(steps: List<String>): String = buildString {
+    steps.forEach { append("\u0001VFY\u0001").append(it).append('\u0002') }
+}
+
+internal fun decodeVerifySteps(raw: String): List<String> =
+    VerifyMarkRegex.findAll(raw).map { it.groupValues[1] }.toList()
+
+/** 去掉校验标记，避免控制符泄漏进思考文本与界面 */
+internal fun stripVerifySteps(raw: String): String = raw.replace(VerifyMarkRegex, "")
 
 /** 去掉工具标记得到纯思考文本：供展示兜底与长度判断，避免控制符泄漏到界面 */
 internal fun stripThinkingMarkers(raw: String): String = raw.replace(ToolMarkRegex, "")

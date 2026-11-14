@@ -103,7 +103,9 @@ object ModelConfigStore {
             return it.config
         }
 
-        val reason = fetched.exceptionOrNull()?.message ?: "服务端未返回模型配置"
+        // 拉取失败的原因先经 describeAiError 归类（网络层原生异常没有可读文案），
+        // 到期说明不在这里附加，由 AssistantRound 的 aiErrorText 统一补上
+        val reason = fetched.exceptionOrNull()?.let { describeAiError(it) } ?: "服务端未返回模型配置"
         error("模型配置获取失败（$reason），请检查网络或稍后重试")
     }
 }

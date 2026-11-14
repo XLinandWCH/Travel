@@ -14,6 +14,12 @@ sealed interface ChatStreamEvent {
     /** 工具开始调用 */
     data class ToolCallStarted(val toolName: String, val args: String) : ChatStreamEvent
 
+    /**
+     * a2ui_render 的参数增量：`json` 是「当前累计的完整参数快照」，不是本次增量片段。
+     * 界面层据此先渲染已闭合的块，让个性化界面在生成过程中一块块出现。
+     */
+    data class SurfaceDelta(val toolName: String, val json: String) : ChatStreamEvent
+
     /** 工具调用完成，result 为执行结果 */
     data class ToolCallFinished(val toolName: String, val result: String) : ChatStreamEvent
 

@@ -23,6 +23,12 @@ interface ChatRepository {
     /** 某个会话的消息；[untilSeq] 为空时返回全部消息 */
     suspend fun messages(conversationId: String, untilSeq: Long? = null): List<MessageRecord>
 
+    /**
+     * 近期生成过个性化界面的消息，跨会话按时间由新到旧。
+     * [since] 为起始时间戳（毫秒），[limit] 为最多返回条数，供「个性化窗口展示」页浏览。
+     */
+    suspend fun surfacesSince(since: Long, limit: Int): List<SurfaceRecord>
+
     /** 会话内当前最后一条消息的顺序号，用作历史上下文的分界线 */
     suspend fun lastMessageSeq(conversationId: String): Long
 
@@ -48,16 +54,26 @@ interface ChatRepository {
         documentName: String? = null,
     ): MessageRecord
 
-    /** 流式结束后更新 AI 消息内容与状态 */
+    /**
+     * 流式结束后更新 AI 消息内容与状态。
+     * [surfaceJson] 为个性化界面的序列化结果；传 null 表示保留库里已有界面，不覆盖。
+     */
     suspend fun updateMessage(
         messageId: String,
         content: String,
         reasoning: String,
         status: String,
+        surfaceJson: String? = null,
     )
 
     /** 删除单条消息，例如“重新生成”时移除旧的 AI 回答 */
     suspend fun deleteMessage(id: String)
+
+    /**
+     * 只写界面字段，不动正文与状态。
+     * a2ui_render 一执行完就调它：历史页不必等整轮回答结束，「界面已经能看了、历史里还没有」的窗口就不存在了。
+     */
+    suspend fun updateMessageSurface(messageId: String, surfaceJson: String)
 
     /**
      * 「编辑重发」用：从 [fromMessageId] 这条消息开始（含它自身）删除本会话的全部后续消息，

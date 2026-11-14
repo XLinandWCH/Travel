@@ -8,7 +8,7 @@ import java.time.LocalDateTime
  * 业务表结构（Exposed DSL）。启动时由 DatabaseFactory 统一 SchemaUtils.create（缺表才建、绝不 DROP）。
  *
  * 接入服务：users（登录/注册，含管理员 role/type）、llm_models + voice_models（模型配置下发）、
- * feedback_tickets（用户反馈 + 管理员回复）、broadcast_messages（管理员公告）。
+ * feedback_tickets（用户反馈 + 管理员回复）、broadcast_messages（管理员公告）、map（高德地图密钥下发）。
  */
 
 /** 用户信息：用户名 / 手机号 / 邮箱 / 密码哈希 / 使用天数 / 注册时间 / 角色 type */
@@ -123,6 +123,26 @@ object FeedbackMessages : Table("feedback_messages") {
 }
 
 /**
+ * 高德地图密钥：一个平台一行，客户端登录后按 platform 拉取自己那行。
+ * [platform] 取值 ANDROID / IOS / WEB（大写，与客户端下发参数约定一致）；
+ * [securityCode] 仅 ANDROID 使用（SDK 安全码，iOS/Web 为 NULL）。
+ * 密钥是机密：与 llm_models 同样约定——正式环境通过环境变量注入轮换，见 MapKeySeeder。
+ */
+object MapKeys : Table("map") {
+    val id = long("id").autoIncrement()
+    val platform = varchar("platform", 8)                      // ANDROID / IOS / WEB
+    val apiKey = varchar("api_key", 128)                       // 高德控制台申请的 Key
+    val securityCode = varchar("security_code", 128).nullable() // SDK 安全码（仅 Android）
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(id)
+
+    init {
+        uniqueIndex("ux_map_platform", platform)
+    }
+}
+
+/**
  * 管理员公告：id / 标题 / 内容 / 发布管理员(外键→users) / 时间。
  * 普通用户在消息中心可看到全部公告；仅管理员可发布。
  */
@@ -131,6 +151,26 @@ object BroadcastMessages : Table("broadcast_messages") {
     val title = varchar("title", 128)                         // 公告标题
     val content = text("content")                             // 公告正文
     val adminUsername = varchar("admin_username", 32)         // 外键→users.username（由 DatabaseFactory 的 ALTER 添加）
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * 客服聊天（单表）：id / 会话归属用户名 / 发送者角色 / 内容 / 图片 / 时间。
+ *
+ * 会话以 [username]（客户用户名）为归属键，不再使用独立会话号：
+ * 普通用户的全部消息即其会话；管理员按 username 选择要回复的客户。
+ * [senderRole] 为 'admin'（客服回复）或 'user'（用户消息）。
+ * [imageData] 存图片 base64（PNG，≤512px），NULL 表示无图片；
+ * 实际列由 DatabaseFactory 迁移升级为 MEDIUMTEXT（TEXT 仅 64KB，存不下图片）。
+ */
+object CustomerChat : Table("customer_chat") {
+    val id = long("id").autoIncrement()
+    val username = varchar("username", 32)                    // 会话归属客户用户名（外键→users.username）
+    val senderRole = varchar("sender_role", 8)                // 'admin' / 'user'
+    val content = text("content")                             // 消息正文
+    val imageData = text("image_data").nullable()             // 图片 base64（PNG，≤512px），NULL 表示无图片
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
 
     override val primaryKey = PrimaryKey(id)
