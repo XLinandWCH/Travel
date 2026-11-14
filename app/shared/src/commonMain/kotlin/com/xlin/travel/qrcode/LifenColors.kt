@@ -2,6 +2,8 @@ package com.xlin.travel.qrcode
 
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.xlin.travel.color.LifenPaper as AppLifenPaper
+import com.xlin.travel.color.LifenPaperDeep as AppLifenPaperDeep
 
 /**
  * 里份旅游线专属暖色表（扫码 → 里份路线图 → 线路页 → 详情页 / 地图查看）。
@@ -11,11 +13,11 @@ import androidx.compose.ui.graphics.Color
  * 全表不用纯白 / 纯黑：纸底带米黄，墨字带棕味。
  */
 
-/** 页面底：宣纸米黄 */
-val LifenPaper = Color(0xFFF4ECDC)
+/** 页面底：宣纸米黄（与 AppColors 共享） */
+val LifenPaper: Color get() = AppLifenPaper
 
-/** 页面渐变下端：陈纸色，比纸底略深，铺出旧纸的层次 */
-val LifenPaperDeep = Color(0xFFEDE1CB)
+/** 页面渐变下端：陈纸色（与 AppColors 共享） */
+val LifenPaperDeep: Color get() = AppLifenPaperDeep
 
 /** 卡片 / 按钮表面：暖白（非纯白） */
 val LifenCard = Color(0xFFFAF5E9)

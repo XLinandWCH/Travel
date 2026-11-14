@@ -65,7 +65,7 @@ object DatabaseFactory {
         //    历史统一表 model_api_keys 不再创建（旧库中已存在则原样保留、不引用、不 DROP）。
         //    SchemaUtils.create 是“缺表才建、存在即跳过”，绝不会 DROP / 重建已有表与数据。
         transaction {
-            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets, FeedbackMessages, MapKeys)
+            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets, FeedbackMessages, MapKeys, CustomerServiceSessions, CustomerServiceMessages)
         }
 
         // 4. 增量迁移：为已存在的旧表补上新列 / 外键

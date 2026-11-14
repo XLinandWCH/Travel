@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -183,19 +185,26 @@ fun CustomerServiceInputBar(
                 .background(UserBubbleBackground)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
         ) {
-            Text(
-                text = value,
-                color = TextWhite,
-                fontSize = 14.sp,
-                maxLines = 4,
-            )
-            if (value.isEmpty()) {
-                Text(
-                    text = placeholder,
-                    color = TextGray500,
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                textStyle = TextStyle(
+                    color = TextWhite,
                     fontSize = 14.sp,
-                )
-            }
+                ),
+                maxLines = 4,
+                modifier = Modifier.fillMaxWidth(),
+                decorationBox = { innerTextField ->
+                    if (value.isEmpty()) {
+                        Text(
+                            text = placeholder,
+                            color = TextGray500,
+                            fontSize = 14.sp,
+                        )
+                    }
+                    innerTextField()
+                },
+            )
         }
         Spacer(Modifier.width(12.dp))
         Box(

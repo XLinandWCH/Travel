@@ -115,7 +115,7 @@ object CustomerServiceApi {
     /** 获取会话列表 */
     suspend fun getSessionList(token: String, isAdmin: Boolean): CustomerServiceResult {
         return try {
-            val endpoint = if (isAdmin) "/api/customer-service/admin/sessions" else "/api/customer-service/sessions"
+            val endpoint = if (isAdmin) "/api/customer-service/admin/sessions" else "/api/customer-service/user/sessions"
             val response = client.post("$SERVER_BASE_URL$endpoint") {
                 contentType(ContentType.Application.Json)
                 setBody(CustomerTokenRequest(token))
