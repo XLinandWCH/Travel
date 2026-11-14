@@ -155,3 +155,30 @@ object BroadcastMessages : Table("broadcast_messages") {
 
     override val primaryKey = PrimaryKey(id)
 }
+
+/**
+ * 客服会话：会话ID / 用户名(外键→users) / 时间。
+ * [sessionId] 为展示给用户的唯一编号：# + 7 位随机数（如 #8721392），服务端生成并保证不重复。
+ */
+object CustomerServiceSessions : Table("customer_service_sessions") {
+    val sessionId = varchar("session_id", 32)                 // 会话ID（#7位），主键唯一
+    val username = varchar("username", 32)                    // 外键→users.username
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(sessionId)
+}
+
+/**
+ * 客服消息：id / 会话ID(外键→customer_service_sessions) / 发送者 / 发送者角色 / 内容 / 时间。
+ * [senderRole] 为 'admin'（客服回复）或 'user'（用户消息）。
+ */
+object CustomerServiceMessages : Table("customer_service_messages") {
+    val id = long("id").autoIncrement()
+    val sessionId = varchar("session_id", 32)                 // 外键→customer_service_sessions.session_id
+    val sender = varchar("sender", 32)                        // 发送者用户名
+    val senderRole = varchar("sender_role", 8)               // 'admin' / 'user'
+    val content = text("content")                             // 消息正文
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(id)
+}

@@ -4,6 +4,7 @@ import com.xlin.travel.db.DatabaseFactory
 import com.xlin.travel.db.MapKeySeeder
 import com.xlin.travel.db.ModelKeySeeder
 import com.xlin.travel.routes.authRoutes
+import com.xlin.travel.routes.customerServiceRoutes
 import com.xlin.travel.routes.feedbackRoutes
 import com.xlin.travel.routes.llmProxyRoutes
 import com.xlin.travel.routes.mapRoutes
@@ -61,6 +62,7 @@ fun Application.module() {
         modelConfigRoutes()
         mapRoutes()
         feedbackRoutes()
+        customerServiceRoutes()
         // 网页版大模型反向代理（浏览器直连模型服务会被 CORS 拦截）
         llmProxyRoutes()
         // 网页版静态托管（/web，产物目录由 TRAVEL_WEB_DIST 指定）

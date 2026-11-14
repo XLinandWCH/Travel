@@ -25,3 +25,6 @@ travel-web-deploy.zip
 # OS
 .DS_Store
 Thumbs.db
+/头像/
+/python/
+/参考文件/

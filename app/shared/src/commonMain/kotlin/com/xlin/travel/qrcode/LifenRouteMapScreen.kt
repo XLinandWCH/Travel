@@ -58,6 +58,7 @@ enum class RouteCategory(
 fun LifenRouteMapScreen(
     onBack: () -> Unit,
     onRouteClick: (RouteCategory) -> Unit = {},
+    onCustomerServiceClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -66,7 +67,7 @@ fun LifenRouteMapScreen(
             .background(LifenPageBrush)
             .safeContentPadding(),
     ) {
-        LifenTopBar(title = "里份路线图", onBack = onBack)
+        LifenTopBar(title = "里份路线图", onBack = onBack, onCustomerServiceClick = onCustomerServiceClick)
 
         Text(
             text = "选一条路线，走进汉口老里份",

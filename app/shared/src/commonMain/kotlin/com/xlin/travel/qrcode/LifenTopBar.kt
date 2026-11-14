@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,7 @@ import travel.app.shared.generated.resources.back
 fun LifenTopBar(
     title: String,
     onBack: () -> Unit,
+    onCustomerServiceClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -72,6 +74,24 @@ fun LifenTopBar(
             color = LifenInk,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
         )
+        if (onCustomerServiceClick != null) {
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(LifenBrick)
+                    .clickable(onClick = onCustomerServiceClick)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = "客服",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
     }
 }

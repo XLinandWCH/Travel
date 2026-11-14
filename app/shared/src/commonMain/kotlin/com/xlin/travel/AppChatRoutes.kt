@@ -12,6 +12,7 @@ import com.xlin.travel.qrcode.RouteTourScreen
 import com.xlin.travel.qrcode.TourMapViewerScreen
 import com.xlin.travel.qrcode.TravelDetailScreen
 import com.xlin.travel.search.SearchScreen
+import com.xlin.travel.setting.CustomerServiceScreen
 import com.xlin.travel.videoexplain.VideoExplainScreen
 import kotlinx.coroutines.launch
 
@@ -147,6 +148,7 @@ internal fun AppHost.ChatRoutes() {
                 selectedRoute = category.route
                 screen = AppScreen.RouteTour
             },
+            onCustomerServiceClick = { screen = AppScreen.CustomerService },
         )
 
         // 线路页：景点按钮进各自详情页，地图点击进全屏查看
@@ -171,6 +173,12 @@ internal fun AppHost.ChatRoutes() {
         AppScreen.TourMapViewer -> TourMapViewerScreen(
             mapImage = selectedRoute.mapImage,
             onBack = { screen = AppScreen.RouteTour },
+        )
+
+        // 客服服务：从里份路线图进入的客服聊天页面
+        AppScreen.CustomerService -> CustomerServiceScreen(
+            session = session,
+            onBack = { screen = AppScreen.LifenRouteMap },
         )
 
         else -> Unit
