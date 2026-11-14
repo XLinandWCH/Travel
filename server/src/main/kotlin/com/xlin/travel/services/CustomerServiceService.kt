@@ -1,113 +1,107 @@
 package com.xlin.travel.services
 
-import com.xlin.travel.db.CustomerServiceMessages
-import com.xlin.travel.db.CustomerServiceSessions
+import com.xlin.travel.db.CustomerChat
 import com.xlin.travel.db.Users
-import com.xlin.travel.models.CustomerServiceCreateSessionResponse
-import com.xlin.travel.models.CustomerServiceMessageDto
-import com.xlin.travel.models.CustomerServiceSessionDto
-import com.xlin.travel.models.CustomerServiceSessionListResponse
-import com.xlin.travel.models.CustomerServiceSessionMessagesResponse
+import com.xlin.travel.models.CustomerConversationDto
+import com.xlin.travel.models.CustomerConversationsResponse
+import com.xlin.travel.models.CustomerMessageDto
+import com.xlin.travel.models.CustomerMessagesResponse
+import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.time.LocalDateTime
-import kotlin.random.Random
 
 /**
- * 客服会话业务：
- * - 普通用户：创建会话、发送消息、拉取会话列表和消息；
- * - 管理员（users.type='admin'）：查看全部会话、回复消息。
+ * 客服聊天业务（单表 [CustomerChat]，会话以客户用户名为归属键）：
+ * - 普通用户：拉取 / 发送自己的消息；
+ * - 管理员（users.type='admin'）：查看全部会话、按 username 拉取并回复客户消息。
  *
- * 全部接口都以登录 token 鉴权；管理员接口额外校验角色。
+ * 全部接口以登录 token 鉴权；管理员接口额外校验角色。
  */
 object CustomerServiceService {
 
+    /** 全局通知的会话归属键：管理员向它发送的内容对所有用户可见（一视同仁） */
+    const val GLOBAL_USERNAME = "__global__"
+
     private const val MAX_CONTENT_LENGTH = 2000
-    private const val MAX_SESSION_ATTEMPTS = 64
+    private const val MAX_IMAGE_LENGTH = 4 * 1024 * 1024   // 图片 base64 上限约 4MB
 
     sealed interface CustomerServiceResult {
-        data class SessionList(val data: CustomerServiceSessionListResponse) : CustomerServiceResult
-        data class SessionMessages(val data: CustomerServiceSessionMessagesResponse) : CustomerServiceResult
-        data class Created(val data: CustomerServiceCreateSessionResponse) : CustomerServiceResult
+        data class Messages(val data: CustomerMessagesResponse) : CustomerServiceResult
+        data class Conversations(val data: CustomerConversationsResponse) : CustomerServiceResult
         data class Done(val message: String) : CustomerServiceResult
         data class Failed(val status: Int, val message: String) : CustomerServiceResult
     }
 
-    /** 生成唯一会话ID */
-    private fun nextSessionId(): String {
-        repeat(MAX_SESSION_ATTEMPTS) {
-            val id = "#" + Random.nextInt(1000000, 10000000)
-            if (!transaction { CustomerServiceSessions.selectAll().where { CustomerServiceSessions.sessionId eq id }.any() }) {
-                return id
-            }
-        }
-        throw RuntimeException("无法生成唯一会话ID")
-    }
-
-    /** 获取用户名 */
     private fun usernameOf(userId: Long): String? = transaction {
-        Users.selectAll()
-            .where { Users.id eq userId }
-            .firstOrNull()
-            ?.get(Users.username)
+        Users.selectAll().where { Users.id eq userId }.firstOrNull()?.get(Users.username)
     }
 
-    /** 检查是否为管理员 */
     private fun isAdmin(userId: Long): Boolean = transaction {
-        Users.selectAll()
-            .where { Users.id eq userId }
-            .firstOrNull()
-            ?.get(Users.userType) == "admin"
+        Users.selectAll().where { Users.id eq userId }.firstOrNull()?.get(Users.userType) == "admin"
     }
 
-    /** 创建会话 */
-    fun createSession(token: String): CustomerServiceResult {
+    private fun ResultRow.toDto() = CustomerMessageDto(
+        senderRole = this[CustomerChat.senderRole],
+        content = this[CustomerChat.content],
+        imageData = this[CustomerChat.imageData],
+        createdAt = this[CustomerChat.createdAt].toString(),
+    )
+
+    /** 内容与图片校验，通过返回 null，否则返回失败结果 */
+    private fun validate(content: String, imageData: String?): CustomerServiceResult.Failed? {
+        if (content.isEmpty() && imageData.isNullOrEmpty()) return CustomerServiceResult.Failed(400, "消息内容不能为空")
+        if (content.length > MAX_CONTENT_LENGTH) return CustomerServiceResult.Failed(400, "消息内容过长，请精简")
+        if (!imageData.isNullOrEmpty() && imageData.length > MAX_IMAGE_LENGTH) {
+            return CustomerServiceResult.Failed(400, "图片过大，请选择较小的图片")
+        }
+        return null
+    }
+
+    /** 拉取消息：普通用户恒为自己；管理员需指定 username */
+    fun messages(token: String, username: String?): CustomerServiceResult {
         val userId = UserService.verifyToken(token)
             ?: return CustomerServiceResult.Failed(401, "登录已失效，请重新登录")
         return try {
             transaction {
-                val username = usernameOf(userId)
-                    ?: return@transaction CustomerServiceResult.Failed(404, "用户不存在")
-                val sessionId = nextSessionId()
-                CustomerServiceSessions.insert {
-                    it[CustomerServiceSessions.sessionId] = sessionId
-                    it[CustomerServiceSessions.username] = username
+                val me = usernameOf(userId) ?: return@transaction CustomerServiceResult.Failed(404, "用户不存在")
+                val admin = isAdmin(userId)
+                val rows = if (admin) {
+                    val target = username?.takeIf { it.isNotBlank() }
+                        ?: return@transaction CustomerServiceResult.Failed(400, "请指定要查看的客户")
+                    CustomerChat.selectAll().where { CustomerChat.username eq target }
+                } else {
+                    // 普通用户：自己的消息 + 全局通知，一视同仁
+                    CustomerChat.selectAll().where {
+                        (CustomerChat.username eq me) or (CustomerChat.username eq GLOBAL_USERNAME)
+                    }
                 }
-                CustomerServiceResult.Created(CustomerServiceCreateSessionResponse("会话已创建", sessionId))
+                val messages = rows
+                    .orderBy(CustomerChat.createdAt to SortOrder.ASC, CustomerChat.id to SortOrder.ASC)
+                    .map { it.toDto() }
+                CustomerServiceResult.Messages(CustomerMessagesResponse(messages))
             }
         } catch (e: Exception) {
-            CustomerServiceResult.Failed(500, "创建会话失败：${e.message}")
+            CustomerServiceResult.Failed(500, "获取消息失败：${e.message}")
         }
     }
 
-    /** 用户发送消息 */
-    fun sendMessage(token: String, sessionId: String, rawContent: String, imageData: String? = null): CustomerServiceResult {
+    /** 用户发送消息（含可选图片） */
+    fun send(token: String, rawContent: String, imageData: String?): CustomerServiceResult {
         val userId = UserService.verifyToken(token)
             ?: return CustomerServiceResult.Failed(401, "登录已失效，请重新登录")
         val content = rawContent.trim()
-        if (content.isEmpty() && imageData.isNullOrEmpty()) return CustomerServiceResult.Failed(400, "消息内容不能为空")
-        if (content.length > MAX_CONTENT_LENGTH) return CustomerServiceResult.Failed(400, "消息内容过长，请精简")
-        // 限制图片base64大小，最大2MB
-        if (!imageData.isNullOrEmpty() && imageData.length > 2 * 1024 * 1024) {
-            return CustomerServiceResult.Failed(400, "图片过大，请选择较小的图片")
-        }
+        validate(content, imageData)?.let { return it }
         return try {
             transaction {
-                val username = usernameOf(userId)
-                    ?: return@transaction CustomerServiceResult.Failed(404, "用户不存在")
-                val sessionExists = CustomerServiceSessions.selectAll()
-                    .where {(CustomerServiceSessions.sessionId eq sessionId) and (CustomerServiceSessions.username eq username)}
-                    .any()
-                if (!sessionExists) return@transaction CustomerServiceResult.Failed(404, "会话不存在")
-                CustomerServiceMessages.insert {
-                    it[CustomerServiceMessages.sessionId] = sessionId
-                    it[CustomerServiceMessages.sender] = username
-                    it[CustomerServiceMessages.senderRole] = "user"
-                    it[CustomerServiceMessages.content] = content
-                    it[CustomerServiceMessages.imageData] = imageData
+                val me = usernameOf(userId) ?: return@transaction CustomerServiceResult.Failed(404, "用户不存在")
+                CustomerChat.insert {
+                    it[CustomerChat.username] = me
+                    it[CustomerChat.senderRole] = "user"
+                    it[CustomerChat.content] = content
+                    it[CustomerChat.imageData] = imageData
                 }
                 CustomerServiceResult.Done("消息已发送")
             }
@@ -116,32 +110,26 @@ object CustomerServiceService {
         }
     }
 
-    /** 管理员回复消息 */
-    fun adminReply(token: String, sessionId: String, rawContent: String, imageData: String? = null): CustomerServiceResult {
+    /** 管理员回复指定客户（含可选图片） */
+    fun adminReply(token: String, targetUsername: String, rawContent: String, imageData: String?): CustomerServiceResult {
         val userId = UserService.verifyToken(token)
             ?: return CustomerServiceResult.Failed(401, "登录已失效，请重新登录")
         val content = rawContent.trim()
-        if (content.isEmpty() && imageData.isNullOrEmpty()) return CustomerServiceResult.Failed(400, "回复内容不能为空")
-        if (content.length > MAX_CONTENT_LENGTH) return CustomerServiceResult.Failed(400, "回复内容过长，请精简")
-        // 限制图片base64大小，最大2MB
-        if (!imageData.isNullOrEmpty() && imageData.length > 2 * 1024 * 1024) {
-            return CustomerServiceResult.Failed(400, "图片过大，请选择较小的图片")
-        }
+        validate(content, imageData)?.let { return it }
+        val target = targetUsername.trim()
+        if (target.isEmpty()) return CustomerServiceResult.Failed(400, "请指定要回复的客户")
         return try {
             transaction {
                 if (!isAdmin(userId)) return@transaction CustomerServiceResult.Failed(403, "仅管理员可回复")
-                val adminUsername = usernameOf(userId)
-                    ?: return@transaction CustomerServiceResult.Failed(404, "管理员不存在")
-                val sessionExists = CustomerServiceSessions.selectAll()
-                    .where { CustomerServiceSessions.sessionId eq sessionId }
-                    .any()
-                if (!sessionExists) return@transaction CustomerServiceResult.Failed(404, "会话不存在")
-                CustomerServiceMessages.insert {
-                    it[CustomerServiceMessages.sessionId] = sessionId
-                    it[CustomerServiceMessages.sender] = adminUsername
-                    it[CustomerServiceMessages.senderRole] = "admin"
-                    it[CustomerServiceMessages.content] = content
-                    it[CustomerServiceMessages.imageData] = imageData
+                if (target != GLOBAL_USERNAME) {
+                    val exists = Users.selectAll().where { Users.username eq target }.any()
+                    if (!exists) return@transaction CustomerServiceResult.Failed(404, "客户不存在")
+                }
+                CustomerChat.insert {
+                    it[CustomerChat.username] = target
+                    it[CustomerChat.senderRole] = "admin"
+                    it[CustomerChat.content] = content
+                    it[CustomerChat.imageData] = imageData
                 }
                 CustomerServiceResult.Done("回复已发送")
             }
@@ -150,100 +138,38 @@ object CustomerServiceService {
         }
     }
 
-    /** 获取会话消息列表 */
-    fun getSessionMessages(token: String, sessionId: String): CustomerServiceResult {
-        val userId = UserService.verifyToken(token)
-            ?: return CustomerServiceResult.Failed(401, "登录已失效，请重新登录")
-        return try {
-            transaction {
-                val username = usernameOf(userId)
-                    ?: return@transaction CustomerServiceResult.Failed(404, "用户不存在")
-                val isAdminUser = isAdmin(userId)
-                val sessionExists = if (isAdminUser) {
-                    CustomerServiceSessions.selectAll()
-                        .where { CustomerServiceSessions.sessionId eq sessionId }
-                        .any()
-                } else {
-                    CustomerServiceSessions.selectAll()
-                        .where {(CustomerServiceSessions.sessionId eq sessionId) and (CustomerServiceSessions.username eq username)}
-                        .any()
-                }
-                if (!sessionExists) return@transaction CustomerServiceResult.Failed(404, "会话不存在")
-                val messages = CustomerServiceMessages.selectAll()
-                    .where { CustomerServiceMessages.sessionId eq sessionId }
-                    .orderBy(CustomerServiceMessages.createdAt, SortOrder.ASC)
-                    .map { row ->
-                        CustomerServiceMessageDto(
-                            sender = row[CustomerServiceMessages.sender],
-                            senderRole = row[CustomerServiceMessages.senderRole],
-                            content = row[CustomerServiceMessages.content],
-                            imageData = row[CustomerServiceMessages.imageData],
-                            createdAt = row[CustomerServiceMessages.createdAt].toString()
-                        )
-                    }
-                CustomerServiceResult.SessionMessages(CustomerServiceSessionMessagesResponse(sessionId, messages))
-            }
-        } catch (e: Exception) {
-            CustomerServiceResult.Failed(500, "获取消息失败：${e.message}")
-        }
-    }
-
-    /** 用户会话列表 */
-    fun userSessionList(token: String): CustomerServiceResult {
-        val userId = UserService.verifyToken(token)
-            ?: return CustomerServiceResult.Failed(401, "登录已失效，请重新登录")
-        return try {
-            transaction {
-                val username = usernameOf(userId)
-                    ?: return@transaction CustomerServiceResult.Failed(404, "用户不存在")
-                val sessions = CustomerServiceSessions.selectAll()
-                    .where { CustomerServiceSessions.username eq username }
-                    .orderBy(CustomerServiceSessions.createdAt, SortOrder.DESC)
-                    .map { row ->
-                        val sessionId = row[CustomerServiceSessions.sessionId]
-                        val lastMsg = CustomerServiceMessages.selectAll()
-                            .where { CustomerServiceMessages.sessionId eq sessionId }
-                            .orderBy(CustomerServiceMessages.createdAt, SortOrder.DESC)
-                            .firstOrNull()
-                        CustomerServiceSessionDto(
-                            sessionId = sessionId,
-                            username = row[CustomerServiceSessions.username],
-                            lastMessage = lastMsg?.get(CustomerServiceMessages.content),
-                            lastMessageAt = lastMsg?.get(CustomerServiceMessages.createdAt)?.toString(),
-                            createdAt = row[CustomerServiceSessions.createdAt].toString()
-                        )
-                    }
-                CustomerServiceResult.SessionList(CustomerServiceSessionListResponse(sessions))
-            }
-        } catch (e: Exception) {
-            CustomerServiceResult.Failed(500, "获取会话列表失败：${e.message}")
-        }
-    }
-
-    /** 管理员会话列表 */
-    fun adminSessionList(token: String): CustomerServiceResult {
+    /** 管理员会话列表：每个客户取最新一条消息作摘要，按最近活跃排序 */
+    fun conversations(token: String): CustomerServiceResult {
         val userId = UserService.verifyToken(token)
             ?: return CustomerServiceResult.Failed(401, "登录已失效，请重新登录")
         return try {
             transaction {
                 if (!isAdmin(userId)) return@transaction CustomerServiceResult.Failed(403, "仅管理员可查看会话列表")
-                val sessions = CustomerServiceSessions.selectAll()
-                    .orderBy(CustomerServiceSessions.createdAt, SortOrder.DESC)
-                    .map { row ->
-                        val sessionId = row[CustomerServiceSessions.sessionId]
-                        val lastMsg = CustomerServiceMessages.selectAll()
-                            .where { CustomerServiceMessages.sessionId eq sessionId }
-                            .orderBy(CustomerServiceMessages.createdAt, SortOrder.DESC)
-                            .firstOrNull()
-                        CustomerServiceSessionDto(
-                            sessionId = sessionId,
-                            username = row[CustomerServiceSessions.username],
-                            lastMessage = lastMsg?.get(CustomerServiceMessages.content),
-                            lastMessageAt = lastMsg?.get(CustomerServiceMessages.createdAt)?.toString(),
-                            createdAt = row[CustomerServiceSessions.createdAt].toString()
-                        )
+                val rows = CustomerChat.selectAll()
+                    .orderBy(CustomerChat.createdAt to SortOrder.DESC, CustomerChat.id to SortOrder.DESC)
+                    .toList()
+                var globalLast: CustomerConversationDto? = null
+                val seen = LinkedHashMap<String, CustomerConversationDto>()
+                for (row in rows) {
+                    val u = row[CustomerChat.username]
+                    val text = row[CustomerChat.content]
+                    val summary = when {
+                        text.isNotBlank() -> text
+                        !row[CustomerChat.imageData].isNullOrEmpty() -> "图片消息"
+                        else -> ""
                     }
-                CustomerServiceResult.SessionList(CustomerServiceSessionListResponse(sessions))
+                    val dto = CustomerConversationDto(u, summary, row[CustomerChat.createdAt].toString())
+                    if (u == GLOBAL_USERNAME) {
+                        if (globalLast == null) globalLast = dto
+                    } else if (!seen.containsKey(u)) {
+                        seen[u] = dto
+                    }
+                }
+                // 全局通知置顶（即使还没有内容也展示，供管理员发布第一条通知）
+                val global = globalLast ?: CustomerConversationDto(GLOBAL_USERNAME, null, null)
+                CustomerServiceResult.Conversations(
+                    CustomerConversationsResponse(listOf(global) + seen.values.toList())
+                )
             }
         } catch (e: Exception) {
             CustomerServiceResult.Failed(500, "获取会话列表失败：${e.message}")

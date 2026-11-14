@@ -1,31 +1,16 @@
 package com.xlin.travel.setting
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xlin.travel.chat_screen.ChatToastState
@@ -35,11 +20,15 @@ import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.TextGray500
 import com.xlin.travel.image_picker.rememberAvatarPicker
 import com.xlin.travel.login.UserSession
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * 客服服务页面：1:1复制用户反馈页面，去掉工单状态和工单号，添加客服头像。
- * 客服（管理员）回复消息时显示客服头像。
+ * 客服服务（扫码页"客服"按钮进入），对标微信 / Telegram 的左右聊天：
+ * - 普通用户：与客服聊天，可发文字与图片;客服的全局通知对所有人可见（一视同仁）;
+ * - 管理员：会话列表含置顶「全局通知」（向所有用户发布）与各客户会话，点选后查看并回复。
+ * 「新建对话」仅清空当前屏幕（本地边界，不写历史），之后只展示新消息。
  */
 @Composable
 fun CustomerServiceScreen(
@@ -51,65 +40,112 @@ fun CustomerServiceScreen(
     val scope = rememberCoroutineScope()
     val admin = session.isAdmin
 
-    var sessionId by remember { mutableStateOf<String?>(null) }
-    var messages by remember { mutableStateOf<List<CustomerServiceMessageDto>?>(null) }
+    var conversations by remember { mutableStateOf<List<CustomerConversationDto>?>(null) }
+    var selectedUsername by remember { mutableStateOf<String?>(null) }
+    var messages by remember { mutableStateOf<List<CustomerMessageDto>?>(null) }
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
-    var replyDraft by remember { mutableStateOf("") }
+    var draft by remember { mutableStateOf("") }
     var pendingImage by remember { mutableStateOf<String?>(null) }
+    var pendingPreview by remember { mutableStateOf<ImageBitmap?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    var clearBoundary by remember { mutableStateOf<String?>(null) }
 
-    // 图片选择器
     val pickImage = rememberAvatarPicker { data ->
         if (data != null) {
             pendingImage = data.base64
-            toast.show("图片已选择，点击发送即可发送")
+            pendingPreview = data.preview
         }
     }
 
-    suspend fun ensureSession() {
-        loading = true
-        // 首先获取会话列表
-        val listResult = CustomerServiceApi.getSessionList(session.token, admin)
-        if (listResult is CustomerServiceResult.SessionList) {
-            val sessions = listResult.data.sessions
-            if (sessions.isNotEmpty()) {
-                // 使用最新的会话
-                sessionId = sessions.first().sessionId
-            } else if (!admin) {
-                // 普通用户没有会话，创建新会话
-                val createResult = CustomerServiceApi.createSession(session.token)
-                if (createResult is CustomerServiceResult.Created) {
-                    sessionId = createResult.sessionId
-                } else if (createResult is CustomerServiceResult.Failed) {
-                    loadError = createResult.message
-                }
+    suspend fun loadMessages() {
+        when (val result = CustomerServiceApi.getMessages(session.token, if (admin) selectedUsername else null)) {
+            is CustomerServiceResult.Messages -> {
+                messages = result.data.messages
+                loadError = null
             }
-        } else if (listResult is CustomerServiceResult.Failed) {
-            loadError = listResult.message
+            is CustomerServiceResult.Failed -> if (messages == null) loadError = result.message
+            else -> {}
         }
         loading = false
     }
 
-    suspend fun reloadMessages() {
-        sessionId?.let { sid ->
-            when (val result = CustomerServiceApi.getMessages(session.token, sid)) {
-                is CustomerServiceResult.Success -> {
-                    messages = result.data.messages
-                    loadError = null
-                }
-                is CustomerServiceResult.Failed -> loadError = result.message
-                else -> {} // Ignore other result types
+    suspend fun loadConversations() {
+        when (val result = CustomerServiceApi.getConversations(session.token)) {
+            is CustomerServiceResult.Conversations -> {
+                conversations = result.data.conversations
+                loadError = null
+            }
+            is CustomerServiceResult.Failed -> loadError = result.message
+            else -> {}
+        }
+        loading = false
+    }
+
+    val inConversationList = admin && selectedUsername == null
+    val isGlobalChat = admin && selectedUsername == CUSTOMER_GLOBAL_USERNAME
+
+    LaunchedEffect(admin, selectedUsername) {
+        loading = true
+        loadError = null
+        clearBoundary = null
+        if (inConversationList) {
+            loadConversations()
+            while (isActive) {
+                delay(8000)
+                loadConversations()
+            }
+        } else {
+            messages = null
+            loadMessages()
+            while (isActive) {
+                delay(5000)
+                loadMessages()
             }
         }
     }
 
-    LaunchedEffect(Unit) {
-        ensureSession()
+    fun newChat() {
+        clearBoundary = messages.orEmpty().maxOfOrNull { it.createdAt }
+        draft = ""
+        pendingImage = null
+        pendingPreview = null
     }
 
-    LaunchedEffect(sessionId) {
-        sessionId?.let { reloadMessages() }
+    fun send() {
+        val text = draft.trim()
+        val image = pendingImage
+        if (sending || (text.isEmpty() && image == null)) return
+        sending = true
+        scope.launch {
+            try {
+                val result = if (admin) {
+                    val target = selectedUsername
+                    if (target == null) {
+                        toast.show("请先选择要回复的客户")
+                        return@launch
+                    }
+                    CustomerServiceApi.adminReply(session.token, target, text, image)
+                } else {
+                    CustomerServiceApi.send(session.token, text, image)
+                }
+                when (result) {
+                    is CustomerServiceMutationResult.Done -> {
+                        draft = ""
+                        pendingImage = null
+                        pendingPreview = null
+                        loadMessages()
+                    }
+                    is CustomerServiceMutationResult.Failed -> toast.show(result.message)
+                }
+            } finally {
+                sending = false
+            }
+        }
     }
+
+    val boundary = clearBoundary
+    val visibleMessages = messages.orEmpty().filter { boundary == null || it.createdAt > boundary }
 
     Column(
         modifier = modifier
@@ -117,101 +153,127 @@ fun CustomerServiceScreen(
             .background(ChatBackground)
             .safeContentPadding(),
     ) {
-        CustomerServiceTopBar(onBack = onBack)
+        CustomerServiceTopBar(
+            onBack = {
+                if (admin && selectedUsername != null) {
+                    selectedUsername = null
+                    messages = null
+                } else {
+                    onBack()
+                }
+            },
+            title = "客服服务",
+            subtitle = when {
+                isGlobalChat -> "全局通知 · 所有用户可见"
+                admin -> selectedUsername
+                else -> null
+            },
+            onNewChat = if (inConversationList) null else ::newChat,
+        )
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 8.dp),
-        ) {
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when {
-                loading && messages == null -> {
+                loading && (if (inConversationList) conversations == null else messages == null) -> {
                     CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 48.dp),
+                        modifier = Modifier.align(Alignment.Center).padding(top = 48.dp),
                         color = AccentOrange,
                         strokeWidth = 2.dp,
                     )
                 }
-                loadError != null && messages.isNullOrEmpty() -> {
+                loadError != null && (if (inConversationList) conversations.isNullOrEmpty() else messages.isNullOrEmpty()) -> {
                     Text(
                         text = loadError ?: "加载失败",
                         color = TextGray500,
                         fontSize = 14.sp,
-                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 48.dp),
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
                     )
                 }
-                messages.isNullOrEmpty() -> {
-                    Text(
-                        text = "暂无消息",
-                        color = TextGray500,
-                        fontSize = 14.sp,
-                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 48.dp),
-                    )
+                inConversationList -> {
+                    val list = conversations.orEmpty()
+                    if (list.isEmpty()) {
+                        Text(
+                            text = "暂无用户会话，等待用户发起咨询",
+                            color = TextGray500,
+                            fontSize = 14.sp,
+                            modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            items(list, key = { it.username }) { conv ->
+                                CustomerConversationItem(
+                                    username = conv.username,
+                                    lastMessage = conv.lastMessage,
+                                    lastMessageAt = conv.lastMessageAt,
+                                    isGlobal = conv.username == CUSTOMER_GLOBAL_USERNAME,
+                                    onClick = { selectedUsername = conv.username },
+                                )
+                            }
+                        }
+                    }
                 }
                 else -> {
-                    messages?.forEach { msg ->
-                        CustomerServiceBubble(
-                            mine = msg.senderRole != "admin",
-                            content = msg.content,
-                            imageData = msg.imageData,
-                            createdAt = msg.createdAt,
+                    if (visibleMessages.isEmpty()) {
+                        Text(
+                            text = if (isGlobalChat) "还没有全局通知，发送内容即向所有用户发布"
+                            else "暂无消息，发送内容即可联系客服",
+                            color = TextGray500,
+                            fontSize = 14.sp,
+                            modifier = Modifier.align(Alignment.Center).padding(24.dp),
                         )
+                    } else {
+                        val listState = rememberLazyListState()
+                        LaunchedEffect(visibleMessages.size) {
+                            if (visibleMessages.isNotEmpty()) listState.animateScrollToItem(visibleMessages.size - 1)
+                        }
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            state = listState,
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                        ) {
+                            items(visibleMessages) { msg ->
+                                CustomerServiceBubble(
+                                    mine = msg.senderRole != "admin",
+                                    content = msg.content,
+                                    imageData = msg.imageData,
+                                    createdAt = msg.createdAt,
+                                    userAvatar = session.avatar,
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // 如果有待发送的图片，显示预览
-        pendingImage?.let { imageData ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    text = "图片已选择，发送时将一起发送",
-                    color = AccentOrange,
-                    fontSize = 12.sp,
-                    modifier = Modifier.align(Alignment.Center),
+        if (!inConversationList) {
+            pendingPreview?.let { preview ->
+                CustomerImagePreview(
+                    preview = preview,
+                    onRemove = {
+                        pendingImage = null
+                        pendingPreview = null
+                    },
                 )
             }
+            CustomerServiceInputBar(
+                value = draft,
+                onValueChange = { draft = it },
+                placeholder = when {
+                    isGlobalChat -> "发布全局通知（所有用户可见）…"
+                    admin -> "回复用户…"
+                    else -> "发送消息…"
+                },
+                onSend = ::send,
+                onImageClick = { pickImage() },
+                hasImage = pendingImage != null,
+                sending = sending,
+                modifier = Modifier.imePadding(),
+            )
         }
-
-        CustomerServiceInputBar(
-            value = replyDraft,
-            onValueChange = { replyDraft = it },
-            placeholder = if (admin) "回复用户…" else "发送消息…",
-            modifier = Modifier.imePadding(),
-            onImageClick = { pickImage() },
-            onSend = {
-                val text = replyDraft.trim()
-                val sid = sessionId
-                val image = pendingImage
-                if (text.isEmpty() && image == null) return@CustomerServiceInputBar
-                if (sid == null) {
-                    toast.show("请先创建会话")
-                    return@CustomerServiceInputBar
-                }
-                scope.launch {
-                    val result = if (admin) {
-                        CustomerServiceApi.adminReply(session.token, sid, text.ifBlank { "图片消息" }, image)
-                    } else {
-                        CustomerServiceApi.userSend(session.token, sid, text.ifBlank { "图片消息" }, image)
-                    }
-                    when (result) {
-                        is CustomerServiceMutationResult.Done -> {
-                            replyDraft = ""
-                            pendingImage = null
-                            toast.show(result.message)
-                            reloadMessages()
-                        }
-                        is CustomerServiceMutationResult.Failed -> toast.show(result.message)
-                    }
-                }
-            },
-        )
     }
 
     TopToast(toast, modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))

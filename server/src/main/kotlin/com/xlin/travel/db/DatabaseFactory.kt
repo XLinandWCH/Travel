@@ -65,7 +65,7 @@ object DatabaseFactory {
         //    历史统一表 model_api_keys 不再创建（旧库中已存在则原样保留、不引用、不 DROP）。
         //    SchemaUtils.create 是“缺表才建、存在即跳过”，绝不会 DROP / 重建已有表与数据。
         transaction {
-            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets, FeedbackMessages, MapKeys, CustomerServiceSessions, CustomerServiceMessages)
+            SchemaUtils.create(Users, LlmModels, VoiceModels, BroadcastMessages, FeedbackTickets, FeedbackMessages, MapKeys, CustomerChat)
         }
 
         // 4. 增量迁移：为已存在的旧表补上新列 / 外键
@@ -85,6 +85,8 @@ object DatabaseFactory {
             "ALTER TABLE feedback_tickets ADD COLUMN rating INT NULL",
             "ALTER TABLE feedback_tickets ADD CONSTRAINT fk_fb_user FOREIGN KEY (username) REFERENCES users(username)",
             "ALTER TABLE feedback_messages ADD CONSTRAINT fk_fbmsg_ticket FOREIGN KEY (ticket_id) REFERENCES feedback_tickets(ticket_id)",
+            // 客服图片 base64（PNG ≤512px）常达几百 KB，远超 TEXT(64KB)；升级为 MEDIUMTEXT(16MB)
+            "ALTER TABLE customer_chat MODIFY COLUMN image_data MEDIUMTEXT NULL",
         ).forEach { ddl ->
             runCatching {
                 dataSource.connection.use { conn ->

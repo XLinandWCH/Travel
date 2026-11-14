@@ -57,6 +57,8 @@ val InputCardBackground: Color
     get() = themeColor(Color(0xFF2D2D2D), SoftWhiteSurface, WarmSurface)      // 输入框卡片主体 [输入框]
 val UserBubbleBackground: Color
     get() = themeColor(Color(0xFF2D2D2D), Color(0xFFE4E4E4), Color(0xFFEDE1CB))    // 用户消息气泡
+val ServiceBubbleBackground: Color
+    get() = themeColor(Color(0xFF3B2A1E), Color(0xFFFBE4D2), Color(0xFFF7DDC2))    // 客服消息气泡：强调橙同族的浅杏橙，只做基础区分、不用饱和强调色
 val SettingCardBackground: Color
     get() = themeColor(Color(0xFF1E1E1E), SoftWhiteSurface, WarmCardSurface)      // 设置分组卡片 --card [设置]
 val IconButtonBackground: Color
