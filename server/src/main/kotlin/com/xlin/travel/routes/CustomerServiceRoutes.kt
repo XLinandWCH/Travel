@@ -30,13 +30,13 @@ fun Route.customerServiceRoutes() {
         post("/send") {
             if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
             val request = call.receiveOrNull<CustomerServiceSendMessageRequest>() ?: return@post badRequest(call)
-            respondCustomerService(call, CustomerServiceService.sendMessage(request.token, request.sessionId, request.content))
+            respondCustomerService(call, CustomerServiceService.sendMessage(request.token, request.sessionId, request.content, request.imageData))
         }
 
         post("/admin/reply") {
             if (!DatabaseFactory.isInitialized) return@post databaseUnavailable(call)
             val request = call.receiveOrNull<CustomerServiceAdminReplyRequest>() ?: return@post badRequest(call)
-            respondCustomerService(call, CustomerServiceService.adminReply(request.token, request.sessionId, request.content))
+            respondCustomerService(call, CustomerServiceService.adminReply(request.token, request.sessionId, request.content, request.imageData))
         }
 
         post("/messages") {

@@ -84,12 +84,16 @@ object CustomerServiceService {
     }
 
     /** 用户发送消息 */
-    fun sendMessage(token: String, sessionId: String, rawContent: String): CustomerServiceResult {
+    fun sendMessage(token: String, sessionId: String, rawContent: String, imageData: String? = null): CustomerServiceResult {
         val userId = UserService.verifyToken(token)
             ?: return CustomerServiceResult.Failed(401, "登录已失效，请重新登录")
         val content = rawContent.trim()
-        if (content.isEmpty()) return CustomerServiceResult.Failed(400, "消息内容不能为空")
+        if (content.isEmpty() && imageData.isNullOrEmpty()) return CustomerServiceResult.Failed(400, "消息内容不能为空")
         if (content.length > MAX_CONTENT_LENGTH) return CustomerServiceResult.Failed(400, "消息内容过长，请精简")
+        // 限制图片base64大小，最大2MB
+        if (!imageData.isNullOrEmpty() && imageData.length > 2 * 1024 * 1024) {
+            return CustomerServiceResult.Failed(400, "图片过大，请选择较小的图片")
+        }
         return try {
             transaction {
                 val username = usernameOf(userId)
@@ -103,6 +107,7 @@ object CustomerServiceService {
                     it[CustomerServiceMessages.sender] = username
                     it[CustomerServiceMessages.senderRole] = "user"
                     it[CustomerServiceMessages.content] = content
+                    it[CustomerServiceMessages.imageData] = imageData
                 }
                 CustomerServiceResult.Done("消息已发送")
             }
@@ -112,12 +117,16 @@ object CustomerServiceService {
     }
 
     /** 管理员回复消息 */
-    fun adminReply(token: String, sessionId: String, rawContent: String): CustomerServiceResult {
+    fun adminReply(token: String, sessionId: String, rawContent: String, imageData: String? = null): CustomerServiceResult {
         val userId = UserService.verifyToken(token)
             ?: return CustomerServiceResult.Failed(401, "登录已失效，请重新登录")
         val content = rawContent.trim()
-        if (content.isEmpty()) return CustomerServiceResult.Failed(400, "回复内容不能为空")
+        if (content.isEmpty() && imageData.isNullOrEmpty()) return CustomerServiceResult.Failed(400, "回复内容不能为空")
         if (content.length > MAX_CONTENT_LENGTH) return CustomerServiceResult.Failed(400, "回复内容过长，请精简")
+        // 限制图片base64大小，最大2MB
+        if (!imageData.isNullOrEmpty() && imageData.length > 2 * 1024 * 1024) {
+            return CustomerServiceResult.Failed(400, "图片过大，请选择较小的图片")
+        }
         return try {
             transaction {
                 if (!isAdmin(userId)) return@transaction CustomerServiceResult.Failed(403, "仅管理员可回复")
@@ -132,6 +141,7 @@ object CustomerServiceService {
                     it[CustomerServiceMessages.sender] = adminUsername
                     it[CustomerServiceMessages.senderRole] = "admin"
                     it[CustomerServiceMessages.content] = content
+                    it[CustomerServiceMessages.imageData] = imageData
                 }
                 CustomerServiceResult.Done("回复已发送")
             }
@@ -167,6 +177,7 @@ object CustomerServiceService {
                             sender = row[CustomerServiceMessages.sender],
                             senderRole = row[CustomerServiceMessages.senderRole],
                             content = row[CustomerServiceMessages.content],
+                            imageData = row[CustomerServiceMessages.imageData],
                             createdAt = row[CustomerServiceMessages.createdAt].toString()
                         )
                     }

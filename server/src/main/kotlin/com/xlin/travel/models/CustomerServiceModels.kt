@@ -11,13 +11,23 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CustomerServiceTokenRequest(val token: String)
 
-/** 用户发送消息：token + 会话ID + 消息内容 */
+/** 用户发送消息：token + 会话ID + 消息内容 + 可选图片 */
 @Serializable
-data class CustomerServiceSendMessageRequest(val token: String, val sessionId: String, val content: String)
+data class CustomerServiceSendMessageRequest(
+    val token: String,
+    val sessionId: String,
+    val content: String,
+    val imageData: String? = null    // 图片base64数据，可选
+)
 
-/** 管理员回复消息：token + 会话ID + 消息内容 */
+/** 管理员回复消息：token + 会话ID + 消息内容 + 可选图片 */
 @Serializable
-data class CustomerServiceAdminReplyRequest(val token: String, val sessionId: String, val content: String)
+data class CustomerServiceAdminReplyRequest(
+    val token: String,
+    val sessionId: String,
+    val content: String,
+    val imageData: String? = null    // 图片base64数据，可选
+)
 
 /** 获取会话消息：token + 会话ID */
 @Serializable
@@ -52,6 +62,7 @@ data class CustomerServiceMessageDto(
     val sender: String,
     val senderRole: String,       // 'admin' / 'user'
     val content: String,
+    val imageData: String? = null,  // 图片base64数据，可选
     val createdAt: String,
 )
 

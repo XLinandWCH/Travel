@@ -90,6 +90,7 @@ fun CustomerServiceComposeScreen(
                 onValueChange = { draft = it },
                 placeholder = "请输入反馈内容…",
                 modifier = Modifier.imePadding(),
+                onImageClick = { },
                 onSend = ::send,
             )
         }

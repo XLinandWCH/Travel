@@ -1,6 +1,7 @@
 package com.xlin.travel.setting
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,6 +33,7 @@ import com.xlin.travel.chat_screen.TopToast
 import com.xlin.travel.color.AccentOrange
 import com.xlin.travel.color.ChatBackground
 import com.xlin.travel.color.TextGray500
+import com.xlin.travel.image_picker.rememberAvatarPicker
 import com.xlin.travel.login.UserSession
 import kotlinx.coroutines.launch
 
@@ -54,6 +56,15 @@ fun CustomerServiceScreen(
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var replyDraft by remember { mutableStateOf("") }
+    var pendingImage by remember { mutableStateOf<String?>(null) }
+
+    // 图片选择器
+    val pickImage = rememberAvatarPicker { data ->
+        if (data != null) {
+            pendingImage = data.base64
+            toast.show("图片已选择，点击发送即可发送")
+        }
+    }
 
     suspend fun ensureSession() {
         loading = true
@@ -144,10 +155,27 @@ fun CustomerServiceScreen(
                         CustomerServiceBubble(
                             mine = msg.senderRole != "admin",
                             content = msg.content,
+                            imageData = msg.imageData,
                             createdAt = msg.createdAt,
                         )
                     }
                 }
+            }
+        }
+
+        // 如果有待发送的图片，显示预览
+        pendingImage?.let { imageData ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = "图片已选择，发送时将一起发送",
+                    color = AccentOrange,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.Center),
+                )
             }
         }
 
@@ -156,19 +184,26 @@ fun CustomerServiceScreen(
             onValueChange = { replyDraft = it },
             placeholder = if (admin) "回复用户…" else "发送消息…",
             modifier = Modifier.imePadding(),
+            onImageClick = { pickImage() },
             onSend = {
                 val text = replyDraft.trim()
                 val sid = sessionId
-                if (text.isEmpty() || sid == null) return@CustomerServiceInputBar
+                val image = pendingImage
+                if (text.isEmpty() && image == null) return@CustomerServiceInputBar
+                if (sid == null) {
+                    toast.show("请先创建会话")
+                    return@CustomerServiceInputBar
+                }
                 scope.launch {
                     val result = if (admin) {
-                        CustomerServiceApi.adminReply(session.token, sid, text)
+                        CustomerServiceApi.adminReply(session.token, sid, text.ifBlank { "图片消息" }, image)
                     } else {
-                        CustomerServiceApi.userSend(session.token, sid, text)
+                        CustomerServiceApi.userSend(session.token, sid, text.ifBlank { "图片消息" }, image)
                     }
                     when (result) {
                         is CustomerServiceMutationResult.Done -> {
                             replyDraft = ""
+                            pendingImage = null
                             toast.show(result.message)
                             reloadMessages()
                         }

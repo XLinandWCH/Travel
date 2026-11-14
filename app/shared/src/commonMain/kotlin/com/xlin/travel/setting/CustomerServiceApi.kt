@@ -21,10 +21,20 @@ import kotlinx.serialization.Serializable
 private data class CustomerTokenRequest(val token: String)
 
 @Serializable
-private data class CustomerSendRequest(val token: String, val sessionId: String, val content: String)
+private data class CustomerSendRequest(
+    val token: String,
+    val sessionId: String,
+    val content: String,
+    val imageData: String? = null
+)
 
 @Serializable
-private data class CustomerAdminReplyRequest(val token: String, val sessionId: String, val content: String)
+private data class CustomerAdminReplyRequest(
+    val token: String,
+    val sessionId: String,
+    val content: String,
+    val imageData: String? = null
+)
 
 @Serializable
 private data class CustomerSessionRequest(val token: String, val sessionId: String)
@@ -37,6 +47,7 @@ data class CustomerServiceMessageDto(
     val sender: String,
     val senderRole: String,       // 'admin' / 'user'
     val content: String,
+    val imageData: String? = null,  // 图片base64数据，可选
     val createdAt: String,
 )
 
@@ -148,11 +159,11 @@ object CustomerServiceApi {
     }
 
     /** 用户发送消息给客服 */
-    suspend fun userSend(token: String, sessionId: String, content: String): CustomerServiceMutationResult {
+    suspend fun userSend(token: String, sessionId: String, content: String, imageData: String? = null): CustomerServiceMutationResult {
         return try {
             val response = client.post("$SERVER_BASE_URL/api/customer-service/send") {
                 contentType(ContentType.Application.Json)
-                setBody(CustomerSendRequest(token, sessionId, content))
+                setBody(CustomerSendRequest(token, sessionId, content, imageData))
             }
             if (response.status == HttpStatusCode.OK) {
                 CustomerServiceMutationResult.Done(response.body<CustomerOkResponse>().message)
@@ -165,11 +176,11 @@ object CustomerServiceApi {
     }
 
     /** 管理员（客服）回复用户消息 */
-    suspend fun adminReply(token: String, sessionId: String, content: String): CustomerServiceMutationResult {
+    suspend fun adminReply(token: String, sessionId: String, content: String, imageData: String? = null): CustomerServiceMutationResult {
         return try {
             val response = client.post("$SERVER_BASE_URL/api/customer-service/admin/reply") {
                 contentType(ContentType.Application.Json)
-                setBody(CustomerAdminReplyRequest(token, sessionId, content))
+                setBody(CustomerAdminReplyRequest(token, sessionId, content, imageData))
             }
             if (response.status == HttpStatusCode.OK) {
                 CustomerServiceMutationResult.Done(response.body<CustomerOkResponse>().message)

@@ -169,8 +169,9 @@ object CustomerServiceSessions : Table("customer_service_sessions") {
 }
 
 /**
- * 客服消息：id / 会话ID(外键→customer_service_sessions) / 发送者 / 发送者角色 / 内容 / 时间。
+ * 客服消息：id / 会话ID(外键→customer_service_sessions) / 发送者 / 发送者角色 / 内容 / 图片 / 时间。
  * [senderRole] 为 'admin'（客服回复）或 'user'（用户消息）。
+ * [imageData] 存储图片的base64数据（PNG，已缩放），NULL表示无图片。
  */
 object CustomerServiceMessages : Table("customer_service_messages") {
     val id = long("id").autoIncrement()
@@ -178,6 +179,7 @@ object CustomerServiceMessages : Table("customer_service_messages") {
     val sender = varchar("sender", 32)                        // 发送者用户名
     val senderRole = varchar("sender_role", 8)               // 'admin' / 'user'
     val content = text("content")                             // 消息正文
+    val imageData = text("image_data").nullable()             // 图片base64数据（PNG，≤512px），NULL表示无图片
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
 
     override val primaryKey = PrimaryKey(id)
