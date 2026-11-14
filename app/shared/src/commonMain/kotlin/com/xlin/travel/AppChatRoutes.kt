@@ -6,6 +6,11 @@ import com.xlin.travel.chat_screen.MainChatContent
 import com.xlin.travel.drawer.ChatDrawer
 import com.xlin.travel.guest.GuestScreen
 import com.xlin.travel.login.LoginScreen
+import com.xlin.travel.qrcode.LifenRouteMapScreen
+import com.xlin.travel.qrcode.QRScanScreen
+import com.xlin.travel.qrcode.RouteTourScreen
+import com.xlin.travel.qrcode.TourMapViewerScreen
+import com.xlin.travel.qrcode.TravelDetailScreen
 import com.xlin.travel.search.SearchScreen
 import com.xlin.travel.videoexplain.VideoExplainScreen
 import kotlinx.coroutines.launch
@@ -73,6 +78,8 @@ internal fun AppHost.ChatRoutes() {
                 onOpenSurfaces = { screen = AppScreen.Surfaces },
                 // 输入框「视频讲解」：进入模拟通话页，关闭后回聊天
                 onOpenVideoExplain = { screen = AppScreen.VideoExplain },
+                // 顶栏扫码图标：进入二维码扫描界面
+                onOpenQRScan = { screen = AppScreen.QRScan },
                 onMenuClick = {
                     scope.launch {
                         history.refresh()
@@ -125,6 +132,45 @@ internal fun AppHost.ChatRoutes() {
                 history.clearSearch()
                 screen = AppScreen.Chat
             },
+        )
+
+        // 二维码扫描：扫描到任意二维码后跳转到里份路线图
+        AppScreen.QRScan -> QRScanScreen(
+            onBack = { screen = AppScreen.Chat },
+            onQRScanned = { screen = AppScreen.LifenRouteMap },
+        )
+
+        // 里份路线图：六个大类全部可点击，进入各自线路页（共用一套模板）
+        AppScreen.LifenRouteMap -> LifenRouteMapScreen(
+            onBack = { screen = AppScreen.Chat },
+            onRouteClick = { category ->
+                selectedRoute = category.route
+                screen = AppScreen.RouteTour
+            },
+        )
+
+        // 线路页：景点按钮进各自详情页，地图点击进全屏查看
+        AppScreen.RouteTour -> RouteTourScreen(
+            route = selectedRoute,
+            onBack = { screen = AppScreen.LifenRouteMap },
+            onSpotClick = { stop ->
+                selectedTourSpot = stop
+                screen = AppScreen.TourSpotDetail
+            },
+            onMapClick = { screen = AppScreen.TourMapViewer },
+        )
+
+        // 景点详情页：介绍图 + "开发中.."，后续按景点替换为真实内容页
+        AppScreen.TourSpotDetail -> TravelDetailScreen(
+            title = selectedTourSpot.displayName,
+            image = selectedTourSpot.image,
+            onBack = { screen = AppScreen.RouteTour },
+        )
+
+        // 地图全屏查看：缩放 / 拖动 / 双击
+        AppScreen.TourMapViewer -> TourMapViewerScreen(
+            mapImage = selectedRoute.mapImage,
+            onBack = { screen = AppScreen.RouteTour },
         )
 
         else -> Unit

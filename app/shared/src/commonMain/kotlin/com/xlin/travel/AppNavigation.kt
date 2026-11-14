@@ -32,6 +32,11 @@ internal enum class AppScreen {
     HelpCenter,
     Document,
     AccountControl,
+    QRScan,
+    LifenRouteMap,
+    RouteTour,
+    TourSpotDetail,
+    TourMapViewer,
 }
 
 /**
@@ -49,5 +54,9 @@ internal fun AppScreen.systemBackTarget(): AppScreen = when (this) {
     AppScreen.FeedbackCompose, AppScreen.BroadcastCompose,
     AppScreen.BroadcastDetail -> AppScreen.MessageCenter
     AppScreen.Login -> AppScreen.Guest
+    AppScreen.QRScan -> AppScreen.Chat
+    AppScreen.LifenRouteMap -> AppScreen.Chat
+    AppScreen.RouteTour -> AppScreen.LifenRouteMap
+    AppScreen.TourSpotDetail, AppScreen.TourMapViewer -> AppScreen.RouteTour
     else -> AppScreen.Chat
 }

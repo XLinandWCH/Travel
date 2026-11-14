@@ -17,6 +17,9 @@ import com.xlin.travel.db.rememberChatRepository
 import com.xlin.travel.drawer.ChatHistoryState
 import com.xlin.travel.inputbox.ChatInputState
 import com.xlin.travel.login.UserSession
+import com.xlin.travel.qrcode.LifenTourRoutes
+import com.xlin.travel.qrcode.TourRoute
+import com.xlin.travel.qrcode.TourStop
 import com.xlin.travel.setting.BroadcastDto
 import com.xlin.travel.setting.LegalDoc
 import com.xlin.travel.setting.MessageBadgeState
@@ -67,6 +70,12 @@ internal class AppHost(
 
     /** 尚未开发的设置条目统一进入「XXX 即将上线」占位页 */
     var comingSoonTitle by mutableStateOf("")
+
+    /** 里份路线图点进的线路，供线路页 / 地图查看页读取地图与景点 */
+    var selectedRoute by mutableStateOf<TourRoute>(LifenTourRoutes.quickTour)
+
+    /** 线路页点进的景点，供景点详情页（当前"开发中.."）作标题与介绍图 */
+    var selectedTourSpot by mutableStateOf<TourStop>(LifenTourRoutes.quickTour.stops.first())
 
     /** 服务条款 / 隐私政策等法务文档页要展示的文档 */
     var legalDoc by mutableStateOf(LegalDoc.Terms)
